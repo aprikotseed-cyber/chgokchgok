@@ -1,15 +1,18 @@
-import { connect, isDemo } from './store.js?v=20261110c';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110c';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110c';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110c';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110c';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110c';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110c';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110c';
-import { ask, SUGGEST } from './assistant.js?v=20261110c';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110c';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110c';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110c';
+import { connect, isDemo } from './store.js?v=20261110d';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110d';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110d';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110d';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110d';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110d';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110d';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110d';
+import { ask, SUGGEST } from './assistant.js?v=20261110d';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110d';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110d';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110d';
+import { createGoogle } from './google.js?v=20261110d';
+import { createDemoGoogle } from './google-demo.js?v=20261110d';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES } from './agenda.js?v=20261110d';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -32,6 +35,9 @@ const state = {
   refresh: null,        // [지금 업데이트] 요청 상태 {at, kind, quotesAt}
   reorder: null,        // 순서 바꾸는 중인 목록 (예: 'savings')
   dragging: false,
+  agenda: null,         // 구글에서 받아 둔 일정·할일 {calendars, lists, listId, events, tasks, syncedAt}
+  gsync: '',            // '' | 'busy' | 'auth'(다시 연결 필요) | 오류 문구
+  calDays: 14,
 };
 let store;
 
@@ -49,6 +55,14 @@ const SIGUNGU = [
 const FIXED_CATS = ['주거', '통신', '보험', '구독', '교통', '공과금', '교육', '기부·후원', '모임·데이트', '기타'];
 
 const FORMS = {
+  task: {
+    title: '할일',
+    fields: [
+      { key: 'title', label: '할일', type: 'text', required: true },
+      { key: 'due', label: '마감일', type: 'date', optional: true, hint: '비워 두면 날짜 없는 할일이에요.' },
+      { key: 'notes', label: '메모', type: 'text', placeholder: '선택' },
+    ],
+  },
   savings: {
     title: '저축·현금',
     fields: [
@@ -286,6 +300,7 @@ function viewHome() {
   const noPayDay = (d.debts || []).some((l) => !l.schedule?.length && loanBalance(l) > 0 && !l.payDay);
 
   return `
+  ${todayBlock()}
   ${isEmpty ? `<p class="notice">아직 입력된 자산이 없어요. <a href="#assets">자산</a>과 <a href="#debts">부채</a>에서 하나씩 추가해 보세요.</p>` : ''}
   <div class="summary">
   <section class="hero">
@@ -828,6 +843,7 @@ function viewSettings() {
 
   return `
   <div class="cols"><div class="col-main">
+  ${section('구글 캘린더·할일', googleSettings())}
   ${section('비서 알림', `<div class="panel">
       <p class="pad">매일 오전 8시에 확인해서 <b>대출 상환일 5·3·1일 전</b>, <b>고정지출 출금 하루 전</b>에 휴대폰으로 알려드려요. 앱을 열면 홈의 '고정지출·상환 일정'에서도 볼 수 있어요.</p>
       ${pushBody}
@@ -876,9 +892,274 @@ async function loadPush() {
   if (state.tab === 'settings') render();
 }
 
+// ───────────────────────── 일정·할일 (구글 캘린더·구글 태스크) ─────────────────────────
+// 앱에서 구글에 연결해 받아 온 일정·할일은 Firestore(agenda)에 저장해 둬서, 다음에 열면 연결 없이도 바로 보여요.
+const DEFAULT_CALS = ['exercise', 'cherish', 'birthday', 'work', 'life', ...PARTNER_NAMES];
+const gset = () => state.data.settings?.google || {};
+let googleApi = null;
+let googleFor = null;
+function gapi() {
+  if (isDemo()) return (googleApi ||= createDemoGoogle());
+  const id = gset().clientId || '';
+  if (!id) return null;
+  if (id !== googleFor) { googleApi = createGoogle(id); googleFor = id; }
+  return googleApi;
+}
+const gConnected = () => !!gapi()?.connected();
+
+/** 캘린더별 보기·반려자 설정 (설정에서 바꾼 값이 우선) */
+const calPref = (c) => ({ show: gset().cals?.[c.id]?.show ?? c.show, partner: gset().cals?.[c.id]?.partner ?? c.partner });
+
+/** 화면에 보여줄 일정 (숨긴 캘린더는 빼고, 반려자 표시는 지금 설정대로) */
+function agendaEvents() {
+  const a = state.agenda;
+  if (!a) return [];
+  const prefs = new Map((a.calendars || []).map((c) => [c.id, calPref(c)]));
+  return (a.events || []).filter((e) => prefs.get(e.calId)?.show !== false).map((e) => ({ ...e, partner: prefs.get(e.calId)?.partner ?? e.partner }));
+}
+
+/** 대출 상환·고정지출도 일정 화면에 같이 (돈 나가는 날) */
+function moneyEvents(days) {
+  return upcoming(state.data, now(), days).map((u) => {
+    const k = ymd(u.date);
+    return { id: `m-${u.type}-${u.id}`, money: true, calName: u.type === 'loan' ? '대출 상환' : '고정지출', color: '', partner: false,
+      title: `${u.name} ${u.exact ? wonExact(u.amount) : `약 ${won(u.amount)}`}`, allDay: true, startKey: k, endKey: k, time: '', endTime: '', link: `#${u.type === 'loan' ? 'debts' : 'fixed'}` };
+  });
+}
+
+let syncing = null;
+/** 구글에서 일정·할일 새로 받기. interactive=false면 이미 연결된 경우에만 조용히 */
+function syncAgenda(interactive = false) {
+  const g = gapi();
+  if (!g) { if (interactive) { toast('먼저 설정에서 구글 클라이언트 ID를 넣어 주세요.'); location.hash = '#settings'; } return null; }
+  if (!interactive && !g.connected()) return null;
+  if (syncing) return syncing;
+  state.gsync = 'busy';
+  renderGsync();
+  syncing = (async () => {
+    try {
+      const t = now();
+      const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1);
+      const to = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 32);
+      const raw = await g.calendars(interactive);
+      const named = raw.some((c) => DEFAULT_CALS.includes((c.summaryOverride || c.summary || '').toLowerCase()));
+      const calendars = raw.map((c) => {
+        const name = c.summaryOverride || c.summary || '';
+        return { id: c.id, name, color: c.backgroundColor || '', primary: !!c.primary,
+          show: named ? DEFAULT_CALS.includes(name.toLowerCase()) : c.accessRole === 'owner' || !!c.primary,
+          partner: PARTNER_NAMES.includes(name) };
+      });
+      const shown = calendars.filter((c) => calPref(c).show);
+      const lists = await g.taskLists(interactive);
+      const listId = lists.some((l) => l.id === gset().taskList) ? gset().taskList : lists[0]?.id || '';
+      const [evs, tasks] = await Promise.all([
+        Promise.all(shown.map((c) => g.events(c.id, from.toISOString(), to.toISOString(), interactive)
+          .then((items) => items.filter((e) => e.status !== 'cancelled').map((e) => normEvent(e, { id: c.id, summary: c.name, backgroundColor: c.color, partner: calPref(c).partner }))))),
+        listId ? g.tasks(listId, interactive) : [],
+      ]);
+      const old = ymd(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 30));
+      state.agenda = {
+        calendars, lists: lists.map((l) => ({ id: l.id, title: l.title || '' })), listId,
+        events: evs.flat(),
+        tasks: tasks.filter((x) => !x.deleted && (x.title || '').trim()).map((x) => normTask(x, listId)).filter((x) => !x.done || !x.completedAt || x.completedAt >= old),
+        syncedAt: Date.now(),
+      };
+      state.gsync = '';
+      saveAgendaSoon(0);
+    } catch (e) {
+      state.gsync = e.needsAuth ? 'auth' : e.message;
+      if (interactive) toast(e.message);
+    } finally {
+      syncing = null;
+      render();
+    }
+  })();
+  return syncing;
+}
+
+let agendaTimer;
+function saveAgendaSoon(ms = 800) {
+  clearTimeout(agendaTimer);
+  agendaTimer = setTimeout(() => state.agenda && store.saveAgenda(JSON.parse(JSON.stringify(state.agenda))).catch(() => {}), ms);
+}
+
+/** 할일 바꾸기: 화면에 먼저 반영하고, 구글에서 실패하면 되돌려요 */
+async function taskOp(change, call) {
+  const g = gapi();
+  if (!g || !state.agenda) return toast('먼저 설정에서 구글에 연결해 주세요.');
+  const before = JSON.stringify(state.agenda.tasks);
+  change(state.agenda.tasks);
+  render();
+  try {
+    await call(g, state.agenda.listId);
+    saveAgendaSoon();
+  } catch (e) {
+    state.agenda.tasks = JSON.parse(before);
+    if (e.needsAuth) state.gsync = 'auth';
+    render();
+    toast(`구글에 반영하지 못했어요: ${e.message}`);
+  }
+}
+
+function addTask(text) {
+  const { title, due } = parseQuickTask(text, now());
+  if (!title) return;
+  if (!state.agenda?.listId) return toast('먼저 설정에서 구글에 연결해 주세요.');
+  const tmp = { id: `tmp-${Date.now()}`, listId: state.agenda.listId, title, notes: '', due, done: false, completedAt: '', updated: '' };
+  taskOp((ts) => ts.unshift(tmp), async (g, l) => {
+    const r = await g.addTask(l, { title, ...(due ? { due: toTaskDue(due) } : {}) });
+    const i = state.agenda.tasks.findIndex((x) => x.id === tmp.id);
+    if (i >= 0) state.agenda.tasks[i] = normTask(r, l);
+    render();
+  });
+  toast(due ? `‘${title}’ · ${dueLabel(due, today())}${due === today() ? '' : '까지'} 추가했어요.` : `‘${title}’을(를) 추가했어요.`);
+}
+
+function toggleTask(id) {
+  const t = state.agenda?.tasks.find((x) => x.id === id);
+  if (!t || t.id.startsWith('tmp-')) return;
+  const done = !t.done;
+  taskOp(() => Object.assign(t, { done, completedAt: done ? today() : '' }),
+    (g, l) => g.patchTask(l, id, done ? { status: 'completed' } : { status: 'needsAction', completed: null }));
+}
+
+function saveTask(vals) {
+  const id = editing.id;
+  const due = vals.due || '';
+  taskOp((ts) => Object.assign(ts.find((x) => x.id === id) || {}, { title: vals.title, notes: vals.notes, due }),
+    (g, l) => g.patchTask(l, id, { title: vals.title, notes: vals.notes, due: due ? toTaskDue(due) : null }));
+}
+
+function removeTask(id) {
+  taskOp((ts) => ts.splice(ts.findIndex((x) => x.id === id), 1), (g, l) => g.deleteTask(l, id));
+}
+
+/** 구글 연결 상태 한 줄 (일정·할일 화면 위) */
+function gsyncLine() {
+  const a = state.agenda;
+  const s = state.gsync;
+  const when = a?.syncedAt ? `${dateTime(a.syncedAt)} 기준` : '';
+  if (s === 'busy') return `<span class="gsync">불러오는 중…</span>`;
+  const btn = gConnected()
+    ? '<button class="link-btn" data-action="g-sync">새로고침</button>'
+    : `<button class="link-btn" data-action="g-sync">${a ? '구글 다시 연결' : '구글 연결'}</button>`;
+  return `<span class="gsync">${s && s !== 'auth' ? `<span class="warn">${esc(s)}</span>` : esc(when)}${btn}</span>`;
+}
+function renderGsync() { document.querySelectorAll('.gsync').forEach((el) => (el.outerHTML = gsyncLine())); }
+
+/** 구글을 아직 연결하지 않았을 때 안내 */
+function connectCta(what) {
+  const hasId = isDemo() || !!gset().clientId;
+  return `<div class="panel"><p class="pad">구글 캘린더와 구글 태스크를 연결하면 ${what} 여기에 보여요.</p>
+    <div class="pad">${hasId ? '<button class="btn primary" data-action="g-sync">구글 연결하기</button>' : '<a class="btn primary" href="#settings">설정에서 연결하기</a>'}</div></div>`;
+}
+
+function eventRow(e, dayKey) {
+  const multi = e.startKey !== e.endKey;
+  const md = (k) => `${Number(k.slice(5, 7))}.${Number(k.slice(8))}`;
+  const span = multi ? `${md(e.startKey)}~${md(e.endKey)}` : '';
+  const when = e.allDay ? '종일' : (e.startKey < dayKey ? '계속' : e.time);
+  const meta = [e.calName + (e.partner ? ' (반려자)' : ''), !e.allDay && e.endTime && e.endKey === dayKey ? `~${e.endTime}` : '', span, e.location].filter(Boolean).map(esc).join(' · ');
+  const inner = `<span class="ev-time">${when}</span><span class="ev-dot${e.money ? ' money' : ''}" style="${e.color ? `--c:${esc(e.color)}` : ''}"></span>
+    <span class="row-main"><span class="row-title">${esc(e.title)}</span><span class="row-meta">${meta}</span></span>`;
+  const cls = `row ev${e.partner ? ' partner' : ''}`;
+  if (!e.link) return `<div class="${cls} static">${inner}</div>`;
+  return e.money ? `<a class="${cls}" href="${e.link}">${inner}</a>` : `<a class="${cls}" href="${esc(e.link)}" target="_blank" rel="noopener">${inner}</a>`;
+}
+
+function taskRow(t) {
+  const label = t.due ? dueLabel(t.due, today()) : '';
+  const late = t.due && t.due < today() && !t.done;
+  return `<div class="row task${t.done ? ' done' : ''}">
+    <button class="check" data-action="task-toggle" data-id="${esc(t.id)}" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title)} ${t.done ? '완료 취소' : '완료'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
+    <button class="row-main" data-action="task-edit" data-id="${esc(t.id)}"><span class="row-title">${esc(t.title)}</span>${label || t.notes ? `<span class="row-meta">${label ? `<span class="${late ? 'late' : ''}">${label}</span>` : ''}${label && t.notes ? ' · ' : ''}${esc(t.notes.split('\n')[0])}</span>` : ''}</button>
+  </div>`;
+}
+
+/** 홈 맨 위 '오늘' */
+function todayBlock() {
+  const a = state.agenda;
+  const d = now();
+  const title = `${d.getMonth() + 1}월 ${d.getDate()}일 ${'일월화수목금토'[d.getDay()]}요일`;
+  if (!a) return section(title, connectCta('오늘 일정과 할일이'));
+  const key = today();
+  const evs = eventsOn([...agendaEvents(), ...moneyEvents(0)], key);
+  const g = groupTasks(a.tasks, key);
+  const due = [...g.overdue, ...g.today];
+  return section(title, `<div class="today">
+      <div class="panel list"><div class="mini-head">일정 <a class="link-btn" href="#calendar">전체</a></div>${evs.length ? evs.map((e) => eventRow(e, key)).join('') : empty('오늘은 일정이 없어요.')}</div>
+      <div class="panel list"><div class="mini-head">할일 <a class="link-btn" href="#tasks">전체</a></div>${due.length ? due.map(taskRow).join('') : empty(g.tomorrow.length ? `오늘 할일은 끝! 내일 할일이 ${g.tomorrow.length}개 있어요.` : '오늘 할일이 없어요.')}</div>
+    </div>`, { action: gsyncLine() });
+}
+
+function viewCalendar() {
+  const a = state.agenda;
+  if (!a) return section('다가오는 일정', connectCta('앞으로의 일정이'), { action: gsyncLine() });
+  const days = state.calDays || 14;
+  const list = agendaDays([...agendaEvents(), ...moneyEvents(days)], now(), days);
+  return section(`앞으로 ${days === 14 ? '2주' : '한 달'}`, `${list.length ? list.map((d) => `<div class="day-group"><h3>${d.label}</h3><div class="panel list">${d.events.map((e) => eventRow(e, d.key)).join('')}</div></div>`).join('') : `<div class="panel">${empty('이 기간에는 일정이 없어요.')}</div>`}
+    ${days === 14 ? '<div class="more"><button class="btn" data-action="cal-more">한 달까지 보기</button></div>' : ''}
+    <p class="hint">구글 캘린더 일정을 보여줘요 (지금은 보기만). 일정을 누르면 구글 캘린더에서 열려요. 보여줄 캘린더는 설정에서 고를 수 있어요.</p>`, { action: gsyncLine() });
+}
+
+const TASK_GROUPS = [['overdue', '지난 할일'], ['today', '오늘'], ['tomorrow', '내일'], ['week', '이번 주'], ['later', '나중에'], ['nodate', '날짜 없음']];
+function viewTasks() {
+  const a = state.agenda;
+  if (!a) return section('할일', connectCta('할일이'), { action: gsyncLine() });
+  const g = groupTasks(a.tasks, today());
+  const open = TASK_GROUPS.filter(([k]) => g[k].length);
+  const listName = a.lists?.find((l) => l.id === a.listId)?.title || '';
+  return `${section('할일 추가', `<form id="task-add" class="quick-add panel" autocomplete="off">
+      <input id="task-input" type="text" placeholder="예: 내일 우유 사기 · 금요일까지 보고서 · 11/20 병원" enterkeyhint="done" aria-label="할일">
+      <button class="btn primary" type="submit">추가</button>
+    </form><p class="hint task-preview" id="task-preview">날짜를 말하면 알아서 마감일로 넣어요. 요일만 쓰면 이번 주 그 요일이에요.</p>`, { action: gsyncLine() })}
+  ${open.length ? open.map(([k, l]) => section(l, `<div class="panel list">${g[k].map(taskRow).join('')}</div>`, { sum: `${g[k].length}` })).join('') : `<div class="panel">${empty('남은 할일이 없어요. 위에서 새로 추가해 보세요.')}</div>`}
+  ${g.done.length ? `<section class="block"><div class="panel">${details('tasks-done', `완료한 일 <span class="hint">최근 30일 ${g.done.length}개</span>`, `<div class="list">${g.done.map(taskRow).join('')}</div>`)}</div></section>` : ''}
+  <p class="hint">구글 태스크${listName ? ` ‘${esc(listName)}’ 목록` : ''}과 연결돼 있어서, 여기서 추가·완료·수정한 내용이 구글에도 바로 기록돼요.</p>`;
+}
+
+/** 설정 → 구글 캘린더·할일 */
+function googleSettings() {
+  const gs = gset();
+  const a = state.agenda;
+  const guide = details('g-guide', gs.clientId ? '클라이언트 ID 바꾸기 · 설정 방법 다시 보기' : '처음 한 번: 구글 연결 준비 (PC에서 10분)', `<div class="pad">
+    <ol class="steps">
+      <li><a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">구글 클라우드 콘솔</a>에서 새 프로젝트를 만들어요 (이름: 차곡차곡).</li>
+      <li>API 및 서비스 → 라이브러리에서 <b>Google Calendar API</b>와 <b>Google Tasks API</b>를 각각 찾아 <b>사용</b>을 눌러요.</li>
+      <li>API 및 서비스 → OAuth 동의 화면: 사용자 유형 <b>외부</b>, 앱 이름 차곡차곡, 이메일은 덕준님 주소. 테스트 사용자에 덕준님 구글 계정을 추가하고, 마지막에 <b>앱 게시</b>(프로덕션으로)를 눌러 두면 연결이 7일마다 끊기지 않아요.</li>
+      <li>API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → <b>OAuth 클라이언트 ID</b> → 유형 <b>웹 애플리케이션</b>. 승인된 자바스크립트 원본에 <b>https://aprikotseed-cyber.github.io</b> 를 넣고 만들기.</li>
+      <li>나온 <b>클라이언트 ID</b>(….apps.googleusercontent.com)를 아래에 붙여 넣고 저장 → 구글 연결하기.</li>
+    </ol>
+    <p class="hint">클라이언트 ID는 공개돼도 괜찮은 값이에요. 연결할 때 구글 화면에서 ‘확인되지 않은 앱’이 나오면 고급 → 차곡차곡(으)로 이동을 누르면 돼요 (덕준님이 직접 만든 앱이라 그래요).</p>
+    <div class="inline"><input id="g-client" type="text" value="${esc(gs.clientId || '')}" placeholder="…apps.googleusercontent.com" autocomplete="off"><button class="btn" data-action="g-client-save">저장</button></div>
+  </div>`);
+  if (isDemo()) return `<div class="panel"><p class="pad">체험 모드에서는 예시 일정·할일을 보여줘요. 실제 구글 연결은 로그인한 앱에서 할 수 있어요.</p></div>`;
+  if (!gs.clientId) return `<div class="panel"><p class="pad">구글 캘린더 일정과 구글 태스크 할일을 앱에서 함께 보고, 할일은 여기서 추가·완료하면 구글에도 그대로 기록돼요.</p>${guide}</div>`;
+  const conn = gConnected();
+  const cals = a?.calendars || [];
+  return `<div class="panel list">
+    <div class="row static"><span class="row-main"><span class="row-title">${conn ? '연결됨' : a ? '저장된 일정·할일을 보여주는 중' : '아직 연결 전'}</span><span class="row-meta">${a?.syncedAt ? `마지막으로 받은 때 ${dateTime(a.syncedAt)}` : '구글 연결하기를 누르면 구글 화면에서 허용을 눌러 주세요'}${conn ? ' · 이 창에서 1시간 동안 연결돼요' : ''}</span></span>
+      ${conn ? '<button class="link-btn" data-action="g-disconnect">연결 끊기</button>' : ''}</div>
+    <div class="pad actions"><button class="btn primary" data-action="g-sync">${conn ? '지금 새로 받기' : '구글 연결하기'}</button></div>
+    ${cals.length ? `<div class="pad"><b class="mini-title">보여줄 캘린더</b><div class="cal-prefs">${cals.map((c) => { const p = calPref(c); return `<div class="cal-pref"><label><input type="checkbox" data-cal-show="${esc(c.id)}" ${p.show ? 'checked' : ''}><span class="ev-dot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</label><label class="hint"><input type="checkbox" data-cal-partner="${esc(c.id)}" ${p.partner ? 'checked' : ''}>반려자</label></div>`; }).join('')}</div>
+      <p class="hint">반려자 캘린더 일정은 하루 일정 맨 뒤에 보여줘요. 새로 켠 캘린더는 다음에 받아올 때부터 보여요.</p></div>` : ''}
+    ${a?.lists?.length > 1 ? `<div class="pad"><b class="mini-title">할일 목록</b><select id="g-tasklist" class="select">${a.lists.map((l) => `<option value="${esc(l.id)}" ${l.id === a.listId ? 'selected' : ''}>${esc(l.title)}</option>`).join('')}</select></div>` : ''}
+    ${guide}
+  </div>`;
+}
+
+function setGoogle(patch) {
+  state.data.settings = { ...(state.data.settings || {}), google: { ...gset(), ...patch } };
+  commit();
+}
+
 // ───────────────────────── 그리기 ─────────────────────────
-const VIEWS = { home: viewHome, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
-const TITLES = { home: '홈', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
+const VIEWS = { home: viewHome, calendar: viewCalendar, tasks: viewTasks, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
+const TITLES = { home: '오늘', calendar: '일정', tasks: '할일', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
+// 자산 메뉴 안의 작은 탭: 자산 | 부채 | 고정지출
+const MONEY_TABS = [['assets', '자산'], ['debts', '부채'], ['fixed', '고정지출']];
+const navTab = (t) => (t === 'debts' || t === 'fixed' ? 'assets' : t);
+const subNav = () => `<nav class="segment subnav" aria-label="자산 메뉴">${MONEY_TABS.map(([k, l]) => `<a href="#${k}" role="tab" aria-selected="${state.tab === k}">${l}</a>`).join('')}</nav>`;
 const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라인', demo: '체험 모드' };
 
 function render() {
@@ -887,10 +1168,11 @@ function render() {
   $('#app').hidden = !state.user;
   if (!state.user) return;
   if (!VIEWS[state.tab]) state.tab = 'home';
-  document.querySelectorAll('[data-tab]').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === state.tab ? 'page' : 'false'));
+  document.querySelectorAll('[data-tab]').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === navTab(state.tab) ? 'page' : 'false'));
   renderSync();
   renderAlerts();
-  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : ''}</h1>${VIEWS[state.tab]()}`;
+  const money = navTab(state.tab) === 'assets';
+  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
   afterRender();
 }
 
@@ -999,7 +1281,7 @@ function openForm(kind, item, preset = {}) {
     } else if (f.type === 'ref') {
       input = `<select id="${id}" name="${f.key}" required>${(state.data[f.source] || []).filter((o) => !f.filter || f.filter(o) || o.id === val).map((o) => `<option value="${esc(o.id)}" ${o.id === val ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>`;
     } else if (f.type === 'date') {
-      input = `<input id="${id}" name="${f.key}" type="date" value="${esc(val)}" required>`;
+      input = `<input id="${id}" name="${f.key}" type="date" value="${esc(val)}" ${f.optional ? '' : 'required'}>`;
     } else if (f.type === 'month') {
       input = `<input id="${id}" name="${f.key}" type="month" value="${esc(val)}">`;
     } else if (f.type === 'sigungu') {
@@ -1082,6 +1364,7 @@ function saveForm() {
   const vals = readForm();
   const d = state.data;
   if (editing.kind === 'trade') return saveTrade(vals);
+  if (editing.kind === 'task') return saveTask(vals);
   if (editing.kind === 'fx') d.settings = { ...(d.settings || {}), usdKrw: vals.usdKrw };
   else if (isRecord(editing.kind)) {
     upsertRecord(d, { id: editing.id || crypto.randomUUID().slice(0, 8), type: editing.kind, ...vals });
@@ -1108,6 +1391,11 @@ function saveForm() {
 }
 
 function deleteItem() {
+  if (editing.kind === 'task') {
+    if (!confirm('이 할일을 지울까요? 구글 태스크에서도 지워져요.')) return false;
+    removeTask(editing.id);
+    return true;
+  }
   if (isRecord(editing.kind)) {
     if (!confirm('이 기록을 지울까요? 잔액에 반영했던 금액도 되돌려요.')) return false;
     deleteRecord(state.data, editing.id);
@@ -1333,6 +1621,18 @@ function bind() {
     if (!b) return;
     const { action: a, kind, id } = b.dataset;
     if (a === 'add') openForm(kind);
+    if (a === 'g-sync') syncAgenda(true);
+    if (a === 'g-disconnect' && confirm('이 기기에서 구글 연결을 끊을까요? 저장해 둔 일정·할일은 계속 보여요.')) { gapi()?.disconnect(); render(); }
+    if (a === 'g-client-save') {
+      const v = $('#g-client').value.trim();
+      if (v && !/\.apps\.googleusercontent\.com$/.test(v)) return toast('….apps.googleusercontent.com 으로 끝나는 클라이언트 ID를 붙여 넣어 주세요.');
+      state.open.delete('g-guide');
+      setGoogle({ clientId: v });
+      toast(v ? '저장했어요. 이제 구글 연결하기를 눌러 주세요.' : '클라이언트 ID를 지웠어요.');
+    }
+    if (a === 'cal-more') { state.calDays = 31; render(); }
+    if (a === 'task-toggle') toggleTask(id);
+    if (a === 'task-edit') { const t = state.agenda?.tasks.find((x) => x.id === id); if (t && !t.id.startsWith('tmp-')) openForm('task', t); }
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
     if (a === 'trade') openTrade(id, b.dataset.type);
     if (a === 'deposit') openForm(b.dataset.type, null, { targetId: id });
@@ -1436,8 +1736,29 @@ function bind() {
   }, true);
 
   $('#view').addEventListener('input', (e) => {
+    if (e.target.id === 'task-input') {
+      const { title, due } = parseQuickTask(e.target.value, now());
+      $('#task-preview').textContent = !title ? '날짜를 말하면 알아서 마감일로 넣어요. 요일만 쓰면 이번 주 그 요일이에요.'
+        : due ? `‘${title}’ · ${dueLabel(due, today())}${due < today() ? '' : due === today() ? '' : '까지'}` : `‘${title}’ · 날짜 없음`;
+    }
+  });
+  $('#view').addEventListener('submit', (e) => {
+    if (e.target.id !== 'task-add') return;
+    e.preventDefault();
+    const input = $('#task-input');
+    addTask(input.value);
+    input.value = '';
+    input.focus();
   });
   $('#view').addEventListener('change', async (e) => {
+    const cs = e.target.dataset.calShow || e.target.dataset.calPartner;
+    if (cs) {
+      const c = state.agenda.calendars.find((x) => x.id === cs);
+      const key = e.target.dataset.calShow ? 'show' : 'partner';
+      setGoogle({ cals: { ...(gset().cals || {}), [cs]: { ...calPref(c), [key]: e.target.checked } } });
+      if (key === 'show' && e.target.checked) syncAgenda(false);
+    }
+    if (e.target.id === 'g-tasklist') { setGoogle({ taskList: e.target.value }); syncAgenda(true); }
     if (e.target.id === 'import' && e.target.files[0]) {
       try {
         const d = JSON.parse(await e.target.files[0].text());
@@ -1567,22 +1888,33 @@ function bind() {
   window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(afterRender, 200); });
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') { checkDay(); checkVersion(); }
+    if (document.visibilityState === 'visible') {
+      checkDay(); checkVersion();
+      if (Date.now() - (state.agenda?.syncedAt || 0) > 10 * 60_000) syncAgenda(false);
+    }
     else if (newVersion && !$('#editor').open) location.reload();
   });
   setInterval(checkDay, 30_000);
   setInterval(checkVersion, 5 * 60_000);
 }
 
+let agendaLoaded = false;
 async function main() {
   bind();
   store = await connect({
-    onAuth: (u) => { state.user = u; state.push.loaded = false; render(); },
+    onAuth: (u) => { state.user = u; state.push.loaded = false; if (!u) { state.agenda = null; agendaLoaded = false; } render(); },
     onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onSecrets: (sc) => { state.secrets = sc || {}; if (state.tab === 'settings') render(); },
     onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'home') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
+    onAgenda: (a) => {
+      const first = !agendaLoaded;
+      agendaLoaded = true;
+      if (a && !syncing) state.agenda = a;
+      render();
+      if (first) syncAgenda(false); // 이 창에서 이미 연결돼 있으면 조용히 새로 받기
+    },
   });
   $('#boot').hidden = true;
   checkVersion();
