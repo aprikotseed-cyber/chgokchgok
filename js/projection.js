@@ -28,6 +28,41 @@ export function homeValue(h, market) {
   return base * ((h.share ?? 100) / 100);
 }
 
+/**
+ * 체증식(보금자리론 등): 매달 원리금이 같은 금액(d)씩 늘어나는 방식.
+ * 이번 달 원리금 a와 남은 원금 B, 금리, 남은 기간 n을 알면 만기에 잔액이 0이 되는 d가 하나로 정해집니다.
+ *   B = Σ_{k=1..n} (a + (k-1)·d) / (1+i)^k   →   d = (B − a·S0) / S1
+ * (한국주택금융공사 예시: 3억·연 4.55%·30년, 첫 회 116만원 → 140회차까지 원리금균등 153만원보다 낮음 — 이 식과 일치)
+ */
+export function graduatedStep(balance, ratePct, months, firstPayment, elapsed = 0) {
+  const i = (Number(ratePct) || 0) / 100 / 12;
+  if (!(months > 0) || !(firstPayment > 0)) return null;
+  let S0 = 0, S1 = 0;
+  for (let k = 1; k <= months; k++) {
+    const v = Math.pow(1 + i, -k);
+    S0 += v;
+    S1 += (k - 1) * v;
+  }
+  // elapsed: 입력한 원리금이 몇 달 전 기준인지. 그동안 d씩 늘었으니 이번 달 원리금 = firstPayment + elapsed·d
+  const denom = elapsed * S0 + S1;
+  if (denom === 0) return 0;
+  return (balance - firstPayment * S0) / denom;
+}
+
+/** 대출에 체증식 정보(_grace, _gradD)를 붙여 둡니다. 시뮬레이션 시작 시 한 번만 계산 */
+function prepareLoan(loan, now) {
+  const l = { ...loan, _now: now };
+  if (l.method === 'graduated') {
+    const grace = Math.max(0, monthsFrom(now, l.graceEnd) ?? 0);
+    const n = (monthsFrom(now, l.maturity) ?? 0) - grace;
+    l._grace = grace;
+    const elapsed = Math.max(0, -(monthsFrom(now, l.paymentAsOf) ?? 0)); // 원리금을 입력한 뒤 지난 달 수
+    l._gradD = graduatedStep(Number(l.balance) || 0, l.rate, n, Number(l.payment) || 0, elapsed);
+    if (l._gradD != null) l._payNow = Number(l.payment) + elapsed * l._gradD;
+  }
+  return l;
+}
+
 /** 이번 달 대출 1건의 상환 (이자, 원금). step은 지금으로부터 몇 번째 달인지(1부터) */
 export function loanMonth(balance, loan, step) {
   if (balance <= 0) return { interest: 0, principal: 0 };
@@ -44,6 +79,11 @@ export function loanMonth(balance, loan, step) {
   if (remaining === Infinity) principal = 0;
   else if (loan.method === 'bullet') principal = remaining === 1 ? balance : 0;
   else if (loan.method === 'equal') principal = balance / remaining;
+  else if (loan.method === 'graduated' && loan._gradD != null) {
+    const k = step - (loan._grace || 0);
+    const pmt = (loan._payNow ?? Number(loan.payment)) + (k - 1) * loan._gradD;
+    principal = remaining === 1 ? balance : pmt - interest;
+  }
   else {
     // 원리금균등: 남은 기간으로 매달 다시 계산해도 같은 납입액이 나옵니다.
     const pmt = i === 0 ? balance / remaining : (balance * i) / (1 - Math.pow(1 + i, -remaining));
@@ -62,9 +102,14 @@ export function currentTotals(data, market) {
   return { savings, stocks, homes, assets, debts, net: assets - debts };
 }
 
+/** 대출별 이번 달 예상 원금·이자 */
+export function loanThisMonth(loan, now = new Date()) {
+  return loanMonth(Number(loan.balance) || 0, prepareLoan(loan, now), 1);
+}
+
 /** 대출별 이번 달 예상 납입액 */
 export function currentPayment(loan, now = new Date()) {
-  const r = loanMonth(Number(loan.balance) || 0, { ...loan, _now: now }, 1);
+  const r = loanThisMonth(loan, now);
   return r.interest + r.principal;
 }
 
@@ -86,7 +131,7 @@ export function project(data, market, { years = 15, now = new Date() } = {}) {
     v: homeValue(h, market),
     g: Math.pow(1 + (Number(h.growth) || 0) / 100, 1 / 12),
   }));
-  const loans = (data.debts || []).map((d) => ({ d: { ...d, _now: now }, bal: Number(d.balance) || 0 }));
+  const loans = (data.debts || []).map((d) => ({ d: prepareLoan(d, now), bal: Number(d.balance) || 0 }));
 
   const snap = (label, year) => {
     const s = savings.reduce((a, x) => a + x.bal, 0);
@@ -134,4 +179,12 @@ export function milestones(points) {
     out.nextNet = { target: next, year: hit ? hit.year : null };
   }
   return out;
+}
+
+/** 체증식 대출의 요약: 매달 증가액과 만기 직전 원리금 */
+export function graduatedInfo(loan, now = new Date()) {
+  const l = prepareLoan(loan, now);
+  if (l.method !== 'graduated' || l._gradD == null) return null;
+  const n = (monthsFrom(now, l.maturity) ?? 0) - (l._grace || 0);
+  return { step: l._gradD, now: l._payNow, last: l._payNow + (n - 1) * l._gradD, months: n };
 }

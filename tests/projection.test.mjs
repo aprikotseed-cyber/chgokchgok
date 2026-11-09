@@ -68,3 +68,40 @@ test('이정표: 빚 0원 되는 해', () => {
   const { points } = project(data, {}, { years: 5, now });
   assert.equal(milestones(points).debtFreeYear, 2028);
 });
+
+test('체증식: 주금공 예시(3억·4.55%·30년·첫 회 116만원)는 140회차까지 균등식보다 낮고 만기에 0원', async () => {
+  const { loanMonth, graduatedInfo } = await import('../js/projection.js');
+  const loan = { balance: 3e8, rate: 4.55, method: 'graduated', maturity: '2056-11', payment: 1_160_000 };
+  const info = graduatedInfo(loan, now);
+  assert.equal(info.months, 360);
+  const annuity = (3e8 * (0.0455 / 12)) / (1 - Math.pow(1 + 0.0455 / 12, -360));
+  const pay = (k) => 1_160_000 + (k - 1) * info.step;
+  assert.ok(pay(140) < annuity && pay(141) > annuity, `140회 ${pay(140)}, 141회 ${pay(141)}, 균등 ${annuity}`);
+  assert.equal(Math.round(currentPayment(loan, now)), 1_160_000);
+  const { points } = project({ debts: [loan] }, {}, { years: 31, now });
+  assert.ok(points.find((p) => p.year === 2056).debts < 1);
+  assert.ok(points.find((p) => p.year === 2055).debts > 0);
+  // 첫 달 원금 = 116만 − 이자 113만7,500 = 22,500원
+  const first = loanMonth(3e8, { ...loan, _now: now, _gradD: info.step, _grace: 0 }, 1);
+  assert.equal(Math.round(first.principal), 22_500);
+});
+
+test('체증식인데 이번 달 원리금을 안 넣으면 원리금균등으로 계산', () => {
+  const g = currentPayment({ balance: 1e8, rate: 6, method: 'graduated', maturity: '2036-11' }, now);
+  const a = currentPayment({ balance: 1e8, rate: 6, method: 'annuity', maturity: '2036-11' }, now);
+  assert.ok(Math.abs(g - a) < 1);
+});
+
+test('체증식: 3달 전에 입력한 원리금도 그동안 늘어난 만큼 반영', async () => {
+  const { graduatedInfo } = await import('../js/projection.js');
+  const base = { balance: 3e8, rate: 4.55, method: 'graduated', maturity: '2056-11', payment: 1_160_000, paymentAsOf: '2026-11' };
+  const d = graduatedInfo(base, now).step;
+  // 3달 뒤 시점: 원금은 그 사이 갚은 만큼 줄어든 상태
+  let bal = 3e8;
+  const i = 0.0455 / 12;
+  for (let k = 1; k <= 3; k++) bal -= 1_160_000 + (k - 1) * d - bal * i;
+  const later = new Date(2027, 1, 9);
+  const g = graduatedInfo({ ...base, balance: bal }, later);
+  assert.ok(Math.abs(g.step - d) < 1, `${g.step} vs ${d}`);
+  assert.ok(Math.abs(g.now - (1_160_000 + 3 * d)) < 5);
+});
