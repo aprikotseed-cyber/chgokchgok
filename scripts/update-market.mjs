@@ -72,6 +72,9 @@ async function updateStocks(stocks) {
   return { stocks: out, fx };
 }
 
+// MODE=quotes: 장중 1시간마다 주가·환율만 (실거래가 API는 하루 호출 제한이 있어 아침에만)
+const QUOTES_ONLY = process.env.MODE === 'quotes';
+
 const docs = (await db.collectionGroup('data').get()).docs.filter((d) => d.id === 'main');
 console.log(`사용자 ${docs.length}명`);
 for (const d of docs) {
@@ -79,7 +82,7 @@ for (const d of docs) {
   const marketRef = d.ref.parent.doc('market');
   const prev = (await marketRef.get()).data() || {};
   const homes = {};
-  for (const h of data.homes || []) {
+  for (const h of QUOTES_ONLY ? [] : data.homes || []) {
     try {
       const r = await updateHome(h);
       // 실패하면 이전 추정치를 유지하고 오류 메시지만 남깁니다.
@@ -93,5 +96,7 @@ for (const d of docs) {
   const { stocks, fx } = await updateStocks(data.stocks || []);
   for (const [t, q] of Object.entries(stocks)) if (q.error && prev.stocks?.[t]?.price) stocks[t] = { ...prev.stocks[t], error: q.error };
   console.log(`주식 ${Object.keys(stocks).length}종목, 환율 ${JSON.stringify(fx)}`);
-  await marketRef.set({ homes, stocks, fx: { ...(prev.fx || {}), ...fx }, updatedAt: FieldValue.serverTimestamp() });
+  const quotes = { stocks, fx: { ...(prev.fx || {}), ...fx }, quotesAt: FieldValue.serverTimestamp() };
+  if (QUOTES_ONLY) await marketRef.set(quotes, { merge: true }); // 집 시세는 그대로 두고 주가·환율만 바꿔요
+  else await marketRef.set({ homes, ...quotes, updatedAt: FieldValue.serverTimestamp() });
 }

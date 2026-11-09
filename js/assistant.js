@@ -1,11 +1,11 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261109i';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261109i';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261109i';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261109i';
-import { won, wonExact, mdw, pct } from './format.js?v=20261109i';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261109k';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261109k';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261109k';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261109k';
+import { won, wonExact, mdw, pct } from './format.js?v=20261109k';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -109,7 +109,7 @@ function findEntities(q, data) {
 const INTENTS = [
   { id: 'net', words: ['총자산', '순자산', '재산', '내자산', '자산얼마', '자산이얼마', '전재산', '지난달대비', '얼마늘', '얼마줄'] },
   { id: 'saved', words: ['저축액', '저축얼마', '모은돈', '예금', '적금', '통장', '파킹'], types: ['saving'] },
-  { id: 'home', words: ['아파트', '집값', '시세', '실거래', '부동산', '우리집'], types: ['home'] },
+  { id: 'home', words: ['주택', '아파트', '집값', '시세', '실거래', '부동산', '우리집'], types: ['home'] },
   { id: 'debtBal', words: ['남은원금', '잔액', '남은대출', '대출잔액', '빚', '대출얼마', '얼마남', '남았'], types: ['loan'] },
   { id: 'nextPay', words: ['다음상환', '상환일', '납부일', '상환액', '원리금', '얼마나가', '언제나가', '언제빠져', '얼마빠져', '내야', '낼돈', '상환', '납부', '언제야'], types: ['loan'] },
   { id: 'count', words: ['회차', '몇번', '몇회'], types: ['loan'] },
@@ -198,7 +198,7 @@ const H = {
   hello: () => ({ text: '네, 덕준님. 자산·대출·고정지출·주식에 대해 물어보시면 입력해 두신 내용으로 바로 알려드릴게요.', chips: SUGGEST }),
 
   help: () => ({
-    text: '입력해 두신 내용으로 이런 걸 알려드릴 수 있어요.\n· 총자산, 저축액, 아파트 시세\n· 대출: 다음 상환일과 금액, 남은 원금, 회차, 낸 이자, 다 갚는 날\n· 고정지출: 합계, 항목별 출금일, 분류별 합계\n· 이번 달·이번 주·내일 나갈 돈\n· 주식: 묶음별·종목별 수익, 환율과 환율 효과\n· 연도별 저축·상환 기록',
+    text: '입력해 두신 내용으로 이런 걸 알려드릴 수 있어요.\n· 총자산, 저축액, 주택 시세\n· 대출: 다음 상환일과 금액, 남은 원금, 회차, 낸 이자, 다 갚는 날\n· 고정지출: 합계, 항목별 출금일, 분류별 합계\n· 이번 달·이번 주·내일 나갈 돈\n· 주식: 묶음별·종목별 수익, 환율과 환율 효과\n· 연도별 저축·상환 기록',
     chips: SUGGEST,
   }),
 
@@ -209,7 +209,7 @@ const H = {
     const prev = Object.keys(snaps).filter((k) => k < ym).sort().pop();
     const diff = prev ? t.net - snaps[prev].net : null;
     return {
-      text: `총자산은 ${won(t.net)}이에요.\n저축액 ${won(t.savings + t.stocks)} + 아파트 ${won(t.homes)} − 대출잔액 ${won(t.debts)}${diff != null ? `\n${Number(prev.slice(5))}월 기록보다 ${diff >= 0 ? `${won(diff)} 늘었어요` : `${won(-diff)} 줄었어요`}.` : ''}`,
+      text: `총자산은 ${won(t.net)}이에요.\n저축액 ${won(t.savings + t.stocks)} + 주택 ${won(t.homes)} − 대출잔액 ${won(t.debts)}${diff != null ? `\n${Number(prev.slice(5))}월 기록보다 ${diff >= 0 ? `${won(diff)} 늘었어요` : `${won(-diff)} 줄었어요`}.` : ''}`,
       chips: [ask1('저축액 얼마야?'), ask1('대출 잔액 얼마야?')],
     };
   },
@@ -228,7 +228,7 @@ const H = {
 
   home(ctx) {
     const homes = ctx.data.homes || [];
-    if (!homes.length) return { text: '등록된 아파트가 없어요. 자산 탭에서 추가하면 실거래가로 시세를 알려드릴게요.' };
+    if (!homes.length) return { text: '등록된 주택이 없어요. 자산 탭에서 추가하면 실거래가로 시세를 알려드릴게요.' };
     const e = ctx.ents.find((x) => x.type === 'home');
     const list = e ? [e.item] : homes;
     return {
