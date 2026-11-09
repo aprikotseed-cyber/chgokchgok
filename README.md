@@ -44,6 +44,9 @@ js/history.js           하루 한 줄 자산 기록과 일별·월별·연도�
 js/trades.js            주식 매수·매도 (이동평균)
 js/github.js            앱 안 [지금 업데이트] 버튼: GitHub Actions 작업 실행
 js/store.js             Firebase 연결 / 체험 모드
+js/agenda.js            일정·할일 다듬기, 할일 빠른 입력('내일 우유 사기') (순수 함수)
+js/google.js            구글 캘린더(읽기)·구글 태스크(읽기·쓰기) 연결
+js/google-demo.js       체험 모드용 예시 일정·할일
 scripts/update-market.mjs  GitHub Actions가 매일 실거래가·주가를 가져오는 스크립트
 .github/workflows/update-market.yml  매일 오전 6시 17분(미국장 마감 가격): 아파트 실거래가 + 주가·환율
 .github/workflows/quotes.yml         국내장 중 1시간마다(매시 13분): 주가·환율만
@@ -104,6 +107,16 @@ GitHub 저장소 **Settings → Secrets and variables → Actions → New reposi
 - 알림은 GitHub Actions가 매일 **오전 8시**에 확인해서 보내요. 시세 수집과 같은 `FIREBASE_SERVICE_ACCOUNT` 시크릿을 써요.
 - 대출은 **매달 상환일**을 넣어야 알림과 일정에 나와요.
 - 주말·공휴일에 실제 출금일이 밀리는 것은 따로 계산하지 않아요.
+
+## 구글 캘린더·할일 연결 (처음 한 번)
+
+1. [구글 클라우드 콘솔](https://console.cloud.google.com/projectcreate)에서 새 프로젝트를 만들어요.
+2. API 및 서비스 → 라이브러리에서 **Google Calendar API**, **Google Tasks API**를 사용 설정해요.
+3. OAuth 동의 화면: 외부, 테스트 사용자에 본인 계정 추가, 마지막에 **앱 게시**.
+4. 사용자 인증 정보 → OAuth 클라이언트 ID → 웹 애플리케이션, 승인된 자바스크립트 원본 `https://aprikotseed-cyber.github.io`.
+5. 앱 설정 → 구글 캘린더·할일에 클라이언트 ID를 붙여 넣고 **구글 연결하기**.
+
+받아 온 일정(어제~32일 뒤)과 할일은 Firestore `users/{uid}/data/agenda`에 저장돼 다음에 열면 바로 보여요. 구글 연결(접근 토큰)은 창을 연 동안 1시간 유지돼요.
 
 ## 앱 안 [업데이트] 버튼
 자산 탭 주식 제목 옆 **업데이트**를 누르면 GitHub에서 Run workflow를 누른 것처럼 주가·환율을 바로 받아와요 (1분쯤 뒤 반영).

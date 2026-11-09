@@ -47,6 +47,8 @@ export async function connect(h) {
       }),
       F.onSnapshot(marketRef, (s) => h.onMarket(s.exists() ? s.data() : {})),
       F.onSnapshot(historyRef, (s) => h.onHistory?.(s.exists() ? s.data().days || {} : {})),
+      // 구글 캘린더·태스크에서 받아 둔 일정·할일 (다음에 열 때 로그인 없이 바로 보이게)
+      F.onSnapshot(F.doc(db, 'users', user.uid, 'data', 'agenda'), (s) => h.onAgenda?.(s.exists() ? s.data() : null)),
       // 토큰 같은 비밀값: 백업 파일·개선 목록에 섞이지 않게 따로 저장
       F.onSnapshot(F.doc(db, 'users', user.uid, 'data', 'secrets'), (s) => h.onSecrets?.(s.exists() ? s.data() : {})),
     );
@@ -58,6 +60,7 @@ export async function connect(h) {
     save: (data) => F.setDoc(mainRef, data),
     /** 하루 자산 기록 한 줄 (같은 날이면 덮어써요) */
     saveHistory: (day, entry) => F.setDoc(historyRef, { days: { [day]: entry } }, { merge: true }),
+    saveAgenda: (agenda) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'agenda'), agenda),
     saveSecret: (key, value) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'secrets'), { [key]: value || F.deleteField() }, { merge: true }),
     pushSupported: async () => {
       const M = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-messaging.js`);
@@ -108,6 +111,7 @@ function demoStore(h) {
     h.onData(data);
     h.onMarket(market);
     h.onHistory?.(history);
+    h.onAgenda?.(null); // 예시 일정·할일은 앱이 가짜 구글에서 받아와요
     h.onSync('demo');
   });
   return {
@@ -119,6 +123,7 @@ function demoStore(h) {
     enablePush: async () => { throw new Error('체험 모드에서는 알림을 켤 수 없어요'); },
     pushDevices: async () => [],
     saveSecret: async () => { throw new Error('체험 모드에서는 저장하지 않아요'); },
+    saveAgenda: async () => {},
     removePushDevice: async () => {},
   };
 }
