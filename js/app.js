@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110g';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110g';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110g';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110g';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110g';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110g';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110g';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110g';
-import { ask, SUGGEST } from './assistant.js?v=20261110g';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110g';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110g';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110g';
-import { createGoogle } from './google.js?v=20261110g';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110g';
-import { createDemoGoogle } from './google-demo.js?v=20261110g';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine } from './agenda.js?v=20261110g';
+import { connect, isDemo } from './store.js?v=20261110h';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110h';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110h';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110h';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110h';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110h';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110h';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110h';
+import { ask, SUGGEST } from './assistant.js?v=20261110h';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110h';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110h';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110h';
+import { createGoogle } from './google.js?v=20261110h';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110h';
+import { createDemoGoogle } from './google-demo.js?v=20261110h';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine } from './agenda.js?v=20261110h';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1224,9 +1224,11 @@ function viewTasks() {
 function lockSettings() {
   const c = lockConfig();
   if (state.lockOk == null) return '<div class="panel"><p class="hint pad">확인 중…</p></div>';
-  if (!state.lockOk && !c) return '<div class="panel"><p class="pad">이 기기·브라우저에서는 생체 인증 잠금을 쓸 수 없어요. (아이폰은 Face ID나 Touch ID, PC는 지문이나 Windows Hello가 필요해요)</p></div>';
+  if (!window.PublicKeyCredential && !c) return '<div class="panel"><p class="pad">이 브라우저에서는 생체 인증 잠금을 쓸 수 없어요.</p></div>';
+  // 아이폰 홈 화면 앱은 '지원함'을 제대로 알려주지 않을 때가 있어서, 버튼은 그대로 두고 직접 시도해 봐요
   if (!c) return `<div class="panel"><p class="pad">앱을 열 때 Face ID를 통과해야 화면이 보이게 해요. 이 기기에만 적용되고, 기기마다 따로 켜요.</p>
-    <div class="pad"><button class="btn primary" data-action="lock-on">이 기기에서 잠금 켜기</button></div></div>`;
+    <div class="pad"><button class="btn primary" data-action="lock-on">이 기기에서 잠금 켜기</button></div>
+    ${state.lockOk ? '' : '<p class="hint pad">이 기기가 생체 인증 지원 여부를 알려주지 않았어요. 버튼을 눌러 시도해 보세요. 아이폰은 설정 → 내 이름 → iCloud → 암호(키체인)가 켜져 있어야 해요.</p>'}</div>`;
   const opts = [[0, '바로'], [1, '1분 뒤'], [5, '5분 뒤'], [15, '15분 뒤']];
   return `<div class="panel list">
     <div class="row static"><span class="row-main"><span class="row-title">켜짐 · 이 기기</span><span class="row-meta">앱을 열 때, 그리고 다른 앱에 다녀오면 다시 잠가요</span></span><button class="link-btn" data-action="lock-off">끄기</button></div>
@@ -1817,7 +1819,7 @@ function bind() {
     if (a === 'g-sync') syncAgenda(true);
     if (a === 'lock-on') {
       try { await enableLock(state.user?.email); toast('잠금을 켰어요. 다음에 앱을 열면 Face ID로 열려요.'); }
-      catch (err) { toast(err.name === 'NotAllowedError' ? '등록을 취소했어요.' : `잠금을 켜지 못했어요: ${err.message}`); }
+      catch (err) { toast(err.name === 'NotAllowedError' ? 'Face ID 등록이 취소됐거나 허용되지 않았어요. iCloud 암호(키체인)가 켜져 있는지 확인해 주세요.' : `잠금을 켜지 못했어요 (${err.name}): ${err.message}`); }
       render();
     }
     if (a === 'lock-off' && confirm('이 기기에서 Face ID 잠금을 끌까요?')) { disableLock(); toast('잠금을 껐어요.'); render(); }
