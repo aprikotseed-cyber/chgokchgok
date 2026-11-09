@@ -42,7 +42,7 @@ export function listApi(all) {
     events: (calId, timeMin, timeMax, i = true) => all(`${CAL}/calendars/${encodeURIComponent(calId)}/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`, i),
     taskLists: (i = true) => all(`${TASKS}/users/@me/lists?maxResults=100`, i),
     // 완료한 일도 함께 받아요 (오래된 완료 항목은 걸러요)
-    tasks: (listId, i = true) => all(`${TASKS}/lists/${encodeURIComponent(listId)}/tasks?showCompleted=true&showHidden=true&maxResults=100`, i),
+    tasks: (listId, i = true) => all(`${TASKS}/lists/${encodeURIComponent(listId)}/tasks?showCompleted=true&showHidden=true&showAssigned=true&maxResults=100`, i),
   };
 }
 

@@ -25,7 +25,9 @@ export function createDemoGoogle() {
     birthday: [{ id: 'b1', summary: '어머니 생신', ...allDay(9) }],
     partner: [{ id: 'p1', summary: '친구 결혼식', ...at(5, 12, 0, 120) }, { id: 'p2', summary: '야근', ...at(0, 20, 0, 120) }],
   };
-  const lists = [{ id: 'default', title: '내 할 일 목록' }];
+  const lists = [{ id: 'default', title: '내 할 일 목록' }, { id: 'home', title: '집안일' }];
+  const sat = 6 - t0.getDay(); // 이번 주 토요일
+  let homeTasks = [{ id: 'h1', title: '화장실 청소', due: `${key(day(sat, 0))}T00:00:00.000Z`, status: 'needsAction' }];
   let tasks = [
     { id: 't1', title: '교육청 공문 회신', due: `${key(day(-1, 0))}T00:00:00.000Z`, status: 'needsAction' },
     { id: 't2', title: '수학 단원평가 채점', due: `${key(day(0, 0))}T00:00:00.000Z`, status: 'needsAction' },
@@ -48,7 +50,7 @@ export function createDemoGoogle() {
     addEvent: async (calId, body) => { await delay(); const e = { id: `e${n++}`, ...body, start: fix(body.start), end: fix(body.end) }; (events[calId] ||= []).push(e); return e; },
     patchEvent: async (calId, id, body) => { await delay(); const e = events[calId].find((x) => x.id === id); Object.assign(e, body, body.start ? { start: fix(body.start), end: fix(body.end) } : {}); return e; },
     deleteEvent: async (calId, id) => { await delay(); events[calId] = events[calId].filter((x) => x.id !== id); return null; },
-    tasks: async () => (await delay(), tasks),
+    tasks: async (l) => (await delay(), l === 'home' ? homeTasks : tasks),
     addTask: async (_l, body) => { await delay(); const t = { id: `t${n++}`, status: 'needsAction', ...body }; tasks = [t, ...tasks]; return t; },
     patchTask: async (_l, id, body) => { await delay(); tasks = tasks.map((t) => (t.id === id ? { ...t, ...body, completed: body.status === 'completed' ? new Date().toISOString() : body.status ? null : t.completed } : t)); return tasks.find((t) => t.id === id); },
     deleteTask: async (_l, id) => { await delay(); tasks = tasks.filter((t) => t.id !== id); return null; },
