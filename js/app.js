@@ -1,15 +1,15 @@
-import { connect, isDemo } from './store.js?v=20261109y';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109y';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109y';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109y';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109y';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109y';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109y';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109y';
-import { ask, SUGGEST } from './assistant.js?v=20261109y';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109y';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109y';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261109y';
+import { connect, isDemo } from './store.js?v=20261110a';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110a';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110a';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110a';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110a';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110a';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110a';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110a';
+import { ask, SUGGEST } from './assistant.js?v=20261110a';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110a';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110a';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110a';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1203,8 +1203,11 @@ function saveTrade(vals) {
 const chat = [];
 
 function chatHtml(m, i) {
+  // 처음 그려지는 말풍선만 튀어 오르게 (이미 본 말풍선은 다시 움직이지 않아요)
+  const pop = m.shown ? '' : ' pop';
+  if (m.typing) return `<div class="msg bot typing${pop}" aria-label="비서가 답을 쓰는 중"><i></i><i></i><i></i></div>`;
   const text = esc(m.text).replace(/\n/g, '<br>');
-  if (m.me) return `<div class="msg me">${text}</div>`;
+  if (m.me) return `<div class="msg me${pop}">${text}</div>`;
   // 질문에 대한 답이면 아래에 '이 답이 맞지 않았나요?'
   let fb = '';
   if (m.q && !m.unknown) {
@@ -1213,13 +1216,15 @@ function chatHtml(m, i) {
     else fb = `<button type="button" class="fb" data-fb="${i}">이 답이 맞지 않았나요?</button>`;
   }
   if (m.unknown) fb = '<p class="fb-done">이 질문은 개선 목록에 자동으로 담겼어요.</p>';
-  return `<div class="msg bot">${text}</div>${fb}${m.chips?.length ? `<div class="as-chips">${m.chips.map((c) => `<button type="button" class="pill" data-q="${esc(c.q)}">${esc(c.label)}</button>`).join('')}</div>` : ''}`;
+  const after = pop ? ' fade-in' : '';
+  return `<div class="msg bot${pop}">${text}</div>${fb ? fb.replace(/^<(\w+) class="/, `<$1 class="${after.trim()} `) : ''}${m.chips?.length ? `<div class="as-chips${after}">${m.chips.map((c) => `<button type="button" class="pill" data-q="${esc(c.q)}">${esc(c.label)}</button>`).join('')}</div>` : ''}`;
 }
 
 function renderChat() {
   const log = $('#as-log');
   log.innerHTML = chat.map(chatHtml).join('');
-  log.scrollTop = log.scrollHeight;
+  chat.forEach((m) => { m.shown = true; });
+  log.scrollTo({ top: log.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
 
 function saveFeedback(item) {
@@ -1227,15 +1232,31 @@ function saveFeedback(item) {
   commit();
 }
 
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+let replying = Promise.resolve();
+
+/** 내 말풍선 → 점 세 개(쓰는 중) → 비서 말풍선, 아이메시지처럼 차례로 */
 function askAssistant(q) {
   q = q.trim();
   if (!q) return;
   chat.push({ me: true, text: q });
+  renderChat();
   const a = ask(q, state.data, state.market, new Date());
-  chat.push({ text: a.text, chips: a.chips, q, unknown: !!a.unknown });
   // 모르는 질문은 저절로 개선 목록에
   if (a.unknown) saveFeedback({ q, kind: 'unknown' });
-  renderChat();
+  replying = replying.then(async () => {
+    if (!reduceMotion()) {
+      await wait(180);
+      const typing = { typing: true };
+      chat.push(typing);
+      renderChat();
+      await wait(Math.min(1100, 450 + a.text.length * 6)); // 답이 길수록 조금 더 '쓰는' 시간
+      chat.splice(chat.indexOf(typing), 1);
+    }
+    chat.push({ text: a.text, chips: a.chips, q, unknown: !!a.unknown });
+    renderChat();
+  });
 }
 
 function openAssistant() {
