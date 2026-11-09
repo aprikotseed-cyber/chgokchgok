@@ -1,9 +1,9 @@
-// GitHub Actions가 매일 오전 8시(한국 시간)에 실행: 오늘 보낼 알림이 있으면 등록된 기기로 푸시 알림을 보냅니다.
+// GitHub Actions가 매일 오전 8시(한국 시간)에 실행: 아침 브리핑(오늘 일정·할일, 오늘이 상환일·출금일인 돈)을 등록된 기기로 보냅니다.
 // 필요한 GitHub Secret: FIREBASE_SERVICE_ACCOUNT
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
-import { alertsFor, notificationFor } from '../js/reminders.js';
+import { morningBriefing } from '../js/briefing.js';
 
 const APP_URL = process.env.APP_URL || 'https://aprikotseed-cyber.github.io/chgokchgok/';
 
@@ -18,9 +18,10 @@ console.log(`기준일(한국): ${today.getFullYear()}-${today.getMonth() + 1}-$
 
 const mains = (await db.collectionGroup('data').get()).docs.filter((d) => d.id === 'main');
 for (const doc of mains) {
-  const alerts = alertsFor(doc.data(), today);
-  const n = notificationFor(alerts);
-  console.log(`알림 ${alerts.length}건`);
+  // 앱에서 구글 캘린더·태스크를 받아 저장해 둔 일정·할일
+  const agenda = (await doc.ref.parent.doc('agenda').get()).data() || null;
+  const n = morningBriefing(doc.data(), agenda, today);
+  console.log(n ? `브리핑 ${n.body.split('\n').length}줄` : '보낼 내용 없음');
   if (!n) continue;
 
   const pushRef = doc.ref.parent.doc('push');

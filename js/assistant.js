@@ -1,11 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110d';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110d';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261110d';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110d';
-import { won, wonExact, mdw, pct } from './format.js?v=20261110d';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110e';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110e';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261110e';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110e';
+import { won, wonExact, mdw, pct } from './format.js?v=20261110e';
+import { eventsOn, groupTasks, dueLabel, fromKey } from './agenda.js?v=20261110e';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -63,6 +64,25 @@ export function parseTime(q, now) {
   if (q.includes('내일')) return { ...day(new Date(y, m, t.getDate() + 1)), label: '내일' };
   if (q.includes('모레')) return { ...day(new Date(y, m, t.getDate() + 2)), label: '모레' };
   const dow = (t.getDay() + 6) % 7; // 월요일 0
+  const WD = '월화수목금토일';
+  const md = (d) => `${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`;
+  // 'X요일' (요일만 말하면 이번 주), '다음 주 X요일'
+  const wd = q.match(/(다음주|담주)?(이번주|금주)?([월화수목금토일])요일/);
+  if (wd) {
+    const d = new Date(y, m, t.getDate() - dow + (wd[1] ? 7 : 0) + WD.indexOf(wd[3]));
+    return { ...day(d), label: md(d) };
+  }
+  if (q.includes('주말')) {
+    const next = /다음주|담주/.test(q) ? 7 : 0;
+    const sat = new Date(y, m, t.getDate() - dow + 5 + next);
+    return { kind: 'range', start: sat < t ? t : sat, end: new Date(y, m, t.getDate() - dow + 6 + next), label: next ? '다음 주말' : '이번 주말' };
+  }
+  const mdm = q.match(/(\d{1,2})월(\d{1,2})일/);
+  if (mdm && Number(mdm[1]) <= 12) {
+    let d = new Date(y, Number(mdm[1]) - 1, Number(mdm[2]));
+    if (d < new Date(y, m, t.getDate() - 30)) d = new Date(y + 1, d.getMonth(), d.getDate());
+    return { ...day(d), label: md(d) };
+  }
   if (/이번주|금주/.test(q)) return { kind: 'range', start: t, end: new Date(y, m, t.getDate() + 6 - dow), label: '이번 주' };
   if (/다음주|담주/.test(q)) return { kind: 'range', start: new Date(y, m, t.getDate() + 7 - dow), end: new Date(y, m, t.getDate() + 13 - dow), label: '다음 주' };
   if (/다음달|담달|내달/.test(q)) return month(y, m + 1);
@@ -86,7 +106,7 @@ export function parseTime(q, now) {
 // ───── ② 어떤 항목 ─────
 const KIND_ALIAS = { 주택담보대출: ['주담대', '주택담보', '담보대출', '집대출'], 신용대출: ['신용대출', '마통', '마이너스통장'], 교직원공제회: ['공제회', '교직원공제회'] };
 
-function findEntities(q, data) {
+function findEntities(q, data, agenda) {
   const out = [];
   const add = (type, item, name, score) => score && out.push({ type, item, name, score });
   for (const s of data.savings || []) add('saving', s, s.name, Math.max(nameScore(q, s.name), s.kind && norm(s.kind).length >= 2 && q.includes(norm(s.kind)) ? 2 : 0));
@@ -102,11 +122,44 @@ function findEntities(q, data) {
   if (/국내주식|국내/.test(q)) out.push({ type: 'market', key: 'kr', name: '국내주식', score: 3 });
   if (/해외주식|해외|미국주식|미장/.test(q)) out.push({ type: 'market', key: 'us', name: '해외주식', score: 3 });
   if (/연금저축|연금계좌/.test(q)) out.push({ type: 'market', key: 'pension', name: '연금저축', score: 4 });
+  if (agenda) {
+    // 캘린더 종류 (운동 → Exercise …), 반려자 캘린더
+    const calNames = [...new Set(agenda.events.map((e) => e.calName))];
+    for (const [cal, words] of Object.entries(CAL_ALIAS)) {
+      const name = calNames.find((n) => norm(n) === cal);
+      if (name && (q.includes(cal) || words.some((w) => q.includes(w)))) out.push({ type: 'cal', name, score: 3 });
+    }
+    if (PARTNER_WORDS.some((w) => q.includes(w))) out.push({ type: 'partner', name: '반려자', score: 3 });
+    // 일정·할일 제목 (점수는 4까지만: 등록한 자산 이름보다 앞서지 않게)
+    const seen = new Set();
+    for (const e of agenda.events) {
+      if (seen.has(e.title)) continue;
+      seen.add(e.title);
+      const sc = nameScore(q, e.title);
+      if (sc >= 3) out.push({ type: 'event', item: e, name: e.title, score: Math.min(sc, 4) });
+    }
+    for (const t of agenda.tasks) {
+      const sc = nameScore(q, t.title);
+      if (sc >= 3) out.push({ type: 'task', item: t, name: t.title, score: Math.min(sc, 4) });
+    }
+  }
   return out.sort((a, b) => b.score - a.score);
 }
 
+const CAL_ALIAS = {
+  exercise: ['운동', '헬스', '러닝', '달리기', '필라테스', '수영', '요가'],
+  cherish: ['데이트'],
+  birthday: ['생일', '생신'],
+  work: ['업무', '회의', '출장', '연수', '학교일정', '회사'],
+  life: ['개인일정'],
+};
+const PARTNER_WORDS = ['반려자', '와이프', '아내', '남편', '배우자', '짝꿍', '내캘린더', '애인', '여자친구', '남자친구', '여친', '남친'];
+
 // ───── ① 무엇을 ─────
 const INTENTS = [
+  { id: 'brief', words: ['브리핑', '하루요약', '오늘요약', '오늘어때', '오늘하루', '하루일과'] },
+  { id: 'schedule', words: ['일정', '약속', '스케줄', '캘린더', '달력', '뭐있', '뭐해', '계획', '바빠', '바쁘', '한가', '시간있', '시간돼', '몇시'], types: ['event', 'cal', 'partner'] },
+  { id: 'tasks', words: ['할일', '할거', '해야할', '해야돼', '해야되', '해야하', '투두', 'todo', '마감', '밀린', '못한', '안한', '끝낸', '완료한'], types: ['task'] },
   { id: 'net', words: ['총자산', '순자산', '재산', '내자산', '자산얼마', '자산이얼마', '전재산', '지난달대비', '얼마늘', '얼마줄'] },
   { id: 'saved', words: ['저축액', '저축얼마', '모은돈', '예금', '적금', '통장', '파킹'], types: ['saving'] },
   { id: 'home', words: ['주택', '아파트', '집값', '시세', '실거래', '부동산', '우리집'], types: ['home'] },
@@ -118,7 +171,7 @@ const INTENTS = [
   { id: 'payoff', words: ['다갚', '완납', '언제끝', '만기', '상환끝', '다끝', '언제까지'], types: ['loan'] },
   { id: 'fixedTotal', words: ['고정지출', '고정비', '매달나가', '월지출', '정기지출', '구독료', '요금'], types: ['fixed', 'category'] },
   { id: 'remaining', words: ['남은출금', '남은지출', '앞으로나갈', '더나갈', '이번달남은', '남은돈', '남은거'] },
-  { id: 'upcoming', words: ['일정', '나갈돈', '빠져나갈', '나가는거', '나갈거', '뭐나가', '출금', '결제'] },
+  { id: 'upcoming', words: ['돈나갈', '나갈돈', '빠져나갈', '나가는거', '나갈거', '뭐나가', '출금', '결제'] },
   { id: 'stocks', words: ['주식', '평가', '수익', '수익률', '손익', '종목', 'etf', '얼마벌', '벌었'], types: ['stock', 'market'] },
   { id: 'fx', words: ['환율', '달러', '환차', '환율효과', '원달러'] },
   { id: 'savingRec', words: ['저축한', '저축기록', '넣은돈', '저축했', '모았'] },
@@ -127,10 +180,10 @@ const INTENTS = [
 ];
 
 /** 질문 하나에 대한 답. { text, chips: [{label, q}], unknown } */
-export function ask(question, data, market = {}, now = new Date()) {
+export function ask(question, data, market = {}, now = new Date(), agenda = null) {
   const q = norm(question);
   if (!q) return { text: '궁금한 걸 적어 주세요.', chips: SUGGEST };
-  const ctx = { q, raw: question, data, market, now: dateOnly(now), time: parseTime(q, now), ents: findEntities(q, data) };
+  const ctx = { q, raw: question, data, market, agenda, now: dateOnly(now), time: parseTime(q, now), ents: findEntities(q, data, agenda) };
 
   // '가장 빠른 / 제일 먼저 / 다음에' 빠져나가는 것: 순서를 묻는 질문은 합계보다 먼저 봐요
   if (asksNext(q) && !ctx.ents.some((e) => e.type === 'loan' || e.type === 'fixed')) return H.nextOut(ctx);
@@ -141,8 +194,8 @@ export function ask(question, data, market = {}, now = new Date()) {
     return { it, score };
   }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
 
-  // 시간만 있고 묻는 게 없으면 그때 나갈 돈으로
-  if (!scored.length && ctx.time && !ctx.ents.length) return H.upcoming(ctx);
+  // 시간만 있고 묻는 게 없으면: 일정을 연결했으면 그날 일정(나갈 돈 포함), 아니면 나갈 돈
+  if (!scored.length && ctx.time && !ctx.ents.length) return agenda ? H.schedule(ctx) : H.upcoming(ctx);
   // 묻는 말 없이 항목 이름만 있으면 그 항목 요약
   if (!scored.length && ctx.ents.length) return entitySummary(ctx, ctx.ents[0]);
   if (!scored.length) return { text: '그건 아직 잘 모르겠어요. 아래처럼 물어보시면 바로 알려드릴게요.', chips: SUGGEST, unknown: true };
@@ -153,6 +206,8 @@ export function ask(question, data, market = {}, now = new Date()) {
   const e0 = ctx.ents[0];
   // 등록한 이름을 또렷하게 말했는데(예: '아파트 관리비') 질문 종류가 다른 항목용이면 그 이름이 우선
   if (e0 && e0.score >= 5 && top.it.types && !top.it.types.includes(e0.type)) return entitySummary(ctx, e0);
+  // '어머니 생신 언제야'처럼 일정·할일 제목을 말하며 '언제'를 물으면 그 일정
+  if (!['schedule', 'tasks', 'brief'].includes(top.it.id) && e0 && ['event', 'task'].includes(e0.type) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type))) return entitySummary(ctx, e0);
   // '넷플 언제 결제돼'처럼 항목을 콕 집어 물으면 전체 일정보다 그 항목 답이 먼저
   if (['upcoming', 'remaining'].includes(top.it.id) && !ctx.time && e0 && ['fixed', 'loan', 'category'].includes(e0.type)) return entitySummary(ctx, e0);
   if (LOAN_INTENTS.includes(top.it.id) && e0 && !ctx.ents.some((e) => e.type === 'loan') && !/대출|상환|이자|원금/.test(q)) return entitySummary(ctx, e0);
@@ -160,6 +215,8 @@ export function ask(question, data, market = {}, now = new Date()) {
 }
 
 export const SUGGEST = [
+  { label: '오늘 일정', q: '오늘 일정 뭐야?' },
+  { label: '이번 주 할일', q: '이번 주 할일 뭐야?' },
   { label: '이번 달 남은 출금', q: '이번 달 남은 출금 얼마야?' },
   { label: '다음 대출 상환', q: '다음 대출 상환 언제야?' },
   { label: '총자산', q: '총자산 얼마야?' },
@@ -220,6 +277,12 @@ function euro(name) {
 }
 
 const H = {
+  schedule: (ctx) => scheduleAnswer(ctx),
+  tasks: (ctx) => tasksAnswer(ctx),
+  brief(ctx) {
+    const c = { ...ctx, time: { kind: 'day', start: ctx.now, end: ctx.now, label: '오늘' } };
+    return { text: `${scheduleAnswer(c).text}\n\n${tasksAnswer(c).text}` };
+  },
   /** 가장 빨리 빠져나가는 고정지출(질문에 대출·상환이 없으면 고정지출만, '나갈 돈'처럼 넓게 물으면 대출 포함) */
   nextOut(ctx) {
     const onlyFixed = /고정|구독|요금|공과금|관리비/.test(ctx.q) || !/대출|상환|돈|모든|전체|아무/.test(ctx.q);
@@ -463,12 +526,17 @@ function paidSummary(ctx, field) {
   return { text: `${label} ${picked && list.length === 1 ? `${list[0].name}에 ` : ''}${what}는 ${wonExact(sum)}이에요.${recs.length ? ` (${recs.length}회)` : ''}`, chips: [ask1(`${label === '지금까지' ? '올해' : '지금까지'} ${what} 얼마야?`)] };
 }
 
-/** 기간 안에 나갈 돈: 고정지출 + 대출 상환 */
-function outflow(ctx, start, end, label) {
-  const items = [
+/** 기간 안에 나갈 돈 목록: 고정지출 + 대출 상환 */
+function outflowItems(ctx, start, end) {
+  return [
     ...fixedIn(ctx.data, start, end),
     ...(ctx.data.debts || []).flatMap((l) => loanPaymentsIn(l, start, end, ctx.now).map((p) => ({ name: l.name, date: p.date, amount: p.amount, loan: true }))),
   ].sort((a, b) => a.date - b.date);
+}
+
+/** 기간 안에 나갈 돈: 고정지출 + 대출 상환 */
+function outflow(ctx, start, end, label) {
+  const items = outflowItems(ctx, start, end);
   if (!items.length) return { text: `${label}${josa(label, '이', '가')} 없어요.` };
   const sum = items.reduce((a, x) => a + x.amount, 0);
   return { text: `${은(label)} ${wonExact(sum)}이에요. (${items.length}건)\n${items.slice(0, 12).map((x) => `· ${x.date.getMonth() + 1}/${x.date.getDate()} ${x.name} ${wonExact(x.amount)}`).join('\n')}${items.length > 12 ? `\n· 그 밖에 ${items.length - 12}건` : ''}` };
@@ -482,6 +550,13 @@ function entitySummary(ctx, e) {
   if (e.type === 'home') return H.home({ ...ctx, ents: [e] });
   if (e.type === 'market') return H.stocks({ ...ctx, ents: [e] });
   if (e.type === 'category') return H.fixedTotal({ ...ctx, ents: [e] });
+  if (e.type === 'cal' || e.type === 'partner') return H.schedule({ ...ctx, ents: [e] });
+  if (e.type === 'event') return eventWhen(ctx, e.name);
+  if (e.type === 'task') {
+    const t = e.item;
+    if (t.done) return { text: `‘${t.title}’${josa(t.title, '은', '는')} 이미 완료했어요.` };
+    return { text: t.due ? `‘${t.title}’ 마감은 ${mdw(fromKey(t.due))}, ${이에요(dueLabel(t.due, ymd(now)))}.` : `‘${t.title}’${josa(t.title, '은', '는')} 날짜 없이 적어 둔 할일이에요.` };
+  }
   if (e.type === 'fixed') {
     const f = e.item;
     const d = nextDue(f.day, now);
@@ -499,4 +574,93 @@ function entitySummary(ctx, e) {
     return { text: lines.join('\n') };
   }
   return { text: `${e.name}에 대해 무엇이 궁금하세요?` };
+}
+
+// ───── 일정·할일 ─────
+const NOT_LINKED = '구글 캘린더·할일이 아직 연결되지 않았어요. 설정 → 구글 캘린더·할일에서 연결하면 알려드릴게요.';
+const shortDay = (d) => `${d.getMonth() + 1}/${d.getDate()} (${'일월화수목금토'[d.getDay()]})`;
+const addD = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+
+/** 묻는 기간 (기본: 오늘). 지난 기간이면 오늘부터 */
+function askRange(ctx, def = 'today') {
+  const t = ctx.time;
+  if (!t) return def === 'week' ? { start: ctx.now, end: addD(ctx.now, 6 - ((ctx.now.getDay() + 6) % 7)), label: '이번 주' } : { start: ctx.now, end: ctx.now, label: '오늘' };
+  let { start, end } = t;
+  if (t.loose && end < ctx.now) { start = new Date(start.getFullYear() + 1, start.getMonth(), 1); end = new Date(end.getFullYear() + 1, end.getMonth() + 1, 0); }
+  const label = t.label || '그때';
+  if (t.kind !== 'day' && start < ctx.now && end >= ctx.now) start = ctx.now;
+  return { start, end, label };
+}
+
+function scheduleAnswer(ctx) {
+  const { start, end, label } = askRange(ctx);
+  const one = ymd(start) === ymd(end);
+  const money = outflowItems(ctx, start, end);
+  const moneyText = money.length ? `\n나갈 돈: ${money.map((x) => `${one ? '' : `${x.date.getMonth() + 1}/${x.date.getDate()} `}${x.name} ${wonExact(x.amount)}`).join(', ')}` : '';
+  if (!ctx.agenda) return { text: `${NOT_LINKED}${moneyText ? `\n${label}${moneyText}` : ''}` };
+  let events = ctx.agenda.events;
+  const cal = ctx.ents.find((e) => e.type === 'cal');
+  const partner = ctx.ents.some((e) => e.type === 'partner');
+  if (cal) events = events.filter((e) => e.calName === cal.name);
+  if (partner) events = events.filter((e) => e.partner);
+  const what = cal ? `${cal.name} 일정` : partner ? '반려자 일정' : '일정';
+  // 제목을 콕 집었는데 기간을 말하지 않았으면 그 일정이 언제인지
+  const ev = ctx.ents.find((e) => e.type === 'event');
+  if (ev && !ctx.time && !cal && !partner) return eventWhen(ctx, ev.name);
+  const lines = [];
+  for (let d = start; d <= end && lines.length < 40; d = addD(d, 1)) {
+    const key = ymd(d);
+    for (const e of eventsOn(events, key)) {
+      if (!one && e.startKey < key && key !== ymd(start)) continue; // 여러 날 일정은 첫날만
+      const when = e.allDay ? '종일' : e.startKey < key ? '계속' : e.time;
+      lines.push(`· ${one ? '' : `${shortDay(d)} `}${when} ${e.title}${e.partner && !partner ? ' (반려자)' : ''}`);
+    }
+  }
+  const beyond = ctx.agenda.until && ymd(end) > ctx.agenda.until ? `\n(앱에 받아 둔 일정은 ${shortDay(fromKey(ctx.agenda.until))}까지예요. 앱을 열면 새로 받아요.)` : '';
+  if (!lines.length) {
+    const next = ctx.time ? null : events.filter((e) => e.startKey > ymd(end)).sort((a, b) => a.startKey.localeCompare(b.startKey) || a.time.localeCompare(b.time))[0];
+    return { text: `${label}은 ${what}이 없어요.${next ? `\n다음 ${what}은 ${mdw(fromKey(next.startKey))} ${next.allDay ? '' : `${next.time} `}‘${next.title}’이에요.` : ''}${moneyText}${beyond}`, chips: one && label === '오늘' ? [ask1('내일 일정 뭐야?')] : [] };
+  }
+  return { text: `${label} ${what}${lines.length > 1 ? `은 ${lines.length}개예요` : '이에요'}.\n${lines.join('\n')}${moneyText}${beyond}`, chips: label === '오늘' ? [ask1('오늘 할일 뭐야?')] : [] };
+}
+
+/** 이 제목의 일정이 언제인지 (가장 가까운 앞으로의 것) */
+function eventWhen(ctx, title) {
+  if (!ctx.agenda) return { text: NOT_LINKED };
+  const today = ymd(ctx.now);
+  const list = ctx.agenda.events.filter((e) => e.title === title).sort((a, b) => a.startKey.localeCompare(b.startKey));
+  const e = list.find((x) => x.endKey >= today) || list.at(-1);
+  if (!e) return { text: `‘${title}’ 일정을 찾지 못했어요.` };
+  const d = fromKey(e.startKey);
+  const n = daysBetween(ctx.now, d);
+  const rel = n === 0 ? '오늘' : n === 1 ? '내일' : n > 0 ? `${n}일 뒤` : `${-n}일 전`;
+  const span = e.endKey !== e.startKey ? `~${mdw(fromKey(e.endKey))}` : '';
+  return { text: `‘${e.title}’${josa(e.title, '은', '는')} ${mdw(d)}${span}${e.allDay ? '' : ` ${e.time}`}, ${이에요(rel)}. (${e.calName})` };
+}
+
+function tasksAnswer(ctx) {
+  if (!ctx.agenda) return { text: NOT_LINKED };
+  const today = ymd(ctx.now);
+  const g = groupTasks(ctx.agenda.tasks, today);
+  const t1 = (t) => `· ${t.title}${t.due && t.due < today ? ` (${dueLabel(t.due, today)})` : ''}`;
+  const tk = ctx.ents.find((e) => e.type === 'task');
+  if (tk && !ctx.time) return entitySummary(ctx, tk);
+  if (/끝낸|완료한|끝냈|했던/.test(ctx.q)) {
+    const done = g.done.slice(0, 8);
+    return { text: done.length ? `최근에 끝낸 일이에요.\n${done.map((t) => `· ${t.title}${t.completedAt ? ` (${Number(t.completedAt.slice(5, 7))}/${Number(t.completedAt.slice(8))})` : ''}`).join('\n')}` : '최근 30일 동안 완료한 할일이 없어요.' };
+  }
+  if (/밀린|못한|안한|지난|놓친/.test(ctx.q)) {
+    return { text: g.overdue.length ? `마감이 지난 할일이 ${g.overdue.length}개예요.\n${g.overdue.map(t1).join('\n')}` : '마감이 지난 할일은 없어요.' };
+  }
+  const { start, end, label } = askRange(ctx, /이번주|금주|다음주|담주|이번달|다음달/.test(ctx.q) ? 'week' : 'today');
+  const s = ymd(start);
+  const e = ymd(end);
+  const open = ctx.agenda.tasks.filter((t) => !t.done && t.due && t.due >= s && t.due <= e).sort((a, b) => a.due.localeCompare(b.due));
+  const isToday = s === today && e === today;
+  const one = s === e;
+  const lines = open.map((t) => `· ${one ? '' : `${shortDay(fromKey(t.due))} `}${t.title}`);
+  const late = isToday && g.overdue.length ? `\n지난 할일도 ${g.overdue.length}개 있어요.\n${g.overdue.map(t1).join('\n')}` : '';
+  const nodate = isToday && !open.length && !g.overdue.length && g.nodate.length ? `\n날짜 없이 적어 둔 할일은 ${g.nodate.length}개 있어요.` : '';
+  if (!open.length) return { text: `${label} 마감인 할일은 없어요.${late}${nodate}` };
+  return { text: `${label} 할일은 ${open.length}개예요.\n${lines.join('\n')}${late}` };
 }

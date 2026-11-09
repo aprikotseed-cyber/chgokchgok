@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { ask } from '../js/assistant.js';
+import { normEvent, normTask } from '../js/agenda.js';
+
+const now = new Date(2026, 10, 9, 9, 0); // 2026-11-09 (월)
+const at = (d, h, m = 0, mins = 60) => ({ start: { dateTime: new Date(2026, 10, d, h, m).toISOString() }, end: { dateTime: new Date(2026, 10, d, h, m + mins).toISOString() } });
+const cal = (summary, partner = false) => ({ id: summary, summary, partner });
+const events = [
+  normEvent({ id: 'a', summary: '학년 협의회', ...at(9, 15) }, cal('Work')),
+  normEvent({ id: 'b', summary: '헬스', ...at(9, 19, 30) }, cal('Exercise')),
+  normEvent({ id: 'c', summary: '야근', ...at(9, 20) }, cal('내 캘린더', true)),
+  normEvent({ id: 'd', summary: '러닝 5km', ...at(11, 6, 30) }, cal('Exercise')),
+  normEvent({ id: 'e', summary: '저녁 데이트', ...at(13, 18, 30) }, cal('Cherish')),
+  normEvent({ id: 'f', summary: '어머니 생신', start: { date: '2026-11-18' }, end: { date: '2026-11-19' } }, cal('Birthday')),
+];
+const tasks = [
+  { id: 't1', title: '교육청 공문 회신', due: '2026-11-08T00:00:00.000Z', status: 'needsAction' },
+  { id: 't2', title: '수학 단원평가 채점', due: '2026-11-09T00:00:00.000Z', status: 'needsAction' },
+  { id: 't3', title: '대학원 과제 제출', due: '2026-11-13T00:00:00.000Z', status: 'needsAction' },
+  { id: 't4', title: '연말정산 서류', due: '2026-11-06T00:00:00.000Z', status: 'completed', completed: '2026-11-07T01:00:00.000Z' },
+].map((t) => normTask(t));
+const agenda = { events, tasks, until: '2026-12-10' };
+const data = { fixed: [{ id: 'f1', name: '넷플릭스', day: 9, amount: 17000 }], debts: [], savings: [] };
+const A = (q) => ask(q, data, {}, now, agenda).text;
+
+test('비서: 오늘 일정 (반려자 캘린더는 맨 뒤, 나갈 돈도 함께)', () => {
+  const a = A('오늘 일정 뭐야?');
+  assert.match(a, /오늘 일정은 3개예요/);
+  assert.ok(a.indexOf('학년 협의회') < a.indexOf('헬스') && a.indexOf('헬스') < a.indexOf('야근'));
+  assert.match(a, /야근 \(반려자\)/);
+  assert.match(a, /나갈 돈: 넷플릭스 17,000원/);
+});
+
+test('비서: 요일·주간·캘린더 종류·반려자', () => {
+  assert.match(A('수요일에 뭐 있어?'), /러닝 5km/);
+  assert.match(A('금요일 약속 있어?'), /저녁 데이트/);
+  assert.match(A('이번 주 운동 일정'), /Exercise 일정은 2개예요[\s\S]*헬스[\s\S]*러닝/);
+  assert.match(A('반려자 일정 알려줘'), /반려자 일정이에요[\s\S]*야근/);
+  assert.match(A('내일은?'), /내일은 일정이 없어요/);
+});
+
+test('비서: 일정 제목으로 언제인지', () => {
+  assert.match(A('어머니 생신 언제야?'), /어머니 생신.*11월 18일 \(수\).*9일 뒤/);
+});
+
+test('비서: 할일', () => {
+  const a = A('오늘 할일 뭐야');
+  assert.match(a, /오늘 할일은 1개예요[\s\S]*수학 단원평가 채점[\s\S]*지난 할일도 1개[\s\S]*교육청 공문 회신 \(1일 지남\)/);
+  assert.match(A('이번 주 할일'), /이번 주 할일은 2개예요[\s\S]*대학원 과제 제출/);
+  assert.match(A('밀린 할일 있어?'), /마감이 지난 할일이 1개예요/);
+  assert.match(A('대학원 과제 언제까지야'), /11월 13일 \(금\)/);
+  assert.match(A('최근에 끝낸 일'), /연말정산 서류/);
+});
+
+test('비서: 오늘 브리핑 · 연결 전 안내 · 자산 질문은 그대로', () => {
+  const b = A('오늘 브리핑 해줘');
+  assert.match(b, /학년 협의회[\s\S]*수학 단원평가/);
+  assert.match(ask('오늘 일정 뭐야', data, {}, now, null).text, /연결되지 않았어요/);
+  assert.match(A('넷플 언제 결제돼'), /넷플릭스는 매달 9일/);
+  assert.match(A('고정지출 얼마야'), /매달 고정지출은/);
+});

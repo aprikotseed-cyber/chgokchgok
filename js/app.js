@@ -1,18 +1,18 @@
-import { connect, isDemo } from './store.js?v=20261110d';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110d';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110d';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110d';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110d';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110d';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110d';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110d';
-import { ask, SUGGEST } from './assistant.js?v=20261110d';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110d';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110d';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110d';
-import { createGoogle } from './google.js?v=20261110d';
-import { createDemoGoogle } from './google-demo.js?v=20261110d';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES } from './agenda.js?v=20261110d';
+import { connect, isDemo } from './store.js?v=20261110e';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110e';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110e';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110e';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110e';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110e';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110e';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110e';
+import { ask, SUGGEST } from './assistant.js?v=20261110e';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110e';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110e';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110e';
+import { createGoogle } from './google.js?v=20261110e';
+import { createDemoGoogle } from './google-demo.js?v=20261110e';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil } from './agenda.js?v=20261110e';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -116,7 +116,7 @@ const FORMS = {
       { key: 'graceYears', label: '거치 기간', type: 'seg', options: [[1, '1년'], [2, '2년'], [3, '3년']], def: 1, showIf: { method: 'grace_annuity' }, noSchedule: true, hint: '거치 기간에는 이자만 내고, 끝나면 남은 기간 동안 원리금균등으로 갚아요' },
       { key: 'startDate', label: '대출 실행월', type: 'month', showIf: { method: 'grace_annuity' }, noSchedule: true, hint: '거치 기간이 언제 끝나는지 계산하는 데 써요' },
       { key: 'payment', label: '이번 달 원리금', type: 'won', showIf: { method: 'graduated' }, noSchedule: true, hint: '은행 앱·상환 스케줄표의 이번 달 납입액. 이걸로 매달 늘어나는 금액을 계산해요' },
-      { key: 'payDay', label: '매달 상환일', type: 'day', noSchedule: true, hint: '상환일 5·3·1일 전에 알려드려요' },
+      { key: 'payDay', label: '매달 상환일', type: 'day', noSchedule: true, hint: '상환일 당일 아침 브리핑에 넣어 드려요 (앱 화면 알림은 5·3·1일 전부터)' },
       { key: 'maturity', label: '만기', type: 'month', noSchedule: true },
       { key: 'graceEnd', label: '거치기간 끝 (선택)', type: 'month', showIf: { method: ['annuity', 'equal', 'graduated'] }, noSchedule: true, hint: '이때까지는 이자만 내요' },
       { key: 'account', label: '출금 계좌', type: 'text', placeholder: '예: 신한 주거래 통장', hint: '상환일 알림과 일정에 함께 보여드려요' },
@@ -128,7 +128,7 @@ const FORMS = {
       { key: 'name', label: '이름', type: 'text', placeholder: '휴대폰 요금', required: true },
       { key: 'category', label: '분류', type: 'select', options: FIXED_CATS },
       { key: 'amount', label: '금액', type: 'won' },
-      { key: 'day', label: '매달 출금일', type: 'day', hint: '출금 하루 전에 알려드려요. 31일은 짧은 달엔 말일로 계산해요' },
+      { key: 'day', label: '매달 출금일', type: 'day', hint: '출금일 당일 아침 브리핑에 넣어 드려요. 31일은 짧은 달엔 말일로 계산해요' },
       { key: 'account', label: '출금 계좌·카드 (선택)', type: 'text', placeholder: '주거래 통장' },
       { key: 'active', label: '지금 나가고 있는 지출', type: 'check', def: true, hint: '잠시 멈춘 구독 등은 끄면 합계와 알림에서 빠져요' },
     ],
@@ -695,7 +695,7 @@ function viewFixed() {
   </section>
   </div>
   <div class="cols"><div class="col-main">
-  ${section(`${mo + 1}월 출금 일정`, `<div class="panel list">${rows || empty('휴대폰 요금, 관리비, 보험료처럼 매달 나가는 돈을 추가해 보세요. 출금 하루 전에 알려드려요.')}</div>`, { action: addBtn('fixed') })}
+  ${section(`${mo + 1}월 출금 일정`, `<div class="panel list">${rows || empty('휴대폰 요금, 관리비, 보험료처럼 매달 나가는 돈을 추가해 보세요. 출금일 아침 브리핑에 알려드려요.')}</div>`, { action: addBtn('fixed') })}
   </div><div class="col-side">
   ${s.categories.length ? section('분류별', `<div class="panel list">${s.categories.map((c) => `<div class="row static bar-row">
       <span class="row-title">${esc(c.name)}</span>
@@ -845,7 +845,7 @@ function viewSettings() {
   <div class="cols"><div class="col-main">
   ${section('구글 캘린더·할일', googleSettings())}
   ${section('비서 알림', `<div class="panel">
-      <p class="pad">매일 오전 8시에 확인해서 <b>대출 상환일 5·3·1일 전</b>, <b>고정지출 출금 하루 전</b>에 휴대폰으로 알려드려요. 앱을 열면 홈의 '고정지출·상환 일정'에서도 볼 수 있어요.</p>
+      <p class="pad">매일 오전 8시쯤 <b>아침 브리핑</b>을 보내 드려요: 오늘 일정, 오늘 마감 할일과 지난 할일, 그리고 <b>오늘이 상환일·출금일인</b> 대출 상환과 고정지출. 앱 화면(PC 알림 카드)에서는 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p>
       ${pushBody}
     </div>`)}
   ${section('비서 개선 목록', `<div class="panel list">${(state.data.assistantMisses || []).length
@@ -908,15 +908,9 @@ function gapi() {
 const gConnected = () => !!gapi()?.connected();
 
 /** 캘린더별 보기·반려자 설정 (설정에서 바꾼 값이 우선) */
-const calPref = (c) => ({ show: gset().cals?.[c.id]?.show ?? c.show, partner: gset().cals?.[c.id]?.partner ?? c.partner });
-
+const calPref = (c) => calPrefOf(c, gset());
 /** 화면에 보여줄 일정 (숨긴 캘린더는 빼고, 반려자 표시는 지금 설정대로) */
-function agendaEvents() {
-  const a = state.agenda;
-  if (!a) return [];
-  const prefs = new Map((a.calendars || []).map((c) => [c.id, calPref(c)]));
-  return (a.events || []).filter((e) => prefs.get(e.calId)?.show !== false).map((e) => ({ ...e, partner: prefs.get(e.calId)?.partner ?? e.partner }));
-}
+const agendaEvents = () => visibleEvents(state.agenda, gset());
 
 /** 대출 상환·고정지출도 일정 화면에 같이 (돈 나가는 날) */
 function moneyEvents(days) {
@@ -1543,7 +1537,9 @@ function askAssistant(q) {
   if (!q) return;
   chat.push({ me: true, text: q });
   renderChat();
-  const a = ask(q, state.data, state.market, new Date());
+  // 일정·할일도 함께 (구글을 연결해 받아 둔 것)
+  const ag = state.agenda ? { events: agendaEvents(), tasks: state.agenda.tasks || [], until: agendaUntil(state.agenda) } : null;
+  const a = ask(q, state.data, state.market, new Date(), ag);
   // 모르는 질문은 저절로 개선 목록에
   if (a.unknown) saveFeedback({ q, kind: 'unknown' });
   replying = replying.then(async () => {
@@ -1561,7 +1557,7 @@ function askAssistant(q) {
 }
 
 function openAssistant() {
-  if (!chat.length) chat.push({ text: '무엇이 궁금하세요? 입력해 두신 자산·대출·고정지출·주식 내용으로 바로 알려드릴게요.', chips: SUGGEST });
+  if (!chat.length) chat.push({ text: '무엇이 궁금하세요? 일정·할일, 자산·대출·고정지출·주식 내용으로 바로 알려드릴게요.', chips: SUGGEST });
   renderChat();
   $('#assistant').showModal();
   if (matchMedia('(hover: hover)').matches) $('#as-input').focus();
