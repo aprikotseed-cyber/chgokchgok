@@ -25,4 +25,5 @@ test('단축어 종류: 글자·이모지 모두', async () => {
   const { inboxKind } = await import('../js/agenda.js');
   assert.deepEqual(['일정', '🗓️', '🗓', '📅 일정', '할일', '☑️', '✅', '📝', '메모', '🗒️', ''].map(inboxKind),
     ['event', 'event', 'event', 'event', 'task', 'task', 'task', 'memo', 'memo', 'memo', 'memo']);
+  assert.equal(inboxKind('🗓️\n☑️\n📝'), 'mixed'); // 목록 전체가 오면 알아채기
 });

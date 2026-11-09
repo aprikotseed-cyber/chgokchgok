@@ -57,3 +57,14 @@ test('할일 날짜 표시', () => {
   assert.equal(dueLabel('2026-11-06', '2026-11-09'), '3일 지남');
   assert.equal(dueLabel('2026-11-13', '2026-11-09'), '11월 13일 (금)');
 });
+
+test('할일 시간: 제목에서 빼고 메모 첫 줄로 (구글 태스크는 시간을 못 받아요)', async () => {
+  const { taskNotes } = await import('../js/agenda.js');
+  assert.deepEqual(parseQuickTask('모레 오후 3시 특별중도해지', now), { title: '특별중도해지', due: '2026-11-11', time: '15:00' });
+  assert.deepEqual(parseQuickTask('3시간 공부하기', now), { title: '3시간 공부하기', due: '' }); // '3시간'은 시간이 아니에요
+  assert.equal(taskNotes('서류 챙기기', '15:00'), '시간 15:00\n서류 챙기기');
+  const t = normTask({ id: 'a', title: '특별중도해지', notes: '시간 15:00\n서류 챙기기', due: '2026-11-11T00:00:00.000Z', status: 'needsAction' });
+  assert.deepEqual([t.time, t.notes], ['15:00', '서류 챙기기']);
+  const g = groupTasks([{ id: '1', title: 'B', due: '2026-11-09', time: '' }, { id: '2', title: 'A', due: '2026-11-09', time: '09:00' }], '2026-11-09');
+  assert.deepEqual(g.today.map((x) => x.id), ['2', '1']); // 시간 있는 것 먼저
+});

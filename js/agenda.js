@@ -57,9 +57,17 @@ const dayKeyDate = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 // ───── 할일 ─────
 
 /** 구글 태스크 하나 → 앱용. due는 날짜만 의미 있어요 (구글 태스크는 시간을 저장하지 않아요) */
+// 구글 태스크는 다른 앱에서 시간을 넣을 수 없어서, 시간은 메모 첫 줄 '시간 15:00'으로 적어 둬요
+const TIME_LINE = /^시간\s*(\d{1,2}):(\d{2})\s*(?:\n|$)/;
+/** 할일 메모 + 시간 → 구글 태스크에 보낼 메모 */
+export const taskNotes = (notes = '', time = '') => (time ? `시간 ${time}${notes ? `\n${notes}` : ''}` : notes || '');
+
 export function normTask(t, listId = '') {
+  const m = (t.notes || '').match(TIME_LINE);
   return {
-    id: t.id, listId, title: t.title || '(제목 없음)', notes: t.notes || '',
+    id: t.id, listId, title: t.title || '(제목 없음)',
+    notes: m ? (t.notes || '').slice(m[0].length) : t.notes || '',
+    time: m ? `${m[1].padStart(2, '0')}:${m[2]}` : '',
     due: t.due ? t.due.slice(0, 10) : '', done: t.status === 'completed', deleted: !!t.deleted,
     completedAt: t.completed ? t.completed.slice(0, 10) : '', updated: t.updated || '',
   };
@@ -79,8 +87,8 @@ export function groupTasks(tasks, todayKey) {
     else if (t.due <= weekEnd) g.week.push(t);
     else g.later.push(t);
   }
-  const byDue = (a, b) => a.due.localeCompare(b.due) || a.title.localeCompare(b.title);
-  for (const k of ['overdue', 'week', 'later']) g[k].sort(byDue);
+  const byDue = (a, b) => a.due.localeCompare(b.due) || (a.time || '99').localeCompare(b.time || '99') || a.title.localeCompare(b.title);
+  for (const k of ['overdue', 'today', 'tomorrow', 'week', 'later']) g[k].sort(byDue);
   g.done.sort((a, b) => b.completedAt.localeCompare(a.completedAt));
   return g;
 }
@@ -97,6 +105,10 @@ export const toTaskDue = (key) => (key ? `${key}T00:00:00.000Z` : undefined);
 export function parseQuickTask(text, now = new Date()) {
   const rep = parseRepeat(text, now);
   let s = ` ${rep.rest} `;
+  // '오후 3시', '15:30' 같은 시간은 제목에서 빼서 따로
+  let time = '';
+  const tm = s.match(TIME_RE);
+  if (tm) { const a = toHM(tm[1], tm[2], tm[3], tm[4], tm[5]); if (a != null) { time = hm(a); s = s.replace(tm[0], ' '); } }
   const today = dayKeyDate(now);
   let due = '';
   const take = (re, fn) => {
@@ -116,10 +128,11 @@ export function parseQuickTask(text, now = new Date()) {
   take(/\s(\d{1,2})월\s?(\d{1,2})일(까지|에)?\s/, (m) => nearest(today, Number(m[1]), Number(m[2])));
   take(/\s(\d{1,2})[/.](\d{1,2})(까지|에)?\s/, (m) => nearest(today, Number(m[1]), Number(m[2])));
   const title = s.replace(/\s+/g, ' ').trim();
-  if (!rep.rule) return { title, due };
+  const t = time ? { time } : {};
+  if (!rep.rule) return { title, due, ...t };
   // 반복: 날짜를 따로 안 쓰면 오늘부터 첫 차례
   const first = due && matchesRule(rep.rule, due) ? due : firstOccurrence(rep.rule, due || dayKey(today));
-  return { title, due: first, repeat: { ...rep.rule, anchor: first } };
+  return { title, due: first, ...t, repeat: { ...rep.rule, anchor: first } };
 }
 
 /** 월·일만 주어지면 올해, 이미 한참 지났으면(30일 넘게) 내년 */
@@ -465,7 +478,12 @@ export function parseEventInput(text, now, calendars = [], keywords = []) {
 /** 단축어가 보낸 종류 → 'event' | 'task' | 'memo'. 글자('일정')나 이모지(🗓️ ☑️ 📝) 모두 알아들어요 */
 export function inboxKind(raw) {
   const s = String(raw || '').replace(/️/g, '').trim().toLowerCase();
-  if (/일정|약속|event|calendar|[📅📆🗓⏰]/u.test(s)) return 'event';
-  if (/할일|할 일|투두|todo|task|[✅☑✔📋]/u.test(s)) return 'task';
+  const ev = /일정|약속|event|calendar|[📅📆🗓⏰]/u.test(s);
+  const tk = /할일|할 일|투두|todo|task|[✅☑✔📋]/u.test(s);
+  const mm = /메모|memo|[📝🗒]/u.test(s);
+  // 여러 종류가 한꺼번에 오면 단축어가 '선택한 항목' 대신 목록 전체를 보낸 거예요
+  if (ev + tk + mm > 1) return 'mixed';
+  if (ev) return 'event';
+  if (tk) return 'task';
   return 'memo'; // 메모·📝·🗒 또는 알 수 없으면 메모로 (내용을 잃지 않게)
 }
