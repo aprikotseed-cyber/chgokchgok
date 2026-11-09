@@ -7,7 +7,7 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue, FieldPath } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
-import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, eventLine, repeatLabel, dueLabel, dayKey, inboxKind } from '../js/agenda.js';
+import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, taskNotes, eventLine, repeatLabel, dueLabel, dayKey, inboxKind } from '../js/agenda.js';
 import { fetchCalDav } from '../js/caldav.js';
 import { listApi } from '../js/google.js';
 
@@ -91,14 +91,14 @@ async function handleInbox(userRef, item, ctx) {
     await googleFetch(at, `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`, toGoogleEvent(ev));
     return `${cal.name}: ${eventLine(ev)}${ev.repeat ? ` (${repeatLabel(ev.repeat, ev.date)})` : ''}`;
   }
-  const { title, due, repeat } = parseQuickTask(text, new Date());
+  const { title, due, repeat, time } = parseQuickTask(text, new Date());
   if (!title) throw new Error('할일 내용을 알아듣지 못했어요');
   const lists = await ctx.api().taskLists(false);
   const listId = lists.some((l) => l.id === ctx.gs.taskList) ? ctx.gs.taskList : lists[0]?.id;
-  await googleFetch(at, `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`, { title, ...(due ? { due: toTaskDue(due) } : {}) });
+  await googleFetch(at, `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`, { title, ...(time ? { notes: taskNotes('', time) } : {}), ...(due ? { due: toTaskDue(due) } : {}) });
   // 반복 할일 규칙은 앱 설정에 (앱과 같은 곳)
   if (repeat) await userRef.collection('data').doc('main').update(new FieldPath('settings', 'taskRepeat', title), repeat).catch(() => {});
-  return `할일: ${title}${due ? ` · ${dueLabel(due, dayKey(new Date()))}` : ''}${repeat ? ` (${repeatLabel(repeat, due)})` : ''}`;
+  return `할일: ${title}${due ? ` · ${dueLabel(due, dayKey(new Date()))}` : ''}${time ? ` ${time}` : ''}${repeat ? ` (${repeatLabel(repeat, due)})` : ''}`;
 }
 
 const inbox = (await db.collectionGroup('inbox').get()).docs;

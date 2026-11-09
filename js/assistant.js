@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110x';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110x';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261110x';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110x';
-import { won, wonExact, mdw, pct } from './format.js?v=20261110x';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261110x';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110y';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110y';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261110y';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110y';
+import { won, wonExact, mdw, pct } from './format.js?v=20261110y';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261110y';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -669,10 +669,10 @@ function tasksAnswer(ctx) {
   const { start, end, label } = askRange(ctx, /이번주|금주|다음주|담주|이번달|다음달/.test(ctx.q) ? 'week' : 'today');
   const s = ymd(start);
   const e = ymd(end);
-  const open = ctx.agenda.tasks.filter((t) => !t.done && t.due && t.due >= s && t.due <= e).sort((a, b) => a.due.localeCompare(b.due));
+  const open = ctx.agenda.tasks.filter((t) => !t.done && t.due && t.due >= s && t.due <= e).sort((a, b) => a.due.localeCompare(b.due) || (a.time || '99').localeCompare(b.time || '99'));
   const isToday = s === today && e === today;
   const one = s === e;
-  const lines = open.map((t) => `· ${one ? '' : `${shortDay(fromKey(t.due))} `}${t.title}`);
+  const lines = open.map((t) => `· ${one ? '' : `${shortDay(fromKey(t.due))} `}${t.time ? `${t.time} ` : ''}${t.title}`);
   const late = isToday && g.overdue.length ? `\n지난 할일도 ${g.overdue.length}개 있어요.\n${g.overdue.map(t1).join('\n')}` : '';
   const nodate = isToday && !open.length && !g.overdue.length && g.nodate.length ? `\n날짜 없이 적어 둔 할일은 ${g.nodate.length}개 있어요.` : '';
   if (!open.length) return { text: `${label} 마감인 할일은 없어요.${late}${nodate}` };
@@ -697,11 +697,11 @@ function addAnswer(ctx, now) {
   const isTask = /할일|투두|todo|해야/.test(ctx.q);
   const body = stripCommand(ctx.raw);
   if (isTask) {
-    const { title, due, repeat } = parseQuickTask(body, now);
+    const { title, due, repeat, time } = parseQuickTask(body, now);
     if (!title) return { text: '어떤 할일을 넣을까요? 예: ‘금요일까지 보고서 할일 추가해줘’' };
     return {
-      text: `이 할일을 넣을까요?\n· ${title}${due ? ` (${mdw(fromKey(due))}까지)` : ' (날짜 없음)'}${repeat ? `\n· 반복: ${repeatLabel(repeat, due)} (끝내면 다음 차례를 만들어요)` : ''}`,
-      action: { kind: 'task', title, due, ...(repeat ? { repeat } : {}) },
+      text: `이 할일을 넣을까요?\n· ${title}${due ? ` (${mdw(fromKey(due))}${time ? ` ${time}` : ''}까지)` : time ? ` (${time})` : ' (날짜 없음)'}${repeat ? `\n· 반복: ${repeatLabel(repeat, due)} (끝내면 다음 차례를 만들어요)` : ''}`,
+      action: { kind: 'task', title, due, ...(time ? { time } : {}), ...(repeat ? { repeat } : {}) },
     };
   }
   const p = parseEventInput(body, now, ctx.agenda.calendars || [], ctx.agenda.keywords || []);

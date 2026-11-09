@@ -1,8 +1,8 @@
 // 아침 브리핑 알림 (GitHub Actions가 매일 아침 보내요): 오늘 일정 · 할일 · 오늘 나가는 돈.
 // 대출 상환과 고정지출은 '오늘'이 상환일·출금일일 때만 넣어요.
-import { upcoming } from './reminders.js?v=20261110x';
-import { wonExact } from './format.js?v=20261110x';
-import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261110x';
+import { upcoming } from './reminders.js?v=20261110y';
+import { wonExact } from './format.js?v=20261110y';
+import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261110y';
 
 const WEEK = '일월화수목금토';
 const list = (items, n = 4) => items.slice(0, n).join(', ') + (items.length > n ? ` 외 ${items.length - n}개` : '');
@@ -19,7 +19,7 @@ export function morningBriefing(data, agenda, today) {
       lines.push(evs.length ? `일정 ${evs.length}개: ${list(evs)}` : '일정: 오늘은 없어요');
     } else lines.push('일정: 앱을 한 번 열면 새로 받아와요');
     const g = groupTasks(agenda.tasks || [], key);
-    const todo = g.today.map((t) => t.title);
+    const todo = g.today.map((t) => `${t.time ? `${t.time} ` : ''}${t.title}`);
     lines.push(todo.length ? `할일 ${todo.length}개: ${list(todo)}` : '할일: 오늘 마감은 없어요');
     if (g.overdue.length) lines.push(`지난 할일 ${g.overdue.length}개: ${list(g.overdue.map((t) => t.title), 3)}`);
   }
