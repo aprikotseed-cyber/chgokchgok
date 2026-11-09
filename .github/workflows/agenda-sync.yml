@@ -1,0 +1,28 @@
+name: 일정·할일 자동 동기화
+
+# 앱을 열지 않아도 구글 캘린더·태스크를 받아 둬요 (아침 브리핑·비서가 최신 내용으로 답하도록).
+# 한국 시간 오전 6시 27분 ~ 밤 11시 27분, 1시간마다. 앱의 '자동 동기화 켜기'·'지금 받기'로도 실행돼요.
+on:
+  schedule:
+    - cron: '27 21-23,0-14 * * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: agenda
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save firebase-admin@12
+      - run: node scripts/agenda-sync.mjs
+        env:
+          TZ: Asia/Seoul
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}

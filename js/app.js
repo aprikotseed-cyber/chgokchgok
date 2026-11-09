@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110i';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110i';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110i';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110i';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110i';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110i';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110i';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110i';
-import { ask, SUGGEST } from './assistant.js?v=20261110i';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110i';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110i';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110i';
-import { createGoogle } from './google.js?v=20261110i';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110i';
-import { createDemoGoogle } from './google-demo.js?v=20261110i';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine } from './agenda.js?v=20261110i';
+import { connect, isDemo } from './store.js?v=20261110j';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110j';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110j';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110j';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110j';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110j';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110j';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110j';
+import { ask, SUGGEST } from './assistant.js?v=20261110j';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110j';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110j';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110j';
+import { createGoogle } from './google.js?v=20261110j';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110j';
+import { createDemoGoogle } from './google-demo.js?v=20261110j';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda } from './agenda.js?v=20261110j';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -940,7 +940,6 @@ async function loadPush() {
 
 // ───────────────────────── 일정·할일 (구글 캘린더·구글 태스크) ─────────────────────────
 // 앱에서 구글에 연결해 받아 온 일정·할일은 Firestore(agenda)에 저장해 둬서, 다음에 열면 연결 없이도 바로 보여요.
-const DEFAULT_CALS = ['exercise', 'cherish', 'birthday', 'work', 'life', ...PARTNER_NAMES];
 const gset = () => state.data.settings?.google || {};
 let googleApi = null;
 let googleFor = null;
@@ -978,32 +977,7 @@ function syncAgenda(interactive = false) {
   renderGsync();
   syncing = (async () => {
     try {
-      const t = now();
-      const from = new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1);
-      const to = new Date(t.getFullYear(), t.getMonth(), t.getDate() + 32);
-      const raw = await g.calendars(interactive);
-      const named = raw.some((c) => DEFAULT_CALS.includes((c.summaryOverride || c.summary || '').toLowerCase()));
-      const calendars = raw.map((c) => {
-        const name = c.summaryOverride || c.summary || '';
-        return { id: c.id, name, color: c.backgroundColor || '', primary: !!c.primary, write: ['owner', 'writer'].includes(c.accessRole),
-          show: named ? DEFAULT_CALS.includes(name.toLowerCase()) : c.accessRole === 'owner' || !!c.primary,
-          partner: PARTNER_NAMES.includes(name) };
-      });
-      const shown = calendars.filter((c) => calPref(c).show);
-      const lists = await g.taskLists(interactive);
-      const listId = lists.some((l) => l.id === gset().taskList) ? gset().taskList : lists[0]?.id || '';
-      const [evs, tasks] = await Promise.all([
-        Promise.all(shown.map((c) => g.events(c.id, from.toISOString(), to.toISOString(), interactive)
-          .then((items) => items.filter((e) => e.status !== 'cancelled').map((e) => normEvent(e, { id: c.id, summary: c.name, backgroundColor: c.color, partner: calPref(c).partner }))))),
-        listId ? g.tasks(listId, interactive) : [],
-      ]);
-      const old = ymd(new Date(t.getFullYear(), t.getMonth(), t.getDate() - 30));
-      state.agenda = {
-        calendars, lists: lists.map((l) => ({ id: l.id, title: l.title || '' })), listId,
-        events: evs.flat(),
-        tasks: tasks.filter((x) => !x.deleted && (x.title || '').trim()).map((x) => normTask(x, listId)).filter((x) => !x.done || !x.completedAt || x.completedAt >= old),
-        syncedAt: Date.now(),
-      };
+      state.agenda = await fetchAgenda(g, gset(), now(), interactive);
       state.gsync = '';
       saveAgendaSoon(0);
     } catch (e) {
@@ -1155,13 +1129,63 @@ function removeEvent(calId, id) {
   eventOp((evs) => evs.splice(evs.findIndex((x) => x.id === id && x.calId === calId), 1), (g) => g.deleteEvent(calId, id));
 }
 
+// ───── 자동 동기화 (GitHub이 1시간마다 구글에서 받아 둬요) ─────
+const autoLinked = () => !!state.secrets?.googleRefresh;
+let agendaAsked = 0;
+async function requestAgendaSync() {
+  if (Date.now() - agendaAsked < 60_000) return toast('방금 요청했어요. 1~2분 뒤 저절로 반영돼요.');
+  try {
+    await dispatchWorkflow(repoFromLocation(location), state.secrets?.githubToken, 'agenda-sync.yml');
+    agendaAsked = Date.now();
+    toast('새로 받아 달라고 요청했어요. 1~2분 뒤 저절로 반영돼요.');
+  } catch (e) { toast(e.message); }
+}
+
+async function turnOnAutoSync(btn) {
+  if (!state.secrets?.githubToken) return toast('먼저 아래 ‘지금 업데이트 버튼’에서 GitHub 토큰을 넣어 주세요.');
+  btn.disabled = true;
+  try {
+    const code = await gapi().requestCode(); // 구글 허용 창
+    await store.saveSecret('googleAuthCode', code);
+    await store.saveSecret('googleLinkError', '');
+    await dispatchWorkflow(repoFromLocation(location), state.secrets.githubToken, 'agenda-sync.yml');
+    toast('연결하는 중이에요. 1~2분 뒤 ‘켜짐’으로 바뀌어요.');
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function autoSyncPanel() {
+  const sc = state.secrets || {};
+  const err = sc.googleLinkError ? `<p class="pad warn">${esc(sc.googleLinkError)}</p>` : '';
+  if (autoLinked()) {
+    return `<div class="row static"><span class="row-main"><span class="row-title">자동 동기화 켜짐</span><span class="row-meta">앱을 안 열어도 오전 6시~밤 11시에 1시간마다, 그리고 아침 브리핑 직전에 새로 받아요${sc.googleSyncedAt ? ` · 마지막 ${dateTime(sc.googleSyncedAt)}` : ''}</span></span><button class="link-btn" data-action="g-auto-off">끄기</button></div>
+      ${err}<div class="pad actions"><button class="btn" data-action="g-auto-now">지금 새로 받기 (GitHub)</button></div>`;
+  }
+  if (sc.googleAuthCode && !sc.googleLinkError) return '<p class="pad">자동 동기화를 연결하는 중이에요. 1~2분 걸려요.</p>';
+  return `${err}${details('g-auto', '자동 동기화 켜기 (앱을 안 열어도 최신 일정·할일)', `<div class="pad">
+    <p class="hint">켜 두면 GitHub이 1시간마다 구글에서 일정·할일을 받아 둬요. 아침 브리핑과 비서가 늘 최신 내용으로 답하고, 앱에서도 구글 연결 없이 최신 일정이 보여요. 처음 한 번만 해 주세요.</p>
+    <ol class="steps">
+      <li><a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">구글 콘솔 → 사용자 인증 정보</a>에서 만들어 둔 <b>OAuth 클라이언트</b>(웹 애플리케이션)를 눌러요.</li>
+      <li>오른쪽 <b>클라이언트 보안 비밀번호</b>를 복사해요. 안 보이면 <b>Add secret</b>(보안 비밀번호 추가)을 눌러 새로 만들어요.</li>
+      <li><a href="https://github.com/${repoFromLocation(location).owner}/${repoFromLocation(location).repo}/settings/secrets/actions/new" target="_blank" rel="noopener">GitHub 새 Secret 만들기</a>를 열어 Name에 <b>GOOGLE_CLIENT_SECRET</b>, Secret에 복사한 값을 넣고 Add secret.</li>
+      <li>아래 <b>자동 동기화 켜기</b>를 누르고 구글 화면에서 허용해요.</li>
+    </ol>
+    <p class="hint">보안 비밀번호는 GitHub Secrets에만 들어가고 공개 코드나 앱에는 들어가지 않아요. 앱 안 업데이트 버튼에 쓰는 GitHub 토큰이 필요해요${state.secrets?.githubToken ? ' (저장돼 있어요)' : ' (아래 ‘지금 업데이트 버튼’에서 먼저 넣어 주세요)'}.</p>
+    <button class="btn primary" data-action="g-auto-on">자동 동기화 켜기</button>
+  </div>`)}`;
+}
+
 /** 구글 연결 상태 한 줄 (일정·할일 화면 위) */
 function gsyncLine() {
   const a = state.agenda;
   const s = state.gsync;
   const when = a?.syncedAt ? `${dateTime(a.syncedAt)} 기준` : '';
   if (s === 'busy') return `<span class="gsync">불러오는 중…</span>`;
-  const btn = gConnected()
+  // 자동 동기화가 켜져 있으면 구글 창 없이 GitHub에 새로 받아 달라고 해요
+  const btn = gConnected() || autoLinked()
     ? '<button class="link-btn" data-action="g-sync">새로고침</button>'
     : `<button class="link-btn" data-action="g-sync">${a ? '구글 다시 연결' : '구글 연결'}</button>`;
   return `<span class="gsync">${s && s !== 'auth' ? `<span class="warn">${esc(s)}</span>` : esc(when)}${btn}</span>`;
@@ -1288,6 +1312,7 @@ function googleSettings() {
     <div class="pad actions"><button class="btn primary" data-action="g-sync">${conn ? '지금 새로 받기' : '구글 연결하기'}</button></div>
     ${cals.length ? `<div class="pad"><b class="mini-title">보여줄 캘린더</b><div class="cal-prefs">${cals.map((c) => { const p = calPref(c); return `<div class="cal-pref"><label><input type="checkbox" data-cal-show="${esc(c.id)}" ${p.show ? 'checked' : ''}><span class="ev-dot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</label><label class="hint"><input type="checkbox" data-cal-partner="${esc(c.id)}" ${p.partner ? 'checked' : ''}>반려자</label></div>`; }).join('')}</div>
       <p class="hint">반려자 캘린더 일정은 하루 일정 맨 뒤에 보여줘요. 새로 켠 캘린더는 다음에 받아올 때부터 보여요.</p></div>` : ''}
+    ${autoSyncPanel()}
     ${a?.lists?.length > 1 ? `<div class="pad"><b class="mini-title">할일 목록</b><select id="g-tasklist" class="select">${a.lists.map((l) => `<option value="${esc(l.id)}" ${l.id === a.listId ? 'selected' : ''}>${esc(l.title)}</option>`).join('')}</select></div>` : ''}
     ${guide}
   </div>`;
@@ -1842,7 +1867,10 @@ function bind() {
     if (!b) return;
     const { action: a, kind, id } = b.dataset;
     if (a === 'add') openForm(kind);
-    if (a === 'g-sync') syncAgenda(true);
+    if (a === 'g-sync') { if (!gConnected() && autoLinked()) requestAgendaSync(); else syncAgenda(true); }
+    if (a === 'g-auto-now') requestAgendaSync();
+    if (a === 'g-auto-on') turnOnAutoSync(b);
+    if (a === 'g-auto-off' && confirm('자동 동기화를 끌까요? 앱을 열어 구글에 연결했을 때만 새로 받아요.')) { await store.saveSecret('googleRefresh', ''); toast('자동 동기화를 껐어요.'); }
     if (a === 'lock-on') {
       try { await enableLock(state.user?.email); toast('잠금을 켰어요. 다음에 앱을 열면 Face ID로 열려요.'); }
       catch (err) { toast(err.name === 'NotAllowedError' ? 'Face ID 등록이 취소됐거나 허용되지 않았어요. iCloud 암호(키체인)가 켜져 있는지 확인해 주세요.' : `잠금을 켜지 못했어요 (${err.name}): ${err.message}`); }
@@ -2161,7 +2189,7 @@ async function main() {
     onAuth: (u) => { state.user = u; state.push.loaded = false; if (!u) { state.agenda = null; agendaLoaded = false; } lockNow(); render(); },
     onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
-    onSecrets: (sc) => { state.secrets = sc || {}; if (state.tab === 'settings') render(); },
+    onSecrets: (sc) => { state.secrets = sc || {}; if (['settings', 'home', 'calendar', 'tasks'].includes(state.tab)) render(); },
     onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'money') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
     onAgenda: (a) => {

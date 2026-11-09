@@ -54,6 +54,7 @@ js/lock.js              Face ID(생체 인증) 화면 잠금, 기기마다 설�
 scripts/update-market.mjs  GitHub Actions가 매일 실거래가·주가를 가져오는 스크립트
 .github/workflows/update-market.yml  매일 오전 6시 17분(미국장 마감 가격): 아파트 실거래가 + 주가·환율
 .github/workflows/quotes.yml         국내장 중 1시간마다(매시 13분): 주가·환율만
+.github/workflows/agenda-sync.yml    오전 6시~밤 11시 1시간마다(매시 27분): 구글 일정·할일 자동 동기화
 firestore.rules         Firestore 보안 규칙
 tests/                  계산 로직 테스트 (node --test tests/*.test.mjs)
 ```
@@ -121,6 +122,14 @@ GitHub 저장소 **Settings → Secrets and variables → Actions → New reposi
 5. 앱 설정 → 구글 캘린더·할일에 클라이언트 ID를 붙여 넣고 **구글 연결하기**.
 
 받아 온 일정(어제~32일 뒤)과 할일은 Firestore `users/{uid}/data/agenda`에 저장돼 다음에 열면 바로 보여요. 구글 연결(접근 토큰)은 창을 연 동안 1시간 유지돼요.
+
+### 자동 동기화 (앱을 안 열어도 최신 일정·할일)
+
+1. 구글 콘솔 → 사용자 인증 정보 → OAuth 클라이언트의 **클라이언트 보안 비밀번호**를 복사해요.
+2. GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret: `GOOGLE_CLIENT_SECRET`.
+3. 앱 설정 → 구글 캘린더·할일 → **자동 동기화 켜기** (앱 안 업데이트 버튼용 GitHub 토큰 필요).
+
+앱이 받은 인증 코드를 `users/{uid}/data/secrets`에 잠깐 저장하면 `.github/workflows/agenda-sync.yml`(`scripts/agenda-sync.mjs`)이 오래 쓰는 연결로 바꾸고, 오전 6시~밤 11시 1시간마다와 아침 브리핑 직전에 일정·할일을 받아 `agenda` 문서에 저장해요.
 
 ## 앱 안 [업데이트] 버튼
 자산 탭 주식 제목 옆 **업데이트**를 누르면 GitHub에서 Run workflow를 누른 것처럼 주가·환율을 바로 받아와요 (1분쯤 뒤 반영).
