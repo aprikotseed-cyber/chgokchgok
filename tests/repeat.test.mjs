@@ -40,3 +40,10 @@ test('일정 반복: 빠른 입력과 구글 캘린더 규칙', () => {
   assert.equal(choiceOf(ruleFromChoice('biweekly', '2026-11-14')), 'biweekly');
   assert.equal(choiceOf({ freq: 'weekly', interval: 1, byday: [1, 3, 5] }), 'keep');
 });
+
+test('늦게 끝내도 다음 차례는 오늘 이후', async () => {
+  const { nextFrom } = await import('../js/agenda.js');
+  const w = { freq: 'weekly', interval: 1, byday: [6] };
+  assert.equal(nextFrom(w, '2026-10-31', '2026-11-09'), '2026-11-14'); // 10/31(토) 할일을 11/9에 끝냄
+  assert.equal(nextFrom(w, '2026-11-14', '2026-11-09'), '2026-11-21');
+});

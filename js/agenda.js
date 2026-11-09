@@ -363,6 +363,13 @@ export function nextOccurrence(rule, key) {
   return n && (!r.until || n <= r.until) ? n : '';
 }
 
+/** 다음 차례 중 오늘(todayKey) 이후로 가장 가까운 날 (늦게 끝내도 지난 날짜로 만들지 않아요) */
+export function nextFrom(rule, key, todayKey) {
+  let n = nextOccurrence(rule, key);
+  for (let i = 0; n && n < todayKey && i < 1000; i++) n = nextOccurrence(rule, n);
+  return n;
+}
+
 /** 구글 캘린더 반복 규칙 */
 export function toRRule(rule) {
   const parts = [`FREQ=${rule.freq.toUpperCase()}`];

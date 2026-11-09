@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110p';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110p';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110p';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110p';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110p';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110p';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110p';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110p';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110p';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110p';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110p';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110p';
-import { createGoogle } from './google.js?v=20261110p';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110p';
-import { createDemoGoogle } from './google-demo.js?v=20261110p';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, nextOccurrence, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110p';
+import { connect, isDemo } from './store.js?v=20261110q';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110q';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110q';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110q';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110q';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110q';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110q';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110q';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110q';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110q';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110q';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110q';
+import { createGoogle } from './google.js?v=20261110q';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110q';
+import { createDemoGoogle } from './google-demo.js?v=20261110q';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110q';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1037,7 +1037,7 @@ function setTaskRule(title, rule, oldTitle) {
 
 /** 반복 할일을 끝내면 다음 차례를 만들어요 (구글이 이미 만들어 뒀으면 건너뛰기) */
 async function makeNextTask(t, rule) {
-  const next = nextOccurrence(rule, t.due || today());
+  const next = nextFrom(rule, t.due || today(), today());
   if (!next) return;
   const g = gapi();
   try {
@@ -1080,7 +1080,10 @@ function saveTask(vals) {
   if (rule && !due) { toast('반복 할일은 마감일이 있어야 해요.'); return false; }
   if (!id) { addTaskItem(vals.title, due, rule); return; }
   const old = state.agenda?.tasks.find((x) => x.id === id);
-  if (rule || old && taskRule(old)) setTaskRule(vals.title, rule, old?.title);
+  const hadRule = !!(old && taskRule(old));
+  if (rule || hadRule) setTaskRule(vals.title, rule, old?.title);
+  // 이미 끝낸 할일에 반복을 새로 걸면 다음 차례를 바로 만들어요
+  if (old?.done && rule && !hadRule) makeNextTask({ ...old, title: vals.title, notes: vals.notes, due }, rule);
   taskOp((ts) => Object.assign(ts.find((x) => x.id === id) || {}, { title: vals.title, notes: vals.notes, due }),
     (g, l) => g.patchTask(l, id, { title: vals.title, notes: vals.notes, due: due ? toTaskDue(due) : null }), listOf(id));
 }
