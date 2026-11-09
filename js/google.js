@@ -3,9 +3,12 @@
 // 토큰은 이 탭이 열려 있는 동안만 기억해요 (sessionStorage). 비밀번호는 앱이 보지 않아요.
 
 export const SCOPES = [
-  'https://www.googleapis.com/auth/calendar.readonly', // 1단계: 일정 읽기
+  'https://www.googleapis.com/auth/calendar.readonly', // 캘린더 목록·일정 읽기
+  'https://www.googleapis.com/auth/calendar.events',   // 일정 넣기·고치기·지우기
   'https://www.googleapis.com/auth/tasks',              // 할일 읽기·쓰기
 ].join(' ');
+// 권한이 늘면 숫자를 올려요: 저장된 토큰을 버리고 구글에 다시 허용을 받아요
+const SCOPE_VER = '2';
 
 const TOKEN_KEY = 'chgok-gtoken';
 const CAL = 'https://www.googleapis.com/calendar/v3';
@@ -28,7 +31,7 @@ function loadGis() {
 function cachedToken() {
   try {
     const t = JSON.parse(sessionStorage.getItem(TOKEN_KEY) || 'null');
-    return t && t.exp > Date.now() + 60_000 ? t.token : null;
+    return t && t.v === SCOPE_VER && t.exp > Date.now() + 60_000 ? t.token : null;
   } catch { return null; }
 }
 
@@ -45,7 +48,7 @@ export function createGoogle(clientId) {
       client.callback = (r) => {
         pending = null;
         if (r.error) return reject(new Error(r.error === 'access_denied' ? '구글 연결을 허용하지 않았어요' : `구글 연결 오류 (${r.error})`));
-        sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token: r.access_token, exp: Date.now() + (Number(r.expires_in) || 3600) * 1000 }));
+        sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ token: r.access_token, v: SCOPE_VER, exp: Date.now() + (Number(r.expires_in) || 3600) * 1000 }));
         resolve(r.access_token);
       };
       client.error_callback = (e) => { pending = null; reject(new Error(e?.type === 'popup_closed' ? '구글 연결 창이 닫혔어요' : '구글 연결 창을 열지 못했어요 (팝업 차단 확인)')); };
@@ -59,7 +62,7 @@ export function createGoogle(clientId) {
     const t = cachedToken();
     if (t) return t;
     if (!interactive) return null;
-    return requestToken(localStorage.getItem('chgok-gconsented') ? '' : 'consent').then((x) => { localStorage.setItem('chgok-gconsented', '1'); return x; });
+    return requestToken(localStorage.getItem('chgok-gconsented') === SCOPE_VER ? '' : 'consent').then((x) => { localStorage.setItem('chgok-gconsented', SCOPE_VER); return x; });
   }
 
   async function api(url, opt = {}, interactive = true) {
@@ -71,7 +74,7 @@ export function createGoogle(clientId) {
     if (res.status === 204) return null;
     if (!res.ok) {
       const msg = (await res.json().catch(() => ({})))?.error?.message || res.status;
-      throw new Error(res.status === 403 ? `구글 API 권한 오류: ${msg} (콘솔에서 Calendar API·Tasks API를 켰는지 확인)` : `구글 오류: ${msg}`);
+      throw new Error(res.status === 403 ? (/insufficient/i.test(msg) ? '일정 쓰기 권한이 없어요. 설정에서 구글 연결을 끊고 다시 연결하면서 모든 항목을 허용해 주세요' : `구글 API 권한 오류: ${msg} (콘솔에서 Calendar API·Tasks API를 켰는지 확인)`) : `구글 오류: ${msg}`);
     }
     return res.json();
   }
@@ -103,6 +106,9 @@ export function createGoogle(clientId) {
     taskLists: (i = true) => all(`${TASKS}/users/@me/lists?maxResults=100`, i),
     // 완료한 일도 함께 받아요 (오래된 완료 항목은 앱에서 걸러요)
     tasks: (listId, i = true) => all(`${TASKS}/lists/${encodeURIComponent(listId)}/tasks?showCompleted=true&showHidden=true&maxResults=100`, i),
+    addEvent: (calId, body) => api(`${CAL}/calendars/${encodeURIComponent(calId)}/events`, { method: 'POST', body: JSON.stringify(body) }),
+    patchEvent: (calId, id, body) => api(`${CAL}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
+    deleteEvent: (calId, id) => api(`${CAL}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(id)}`, { method: 'DELETE' }),
     addTask: (listId, body) => api(`${TASKS}/lists/${encodeURIComponent(listId)}/tasks`, { method: 'POST', body: JSON.stringify(body) }),
     patchTask: (listId, id, body) => api(`${TASKS}/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
     deleteTask: (listId, id) => api(`${TASKS}/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(id)}`, { method: 'DELETE' }),

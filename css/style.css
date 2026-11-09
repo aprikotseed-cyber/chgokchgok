@@ -613,3 +613,26 @@ dialog.lock::backdrop { background: var(--bg); }
 dialog.lock img { width: 96px; height: 96px; }
 .lock-actions { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .lock-actions[hidden] { display: none; }
+
+/* ───── 비서 바로가기 ───── */
+.fab {
+  position: fixed; right: 16px; bottom: calc(var(--tab-h) + 16px + env(safe-area-inset-bottom)); z-index: 11;
+  width: 54px; height: 54px; border: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  background: var(--ink); color: var(--on-ink); box-shadow: 0 6px 20px rgb(0 0 0 / .18);
+}
+.fab svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@media (min-width: 900px) { .fab { display: none; } }
+.ask-bar { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; background: var(--surface-1); border-radius: var(--r); border: 1px solid var(--border); }
+.ask-bar > svg { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: var(--text-muted); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ask-bar input { flex: 1; min-width: 0; height: 42px; border: 0; background: none; font: inherit; font-size: 16px; color: var(--text-primary); }
+.ask-bar input:focus { outline: none; }
+.ask-bar:focus-within { border-color: var(--ink); }
+.ask-bar .btn { width: 42px; height: 42px; padding: 0; flex-shrink: 0; }
+.ask-bar .btn svg { width: 18px; height: 18px; }
+.view > .ask-bar:first-child { margin-top: 8px; }
+.view > .ask-bar + .block { margin-top: 24px; }
+.as-form .mic { width: 46px; height: 46px; flex-shrink: 0; border: 0; background: var(--surface-2); cursor: pointer; }
+.as-form .mic.on { background: var(--danger); color: #fff; animation: mic 1.2s ease-in-out infinite; }
+@keyframes mic { 50% { opacity: .65; } }
+.pill.primary { background: var(--ink); border-color: var(--ink); color: var(--on-ink); font-weight: 600; }
+.pill.primary:hover { opacity: .88; background: var(--ink); }

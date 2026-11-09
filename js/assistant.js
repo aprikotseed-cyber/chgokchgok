@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110f';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110f';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261110f';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110f';
-import { won, wonExact, mdw, pct } from './format.js?v=20261110f';
-import { eventsOn, groupTasks, dueLabel, fromKey } from './agenda.js?v=20261110f';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110g';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110g';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261110g';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110g';
+import { won, wonExact, mdw, pct } from './format.js?v=20261110g';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine } from './agenda.js?v=20261110g';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -185,6 +185,9 @@ export function ask(question, data, market = {}, now = new Date(), agenda = null
   if (!q) return { text: '궁금한 걸 적어 주세요.', chips: SUGGEST };
   const ctx = { q, raw: question, data, market, agenda, now: dateOnly(now), time: parseTime(q, now), ents: findEntities(q, data, agenda) };
 
+  // '내일 3시 상담 넣어줘', '우유 사기 할일 추가해줘': 일정·할일 넣기 (확인 카드로)
+  if (ADD_RE.test(q) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) return addAnswer(ctx, now);
+
   // '가장 빠른 / 제일 먼저 / 다음에' 빠져나가는 것: 순서를 묻는 질문은 합계보다 먼저 봐요
   if (asksNext(q) && !ctx.ents.some((e) => e.type === 'loan' || e.type === 'fixed')) return H.nextOut(ctx);
 
@@ -307,7 +310,7 @@ const H = {
   hello: () => ({ text: '네, 덕준님. 자산·대출·고정지출·주식에 대해 물어보시면 입력해 두신 내용으로 바로 알려드릴게요.', chips: SUGGEST }),
 
   help: () => ({
-    text: '입력해 두신 내용으로 이런 걸 알려드릴 수 있어요.\n· 총자산, 저축액, 주택 시세\n· 대출: 다음 상환일과 금액, 남은 원금, 회차, 낸 이자, 다 갚는 날\n· 고정지출: 합계, 가장 먼저 빠져나가는 것, 항목별 출금일, 분류별 합계\n· 이번 달·이번 주·내일 나갈 돈\n· 주식: 묶음별·종목별 수익, 환율과 환율 효과\n· 연도별 저축·상환 기록',
+    text: '입력해 두신 내용으로 이런 걸 알려드릴 수 있어요.\n· 일정: 오늘·내일·요일·이번 주 일정, 일정이 언제인지\n· 일정·할일 넣기: ‘금요일 7시 헬스 넣어줘’, ‘우유 사기 할일 추가해줘’\n· 할일: 오늘·이번 주·밀린 할일\n· 총자산, 저축액, 주택 시세\n· 대출: 다음 상환일과 금액, 남은 원금, 회차, 낸 이자, 다 갚는 날\n· 고정지출: 합계, 가장 먼저 빠져나가는 것, 항목별 출금일, 분류별 합계\n· 이번 달·이번 주·내일 나갈 돈\n· 주식: 묶음별·종목별 수익, 환율과 환율 효과\n· 연도별 저축·상환 기록',
     chips: SUGGEST,
   }),
 
@@ -663,4 +666,40 @@ function tasksAnswer(ctx) {
   const nodate = isToday && !open.length && !g.overdue.length && g.nodate.length ? `\n날짜 없이 적어 둔 할일은 ${g.nodate.length}개 있어요.` : '';
   if (!open.length) return { text: `${label} 마감인 할일은 없어요.${late}${nodate}` };
   return { text: `${label} 할일은 ${open.length}개예요.\n${lines.join('\n')}${late}` };
+}
+
+// ───── 일정·할일 넣기 ─────
+const ADD_RE = /(추가|넣어|넣기|넣자|잡아줘|잡아줄|잡자|등록|저장해줘|적어줘|기록해줘|메모해줘)/;
+const CMD_RE = /\s*(을|를)?\s*(일정|할일|할 일|약속|스케줄|투두)?\s*(을|를|으로|로|에)?\s*(캘린더|구글|달력|목록)?(에|에다)?\s*(좀\s*)?(추가|넣어|넣기|넣자|잡아|잡자|등록|저장|적어|기록|메모)[\s\S]*$/;
+
+/** 질문에서 넣을 내용만: '내일 3시 상담 일정 잡아 줘' → '내일 3시 상담' */
+export function stripCommand(raw) {
+  return String(raw).trim()
+    .replace(/^(일정|할일|할 일|투두)(에|으로|로)?\s+/, '')
+    .replace(CMD_RE, '')
+    .replace(/[.!?~]+$/, '')
+    .trim();
+}
+
+function addAnswer(ctx, now) {
+  if (!ctx.agenda) return { text: NOT_LINKED };
+  const isTask = /할일|투두|todo|해야/.test(ctx.q);
+  const body = stripCommand(ctx.raw);
+  if (isTask) {
+    const { title, due } = parseQuickTask(body, now);
+    if (!title) return { text: '어떤 할일을 넣을까요? 예: ‘금요일까지 보고서 할일 추가해줘’' };
+    return {
+      text: `이 할일을 넣을까요?\n· ${title}${due ? ` (${mdw(fromKey(due))}까지)` : ' (날짜 없음)'}`,
+      action: { kind: 'task', title, due },
+    };
+  }
+  const p = parseQuickEvent(body, now);
+  if (!p.title) return { text: '어떤 일정을 넣을까요? 예: ‘금요일 7시 헬스 넣어줘’' };
+  const ev = { ...p, date: p.date || ymd(ctx.now) };
+  const want = classifyEvent(p.title);
+  const cal = (ctx.agenda.calendars || []).find((c) => c.name.toLowerCase() === want.toLowerCase());
+  return {
+    text: `이 일정을 넣을까요?\n· ${eventLine(ev)}\n· 캘린더: ${cal?.name || want}${p.date ? '' : '\n날짜를 말씀하지 않아서 오늘로 넣을게요.'}${p.allDay ? '\n시간을 말씀하지 않아서 종일 일정이에요.' : ''}`,
+    action: { kind: 'event', ev: { ...ev, calName: cal?.name || want } },
+  };
 }

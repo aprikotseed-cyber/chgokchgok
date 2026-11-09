@@ -60,3 +60,19 @@ test('비서: 오늘 브리핑 · 연결 전 안내 · 자산 질문은 그대�
   assert.match(A('넷플 언제 결제돼'), /넷플릭스는 매달 9일/);
   assert.match(A('고정지출 얼마야'), /매달 고정지출은/);
 });
+
+test('비서: 일정·할일 넣기는 확인 카드로', () => {
+  const ag = { ...agenda, calendars: [{ id: 'x', name: 'Exercise' }, { id: 'w', name: 'Work' }, { id: 'l', name: 'Life' }] };
+  const a = ask('금요일 7시에 헬스 일정 넣어줘', data, {}, now, ag);
+  assert.equal(a.action.kind, 'event');
+  assert.deepEqual([a.action.ev.title, a.action.ev.date, a.action.ev.time, a.action.ev.calName], ['헬스', '2026-11-13', '19:00', 'Exercise']);
+  assert.match(a.text, /11월 13일 \(금\) 19:00~20:00 헬스[\s\S]*캘린더: Exercise/);
+  const b = ask('내일 학부모 상담 잡아 줘', data, {}, now, ag);
+  assert.deepEqual([b.action.ev.title, b.action.ev.date, b.action.ev.allDay, b.action.ev.calName], ['학부모 상담', '2026-11-10', true, 'Work']);
+  const c = ask('우유 사기 할일 추가해줘', data, {}, now, ag);
+  assert.deepEqual(c.action, { kind: 'task', title: '우유 사기', due: '' });
+  const d = ask('할일에 금요일까지 보고서 넣어줘', data, {}, now, ag);
+  assert.deepEqual(d.action, { kind: 'task', title: '보고서', due: '2026-11-13' });
+  assert.match(ask('헬스 넣어줘', data, {}, now, null).text, /연결되지 않았어요/);
+  assert.match(A('고정지출 얼마야'), /매달 고정지출은/); // 넣기 말이 없으면 그대로
+});
