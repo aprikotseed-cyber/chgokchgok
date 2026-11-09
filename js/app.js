@@ -1,14 +1,14 @@
-import { connect, isDemo } from './store.js?v=20261109m';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109m';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109m';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109m';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109m';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109m';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109m';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109m';
-import { ask, SUGGEST } from './assistant.js?v=20261109m';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109m';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109m';
+import { connect, isDemo } from './store.js?v=20261109n';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109n';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109n';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109n';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109n';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109n';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109n';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109n';
+import { ask, SUGGEST } from './assistant.js?v=20261109n';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109n';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109n';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -115,7 +115,7 @@ const FORMS = {
     ],
   },
   saving: {
-    title: '저축 기록',
+    title: '입금 기록',
     fields: [
       { key: 'targetId', label: '계좌', type: 'ref', source: 'savings' },
       { key: 'date', label: '날짜', type: 'date', hint: '오늘 날짜가 들어가 있어요. 빠뜨린 예전 기록은 날짜만 바꾸면 돼요' },
@@ -123,6 +123,17 @@ const FORMS = {
       { key: 'kind', label: '구분', type: 'select', options: ['정기 납입', '추가 납입'] },
       { key: 'memo', label: '메모', type: 'text', placeholder: '선택' },
       { key: 'applied', label: '계좌 잔액에 더하기', type: 'check', def: true, hint: '잔액에 이미 포함된 예전 기록이면 끄세요' },
+    ],
+  },
+  withdraw: {
+    title: '출금 기록',
+    fields: [
+      { key: 'targetId', label: '계좌', type: 'ref', source: 'savings' },
+      { key: 'date', label: '날짜', type: 'date', hint: '오늘 날짜가 들어가 있어요. 빠뜨린 예전 기록은 날짜만 바꾸면 돼요' },
+      { key: 'amount', label: '뺀 금액', type: 'won' },
+      { key: 'kind', label: '구분', type: 'select', options: ['출금', '해지', '이체'] },
+      { key: 'memo', label: '메모', type: 'text', placeholder: '예: 여행 경비' },
+      { key: 'applied', label: '계좌 잔액에서 빼기', type: 'check', def: true, hint: '잔액에 이미 반영된 예전 기록이면 끄세요' },
     ],
   },
   repayment: {
@@ -138,7 +149,8 @@ const FORMS = {
     ],
   },
 };
-const isRecord = (kind) => kind === 'saving' || kind === 'repayment';
+const isRecord = (kind) => kind === 'saving' || kind === 'withdraw' || kind === 'repayment';
+const REC_LABEL = { saving: '입금', withdraw: '출금', repayment: '상환' };
 const METHOD = { annuity: '원리금균등', grace_annuity: '거치 후 원리금균등', equal: '원금균등', graduated: '체증식', bullet: '만기일시' };
 
 /** 계좌·대출을 고르면 미리 채울 금액 */
@@ -147,6 +159,7 @@ function recordDefaults(type, targetId) {
     const s = (state.data.savings || []).find((x) => x.id === targetId);
     return { amount: Number(s?.monthly) || '', kind: '정기 납입' };
   }
+  if (type === 'withdraw') return { amount: '', kind: '출금' };
   const l = (state.data.debts || []).find((x) => x.id === targetId);
   if (!l) return {};
   const m = loanThisMonth(l);
@@ -311,11 +324,29 @@ function viewAssets() {
   const m = state.market;
   const t = currentTotals(d, m);
 
-  const sav = (d.savings || []).map((s) => row({
-    kind: 'savings', id: s.id, title: esc(s.name),
-    meta: [s.kind, s.monthly ? `매달 ${won(s.monthly)}` : '', s.rate ? `연 ${pct(s.rate)}` : ''].filter(Boolean).join(' · '),
-    value: won(s.balance),
-  })).join('');
+  const thisYear = String(now().getFullYear());
+  const sav = (d.savings || []).map((s) => {
+    const recs = (d.records || []).filter((r) => r.targetId === s.id && (r.type === 'saving' || r.type === 'withdraw')).sort((a, b) => b.date.localeCompare(a.date));
+    const yearIn = recs.filter((r) => r.date.startsWith(thisYear)).reduce((a, r) => a + (r.type === 'saving' ? 1 : -1) * (Number(r.amount) || 0), 0);
+    const hist = recs.length ? details(`acct-${s.id}`, `입출금 내역 ${recs.length}건${yearIn ? ` · ${thisYear}년 ${yearIn >= 0 ? '+' : '−'}${won(Math.abs(yearIn))}` : ''}`, `<div class="list">${recs.slice(0, 12).map((r) => row({
+        kind: 'record', id: r.id, action: 'edit-rec',
+        title: `<span class="date">${r.date.slice(2).replaceAll('-', '.')}</span>${REC_LABEL[r.type]}`,
+        meta: [r.kind, r.applied === false ? '잔액 미반영' : '', esc(r.memo || '')].filter(Boolean).join(' · '),
+        value: `<span class="${r.type === 'saving' ? 'up' : 'down'}">${r.type === 'saving' ? '+' : '−'}${won(r.amount)}</span>`,
+      })).join('')}${recs.length > 12 ? '<div class="pad"><a class="link-btn" href="#records">기록 탭에서 전체 보기</a></div>' : ''}</div>`) : '';
+    return `<div class="stock">
+      ${row({
+        kind: 'savings', id: s.id, title: esc(s.name),
+        meta: [s.kind, s.monthly ? `매달 ${won(s.monthly)}` : '', s.rate ? `연 ${pct(s.rate)}` : ''].filter(Boolean).join(' · '),
+        value: won(s.balance),
+      })}
+      <div class="trade-bar">
+        <button class="pill buy" data-action="deposit" data-type="saving" data-id="${esc(s.id)}">입금</button>
+        <button class="pill sell" data-action="deposit" data-type="withdraw" data-id="${esc(s.id)}">출금</button>
+      </div>
+      ${hist}
+    </div>`;
+  }).join('');
 
   const stk = stockSection(d, m);
 
@@ -627,7 +658,7 @@ function viewFixed() {
 function viewRecords() {
   const d = state.data;
   const recs = [...(d.records || []), ...scheduleRecords(d, today())];
-  const nameOf = (r) => (d[r.type === 'saving' ? 'savings' : 'debts'] || []).find((x) => x.id === r.targetId)?.name || '(삭제된 항목)';
+  const nameOf = (r) => (d[r.type === 'repayment' ? 'debts' : 'savings'] || []).find((x) => x.id === r.targetId)?.name || '(삭제된 항목)';
   const yearsAll = yearlySummary(recs);
   const years = [...new Set([String(now().getFullYear()), ...yearsAll.map((y) => y.year)])].sort().reverse();
   const year = state.recYear;
@@ -642,12 +673,13 @@ function viewRecords() {
 
   return `
   <div class="actions">
-    <button class="btn primary" data-action="add-rec" data-type="saving">저축 기록</button>
-    <button class="btn" data-action="add-rec" data-type="repayment">상환 기록</button>
+    <button class="btn primary" data-action="add-rec" data-type="saving">입금</button>
+    <button class="btn" data-action="add-rec" data-type="withdraw">출금</button>
+    <button class="btn" data-action="add-rec" data-type="repayment">상환</button>
   </div>
   <div class="segment" role="tablist" aria-label="연도">${years.map((y) => `<button role="tab" aria-selected="${y === year}" data-action="year" data-year="${y}">${y}</button>`).join('')}</div>
   <section class="panel stats three">
-    <div class="stat"><span class="eyebrow">저축</span><span class="stat-num">${won(ys.saving)}</span></div>
+    <div class="stat"><span class="eyebrow">저축 (입금 − 출금)</span><span class="stat-num">${won(ys.saving)}</span>${ys.withdraw ? `<span class="stat-sub">출금 ${won(ys.withdraw)}</span>` : ''}</div>
     <div class="stat"><span class="eyebrow">상환 원금</span><span class="stat-num">${won(ys.principal)}</span></div>
     <div class="stat"><span class="eyebrow">낸 이자</span><span class="stat-num">${won(ys.interest)}</span></div>
   </section>
@@ -660,7 +692,7 @@ function viewRecords() {
     </table></div></div>`)}
 
   ${targets.length ? section(`${year}년 항목별`, `<div class="panel list">${targets.map((x) => `<div class="row static">
-      <span class="row-main"><span class="row-title">${esc(nameOf(x))}</span><span class="row-meta">${x.type === 'saving' ? '저축' : '상환'} ${x.count}회</span></span>
+      <span class="row-main"><span class="row-title">${esc(nameOf(x))}</span><span class="row-meta">${x.type === 'saving' ? `입출금${x.withdraw ? ` (출금 ${won(x.withdraw)})` : ''}` : '상환'} ${x.count}회</span></span>
       <span class="row-side"><span class="row-value">${won(x.type === 'saving' ? x.saving : x.principal)}</span>${x.interest ? `<span class="row-meta">이자 ${won(x.interest)}</span>` : ''}</span>
     </div>`).join('')}</div>`) : ''}
 
@@ -673,16 +705,16 @@ function viewRecords() {
       const key = `rec-${ym}`;
       const isOpen = state.open.has(key) || (gi < 2 && !state.open.has(`${key}-closed`));
       return `<details class="panel month" data-key="${key}" ${isOpen ? 'open' : ''}>
-        <summary><b>${Number(ym.slice(5))}월</b><span>저축 ${won(sumOf(rs, 'saving'))} · 상환 ${won(sumOf(rs, 'repayment'))}</span></summary>
+        <summary><b>${Number(ym.slice(5))}월</b><span>${[`입금 ${won(sumOf(rs, 'saving'))}`, sumOf(rs, 'withdraw') ? `출금 ${won(sumOf(rs, 'withdraw'))}` : '', `상환 ${won(sumOf(rs, 'repayment'))}`].filter(Boolean).join(' · ')}</span></summary>
         <div class="list">${rs.map((r) => row({
           kind: r.auto ? 'debts' : 'record', id: r.auto ? r.targetId : r.id, action: r.auto ? 'edit' : 'edit-rec',
           title: `<span class="date">${Number(r.date.slice(8))}일</span>${esc(nameOf(r))}`,
           meta: [r.kind, r.auto ? '상환스케줄 자동' : '', r.applied === false ? '잔액 미반영' : '', esc(r.memo || '')].filter(Boolean).join(' · '),
-          value: `${r.type === 'saving' ? '저축' : '상환'} ${won(r.amount)}`,
+          value: `${REC_LABEL[r.type]} ${won(r.amount)}`,
           sub: r.interest ? `이자 ${won(r.interest)}` : '',
         })).join('')}</div>
       </details>`;
-    }).join('') : `<div class="panel">${empty('아직 기록이 없어요. 위 버튼으로 저축이나 상환을 기록해 보세요.')}</div>`, { sum: `${list.length}건` })}
+    }).join('') : `<div class="panel">${empty('아직 기록이 없어요. 위 버튼이나 자산 탭 계좌의 입금·출금 버튼으로 기록해 보세요.')}</div>`, { sum: `${list.length}건` })}
 
 
   </div></div>`;
@@ -784,7 +816,7 @@ function moneyText(val) {
   return val === '' || val == null ? '' : (Number(val) / 1e4).toLocaleString('ko-KR', { maximumFractionDigits: 4 });
 }
 
-function openForm(kind, item) {
+function openForm(kind, item, preset = {}) {
   const spec = FORMS[kind];
   editing = { kind, id: item?.id };
   let v = item || {};
@@ -796,8 +828,9 @@ function openForm(kind, item) {
   if (kind === 'stocks' && item) v = { avgCur: 'KRW', manualCur: 'KRW', market: stockMarket(item), ...item };
   if (kind === 'fx') v = { usdKrw: state.data.settings?.usdKrw || '' };
   if (isRecord(kind) && !item) {
-    const first = (state.data[kind === 'saving' ? 'savings' : 'debts'] || []).filter((x) => !x.schedule?.length)[0];
-    if (!first) return toast(kind === 'saving' ? '먼저 자산에서 저축 계좌를 추가해 주세요.' : '직접 기록할 대출이 없어요. 상환스케줄을 불러온 대출은 자동으로 기록돼요.');
+    const list = state.data[kind === 'repayment' ? 'debts' : 'savings'] || [];
+    const first = list.find((x) => x.id === preset.targetId) || list.filter((x) => !x.schedule?.length)[0];
+    if (!first) return toast(kind === 'repayment' ? '직접 기록할 대출이 없어요. 상환스케줄을 불러온 대출은 자동으로 기록돼요.' : '먼저 자산에서 저축 계좌를 추가해 주세요.');
     v = { targetId: first.id, date: today(), ...recordDefaults(kind, first.id) };
   }
   $('#editor-title').textContent = kind === 'fx' || kind === 'trade' ? spec.title : `${spec.title} ${item ? '수정' : '추가'}`;
@@ -1148,6 +1181,7 @@ function bind() {
     if (a === 'add') openForm(kind);
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
     if (a === 'trade') openTrade(id, b.dataset.type);
+    if (a === 'deposit') openForm(b.dataset.type, null, { targetId: id });
     if (a === 'trade-undo') {
       const s = state.data.stocks.find((x) => x.id === id);
       const last = s?.trades?.at(-1);

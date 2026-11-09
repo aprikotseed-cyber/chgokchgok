@@ -51,3 +51,21 @@ test('연도별·월별·항목별 합계', () => {
   assert.equal(m[2].principal, 200);
   assert.equal(byTarget(records, 2026).length, 2);
 });
+
+test('출금: 계좌 잔액을 줄이고, 저축 합계는 넣은 돈 − 뺀 돈', () => {
+  const d = { savings: [{ id: 's1', balance: 1_000_000 }], debts: [], records: [] };
+  upsertRecord(d, { id: 'r1', type: 'saving', targetId: 's1', date: '2026-11-01', amount: 500_000, applied: true });
+  upsertRecord(d, { id: 'r2', type: 'withdraw', targetId: 's1', date: '2026-11-05', amount: 200_000, applied: true });
+  assert.equal(d.savings[0].balance, 1_300_000);
+  deleteRecord(d, 'r2');
+  assert.equal(d.savings[0].balance, 1_500_000);
+  const recs = [
+    { type: 'saving', targetId: 's1', date: '2026-11-01', amount: 500_000 },
+    { type: 'withdraw', targetId: 's1', date: '2026-11-05', amount: 200_000 },
+  ];
+  const y = yearlySummary(recs)[0];
+  assert.deepEqual([y.saving, y.withdraw], [300_000, 200_000]);
+  const t = byTarget(recs, 2026);
+  assert.equal(t.length, 1);
+  assert.equal(t[0].saving, 300_000);
+});
