@@ -1,14 +1,15 @@
-import { connect, isDemo } from './store.js?v=20261109t';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109t';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109t';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109t';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109t';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109t';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109t';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109t';
-import { ask, SUGGEST } from './assistant.js?v=20261109t';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109t';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109t';
+import { connect, isDemo } from './store.js?v=20261109u';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109u';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109u';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109u';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109u';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109u';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109u';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109u';
+import { ask, SUGGEST } from './assistant.js?v=20261109u';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109u';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109u';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261109u';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -27,6 +28,8 @@ const state = {
   stockTab: null,        // 주식 묶음: kr / us / pension
   marketRaw: {},
   history: {},          // 하루 한 줄 자산 기록 {날짜: {...}}
+  secrets: {},          // GitHub 토큰 등 (Firestore에 따로)
+  refresh: null,        // [지금 업데이트] 요청 상태 {at, kind, quotesAt}
 };
 let store;
 
@@ -387,7 +390,7 @@ function viewAssets() {
   </div><div class="col-side">
   ${section('주택', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
   </div></div>
-  ${m.updatedAt || m.quotesAt ? `<p class="hint update-time">주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트</p>` : ''}`;
+  ${updateLine(m)}`;
 }
 
 const MARKETS = [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']];
@@ -724,6 +727,42 @@ function viewRecords() {
 }
 
 // ───────────────────────── 설정 ─────────────────────────
+// ───────────────────────── 지금 업데이트 ─────────────────────────
+const COOLDOWN = 2 * 60_000;
+
+/** 업데이트 시각 + [지금 업데이트] 버튼 */
+function updateLine(m) {
+  const r = state.refresh;
+  const waiting = r && Date.now() - r.at < 5 * 60_000 && String(m.quotesAt?.seconds || m.quotesAt) === r.quotesAt;
+  const times = m.updatedAt || m.quotesAt ? `주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트` : '아직 받은 시세가 없어요';
+  return `<div class="update-row">
+    <p class="hint update-time">${times}</p>
+    <button class="btn small" data-action="refresh" data-kind="quotes" ${waiting ? 'disabled' : ''}>${waiting ? '업데이트 중… 1분쯤 걸려요' : '지금 업데이트'}</button>
+  </div>`;
+}
+
+async function requestRefresh(kind) {
+  if (isDemo()) return toast('체험 모드에서는 실제 업데이트를 실행하지 않아요.');
+  const token = state.secrets?.githubToken;
+  if (!token) {
+    toast('먼저 설정 → 지금 업데이트 버튼에서 GitHub 토큰을 넣어 주세요.');
+    location.hash = '#settings';
+    return;
+  }
+  const last = Number(localStorage.getItem('chgok-refresh-at') || 0);
+  if (Date.now() - last < COOLDOWN) return toast('방금 요청했어요. 잠시 뒤에 다시 눌러 주세요.');
+  try {
+    await dispatchWorkflow(repoFromLocation(location), token, WORKFLOWS[kind].file);
+    localStorage.setItem('chgok-refresh-at', String(Date.now()));
+    const q = state.market.quotesAt;
+    state.refresh = { at: Date.now(), kind, quotesAt: String(q?.seconds || q) };
+    toast(`${WORKFLOWS[kind].label} 업데이트를 요청했어요. 1분쯤 뒤 저절로 반영돼요.`);
+    render();
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
 function viewSettings() {
   const p = state.push;
   const vapid = state.data.settings?.vapidKey || '';
@@ -752,6 +791,24 @@ function viewSettings() {
         <div class="pad actions"><button class="btn primary" data-action="fb-copy">목록 복사하기</button><button class="btn" data-action="misses-clear">목록 비우기</button></div>
         <p class="hint pad">복사한 내용을 Claude와의 대화에 붙여 넣으면, 이 질문들을 알아듣게 고치고 다시 틀리지 않도록 시험 문제로 저장해 둘게요. 금액은 N으로 가려져요.</p>`
       : empty('비서 답이 엉뚱하면 말풍선 아래 ‘이 답이 맞지 않았나요?’를 눌러 주세요. 모르는 질문도 여기에 저절로 모여요.')}</div>`)}
+  ${section('지금 업데이트 버튼', `<div class="panel">
+      <p class="pad">자산 탭 아래 <b>지금 업데이트</b>를 누르면 GitHub에서 Run workflow를 누른 것처럼 바로 주가·환율을 받아와요. 처음 한 번 GitHub 토큰을 넣어 주세요.</p>
+      ${state.secrets?.githubToken
+        ? `<div class="list"><div class="row static"><span class="row-main"><span class="row-title">토큰 저장됨</span><span class="row-meta">${esc(state.secrets.githubToken.slice(0, 15))}… · 이 계정의 모든 기기에서 사용</span></span><button class="link-btn" data-action="token-clear">지우기</button></div></div>
+           <div class="pad actions"><button class="btn primary" data-action="refresh" data-kind="quotes">주가·환율 지금 업데이트</button><button class="btn" data-action="refresh" data-kind="full">주택 실거래가까지</button></div>`
+        : ''}
+      ${details('gh-token-guide', state.secrets?.githubToken ? '토큰 바꾸기' : '처음 한 번: GitHub 토큰 넣기', `<div class="pad">
+        <ol class="steps">
+          <li>PC에서 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub 새 토큰 만들기</a>를 열어요 (Fine-grained token).</li>
+          <li><b>Token name</b>: 차곡차곡 업데이트 · <b>Expiration</b>: 1년(또는 원하는 기간)</li>
+          <li><b>Repository access</b>: Only select repositories → <b>chgokchgok</b> 하나만</li>
+          <li><b>Permissions → Repository permissions → Actions</b>: <b>Read and write</b> (다른 권한은 그대로)</li>
+          <li>맨 아래 <b>Generate token</b> → github_pat_ 로 시작하는 토큰을 복사해서 아래에 붙여 넣고 저장</li>
+        </ol>
+        <p class="hint">토큰은 덕준님 계정에만 저장되고 공개 코드에는 들어가지 않아요. 이 저장소의 업데이트 작업을 실행하는 것밖에 할 수 없어요.</p>
+        <div class="inline"><input id="gh-token" type="password" placeholder="github_pat_…" autocomplete="off"><button class="btn" data-action="token-save">저장</button></div>
+      </div>`)}
+    </div>`)}
   ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">국내 주가와 환율은 평일 장중에 1시간마다 (오전 9시 13분~오후 3시 43분), 미국 주가는 매일 아침 6시 17분에 미국장 마감 가격으로, 주택 실거래가도 아침 6시 17분에 가져와요. GitHub 예약 실행이라 몇 분~십여 분 늦을 수 있어요. 지금 바로 받으려면 GitHub 저장소의 Actions → 주가·환율 장중 업데이트(또는 시세 자동 업데이트) → Run workflow를 누르세요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 주택 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
   </div><div class="col-side">
   ${section('백업', `<div class="panel"><div class="pad actions">
@@ -1221,6 +1278,14 @@ function bind() {
       }
     }
     if (a === 'fx') openForm('fx', {});
+    if (a === 'refresh') requestRefresh(kind || 'quotes');
+    if (a === 'token-save') {
+      const v = $('#gh-token').value.trim();
+      if (v && !/^(github_pat_|ghp_)/.test(v)) return toast('github_pat_ 로 시작하는 토큰을 붙여 넣어 주세요.');
+      try { await store.saveSecret('githubToken', v); toast(v ? '토큰을 저장했어요. 이제 지금 업데이트 버튼을 쓸 수 있어요.' : '토큰을 지웠어요.'); }
+      catch (e) { toast(e.message); }
+    }
+    if (a === 'token-clear' && confirm('저장된 GitHub 토큰을 지울까요?')) { await store.saveSecret('githubToken', ''); toast('토큰을 지웠어요.'); }
     if (a === 'trend') { state.data.settings = { ...(state.data.settings || {}), trendMode: b.dataset.key }; commit(); }
     if (a === 'stock-tab') { state.stockTab = b.dataset.key; render(); }
     if (a === 'stock-pin') {
@@ -1384,6 +1449,7 @@ async function main() {
     onAuth: (u) => { state.user = u; state.push.loaded = false; render(); },
     onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
+    onSecrets: (sc) => { state.secrets = sc || {}; if (state.tab === 'settings') render(); },
     onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'home') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
   });
