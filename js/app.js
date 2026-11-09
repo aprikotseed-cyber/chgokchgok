@@ -1,18 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110e';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110e';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110e';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110e';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110e';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110e';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110e';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110e';
-import { ask, SUGGEST } from './assistant.js?v=20261110e';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110e';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110e';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110e';
-import { createGoogle } from './google.js?v=20261110e';
-import { createDemoGoogle } from './google-demo.js?v=20261110e';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil } from './agenda.js?v=20261110e';
+import { connect, isDemo } from './store.js?v=20261110f';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110f';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110f';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110f';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110f';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110f';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110f';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110f';
+import { ask, SUGGEST } from './assistant.js?v=20261110f';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110f';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110f';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110f';
+import { createGoogle } from './google.js?v=20261110f';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110f';
+import { createDemoGoogle } from './google-demo.js?v=20261110f';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil } from './agenda.js?v=20261110f';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -844,6 +845,7 @@ function viewSettings() {
   return `
   <div class="cols"><div class="col-main">
   ${section('구글 캘린더·할일', googleSettings())}
+  ${section('Face ID 잠금', lockSettings())}
   ${section('비서 알림', `<div class="panel">
       <p class="pad">매일 오전 8시쯤 <b>아침 브리핑</b>을 보내 드려요: 오늘 일정, 오늘 마감 할일과 지난 할일, 그리고 <b>오늘이 상환일·출금일인</b> 대출 상환과 고정지출. 앱 화면(PC 알림 카드)에서는 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p>
       ${pushBody}
@@ -1112,6 +1114,21 @@ function viewTasks() {
   <p class="hint">구글 태스크${listName ? ` ‘${esc(listName)}’ 목록` : ''}과 연결돼 있어서, 여기서 추가·완료·수정한 내용이 구글에도 바로 기록돼요.</p>`;
 }
 
+/** 설정 → Face ID 잠금 (이 기기에만) */
+function lockSettings() {
+  const c = lockConfig();
+  if (state.lockOk == null) return '<div class="panel"><p class="hint pad">확인 중…</p></div>';
+  if (!state.lockOk && !c) return '<div class="panel"><p class="pad">이 기기·브라우저에서는 생체 인증 잠금을 쓸 수 없어요. (아이폰은 Face ID나 Touch ID, PC는 지문이나 Windows Hello가 필요해요)</p></div>';
+  if (!c) return `<div class="panel"><p class="pad">앱을 열 때 Face ID를 통과해야 화면이 보이게 해요. 이 기기에만 적용되고, 기기마다 따로 켜요.</p>
+    <div class="pad"><button class="btn primary" data-action="lock-on">이 기기에서 잠금 켜기</button></div></div>`;
+  const opts = [[0, '바로'], [1, '1분 뒤'], [5, '5분 뒤'], [15, '15분 뒤']];
+  return `<div class="panel list">
+    <div class="row static"><span class="row-main"><span class="row-title">켜짐 · 이 기기</span><span class="row-meta">앱을 열 때, 그리고 다른 앱에 다녀오면 다시 잠가요</span></span><button class="link-btn" data-action="lock-off">끄기</button></div>
+    <div class="pad"><b class="mini-title">다른 앱에 다녀오면 다시 잠그기</b><select id="lock-after" class="select">${opts.map(([v, l]) => `<option value="${v}" ${Number(c.after ?? 1) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    <p class="hint pad">아이폰 ‘암호’ 앱에 이 사이트의 패스키로 저장돼요. 지우면 잠금을 풀 수 없으니, 그럴 땐 잠금 화면의 ‘다시 로그인하기’를 눌러 주세요.</p>
+  </div>`;
+}
+
 /** 설정 → 구글 캘린더·할일 */
 function googleSettings() {
   const gs = gset();
@@ -1216,6 +1233,7 @@ function afterRender() {
     }
   }
   if (state.tab === 'settings' && !state.push.loaded && !isDemo()) loadPush();
+  if (state.tab === 'settings' && state.lockOk === undefined) { state.lockOk = null; lockSupported().then((v) => { state.lockOk = v; render(); }); }
 }
 
 // ───────────────────────── 입력창 ─────────────────────────
@@ -1618,6 +1636,12 @@ function bind() {
     const { action: a, kind, id } = b.dataset;
     if (a === 'add') openForm(kind);
     if (a === 'g-sync') syncAgenda(true);
+    if (a === 'lock-on') {
+      try { await enableLock(state.user?.email); toast('잠금을 켰어요. 다음에 앱을 열면 Face ID로 열려요.'); }
+      catch (err) { toast(err.name === 'NotAllowedError' ? '등록을 취소했어요.' : `잠금을 켜지 못했어요: ${err.message}`); }
+      render();
+    }
+    if (a === 'lock-off' && confirm('이 기기에서 Face ID 잠금을 끌까요?')) { disableLock(); toast('잠금을 껐어요.'); render(); }
     if (a === 'g-disconnect' && confirm('이 기기에서 구글 연결을 끊을까요? 저장해 둔 일정·할일은 계속 보여요.')) { gapi()?.disconnect(); render(); }
     if (a === 'g-client-save') {
       const v = $('#g-client').value.trim();
@@ -1754,6 +1778,7 @@ function bind() {
       setGoogle({ cals: { ...(gset().cals || {}), [cs]: { ...calPref(c), [key]: e.target.checked } } });
       if (key === 'show' && e.target.checked) syncAgenda(false);
     }
+    if (e.target.id === 'lock-after') { setLockAfter(Number(e.target.value)); toast('저장했어요.'); }
     if (e.target.id === 'g-tasklist') { setGoogle({ taskList: e.target.value }); syncAgenda(true); }
     if (e.target.id === 'import' && e.target.files[0]) {
       try {
@@ -1897,8 +1922,9 @@ function bind() {
 let agendaLoaded = false;
 async function main() {
   bind();
+  initLock({ active: () => !!state.user, onForgot: () => store.logout() });
   store = await connect({
-    onAuth: (u) => { state.user = u; state.push.loaded = false; if (!u) { state.agenda = null; agendaLoaded = false; } render(); },
+    onAuth: (u) => { state.user = u; state.push.loaded = false; if (!u) { state.agenda = null; agendaLoaded = false; } lockNow(); render(); },
     onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onSecrets: (sc) => { state.secrets = sc || {}; if (state.tab === 'settings') render(); },
