@@ -1,15 +1,15 @@
-import { connect, isDemo } from './store.js?v=20261109u';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109u';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109u';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109u';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109u';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109u';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109u';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109u';
-import { ask, SUGGEST } from './assistant.js?v=20261109u';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109u';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109u';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261109u';
+import { connect, isDemo } from './store.js?v=20261109w';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109w';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109w';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109w';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109w';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109w';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109w';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109w';
+import { ask, SUGGEST } from './assistant.js?v=20261109w';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109w';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109w';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261109w';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -30,6 +30,8 @@ const state = {
   history: {},          // 하루 한 줄 자산 기록 {날짜: {...}}
   secrets: {},          // GitHub 토큰 등 (Firestore에 따로)
   refresh: null,        // [지금 업데이트] 요청 상태 {at, kind, quotesAt}
+  reorder: null,        // 순서 바꾸는 중인 목록 (예: 'savings')
+  dragging: false,
 };
 let store;
 
@@ -233,6 +235,34 @@ function section(title, body, { sum = '', action = '' } = {}) {
 }
 
 const addBtn = (kind, label = '추가') => `<button class="link-btn" data-action="add" data-kind="${kind}">+ ${label}</button>`;
+
+/** 목록 머리 버튼: [↑↓ 순서 바꾸기] [+ 추가], 순서 바꾸는 중에는 [완료] */
+function listActions(key, count) {
+  if (state.reorder === key) return `<button class="link-btn done" data-action="reorder" data-key="${key}">완료</button>`;
+  return `<span class="head-actions">${count > 1 ? `<button class="link-btn sort-btn" data-action="reorder" data-key="${key}" aria-label="순서 바꾸기" title="순서 바꾸기">↑↓</button>` : ''}${addBtn(key)}</span>`;
+}
+
+/** 순서 바꾸기 목록: 손잡이(≡)를 끌거나, 손잡이에서 ↑/↓ 키로 */
+function sortList(key, items, view) {
+  return `<p class="hint sort-hint">손잡이(≡)를 끌어서 순서를 바꾸고, 다 되면 완료를 눌러 주세요.</p>
+  <div class="panel list sortable" data-sort="${key}">${(items || []).map((it) => {
+    const v = view(it);
+    return `<div class="row static sort-row" data-id="${esc(it.id)}">
+      <span class="handle" tabindex="0" role="button" aria-label="${v.title} 순서 옮기기 (위아래 화살표 키)">≡</span>
+      <span class="row-main"><span class="row-title">${v.title}</span></span>
+      <span class="row-side"><span class="row-value">${v.value}</span></span>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+/** 화면에 보이는 순서대로 저장 */
+function saveOrder(listEl) {
+  const key = listEl.dataset.sort;
+  const ids = [...listEl.querySelectorAll('.sort-row')].map((r) => r.dataset.id);
+  const byId = new Map((state.data[key] || []).map((x) => [x.id, x]));
+  state.data[key] = [...ids.map((id) => byId.get(id)).filter(Boolean), ...(state.data[key] || []).filter((x) => !ids.includes(x.id))];
+  commit();
+}
 const empty = (text) => `<p class="empty">${text}</p>`;
 const details = (key, summary, body) => `<details data-key="${key}" ${state.open.has(key) ? 'open' : ''}><summary>${summary}</summary>${body}</details>`;
 const dday = (n) => (n === 0 ? '오늘' : `D-${n}`);
@@ -385,8 +415,8 @@ function viewAssets() {
     <div class="delta ${A.gain >= 0 ? 'up' : 'down'}">${A.gain >= 0 ? '+' : '−'}${won(Math.abs(A.gain))} (${A.gain >= 0 ? '+' : ''}${pct(A.rate, 2)})<span>산 가격 대비</span></div>
   </section>
   <div class="cols"><div class="col-main">
-  ${section('저축·현금', `<div class="panel list">${sav || empty('예금, 적금, 연금, 보증금 등을 추가해 보세요.')}</div>`, { sum: won(t.savings), action: addBtn('savings') })}
-  ${section('주식', stk, { action: addBtn('stocks', '새 종목') })}
+  ${section('저축·현금', state.reorder === 'savings' ? sortList('savings', d.savings, (s) => ({ title: esc(s.name), value: won(s.balance) })) : `<div class="panel list">${sav || empty('예금, 적금, 연금, 보증금 등을 추가해 보세요.')}</div>`, { sum: won(t.savings), action: listActions('savings', (d.savings || []).length) })}
+  ${section('주식', stk, { action: `<span class="head-actions">${refreshBtn(m)}${addBtn('stocks', '새 종목')}</span>` })}
   </div><div class="col-side">
   ${section('주택', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
   </div></div>
@@ -731,14 +761,17 @@ function viewRecords() {
 const COOLDOWN = 2 * 60_000;
 
 /** 업데이트 시각 + [지금 업데이트] 버튼 */
+/** 자산 탭 맨 아래: 업데이트 시각만 */
 function updateLine(m) {
+  const times = m.updatedAt || m.quotesAt ? `주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트` : '아직 받은 시세가 없어요';
+  return `<p class="hint update-time">${times}</p>`;
+}
+
+/** 주식 제목 옆 '업데이트' (글자 버튼). 요청 뒤 새 값이 올 때까지 '업데이트 중…' */
+function refreshBtn(m) {
   const r = state.refresh;
   const waiting = r && Date.now() - r.at < 5 * 60_000 && String(m.quotesAt?.seconds || m.quotesAt) === r.quotesAt;
-  const times = m.updatedAt || m.quotesAt ? `주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트` : '아직 받은 시세가 없어요';
-  return `<div class="update-row">
-    <p class="hint update-time">${times}</p>
-    <button class="btn small" data-action="refresh" data-kind="quotes" ${waiting ? 'disabled' : ''}>${waiting ? '업데이트 중… 1분쯤 걸려요' : '지금 업데이트'}</button>
-  </div>`;
+  return `<button class="link-btn" data-action="refresh" data-kind="quotes" ${waiting ? 'disabled' : ''} title="주가·환율 지금 받아오기">${waiting ? '업데이트 중…' : '업데이트'}</button>`;
 }
 
 async function requestRefresh(kind) {
@@ -792,7 +825,7 @@ function viewSettings() {
         <p class="hint pad">복사한 내용을 Claude와의 대화에 붙여 넣으면, 이 질문들을 알아듣게 고치고 다시 틀리지 않도록 시험 문제로 저장해 둘게요. 금액은 N으로 가려져요.</p>`
       : empty('비서 답이 엉뚱하면 말풍선 아래 ‘이 답이 맞지 않았나요?’를 눌러 주세요. 모르는 질문도 여기에 저절로 모여요.')}</div>`)}
   ${section('지금 업데이트 버튼', `<div class="panel">
-      <p class="pad">자산 탭 아래 <b>지금 업데이트</b>를 누르면 GitHub에서 Run workflow를 누른 것처럼 바로 주가·환율을 받아와요. 처음 한 번 GitHub 토큰을 넣어 주세요.</p>
+      <p class="pad">자산 탭 주식 제목 옆 <b>업데이트</b>를 누르면 GitHub에서 Run workflow를 누른 것처럼 바로 주가·환율을 받아와요. 처음 한 번 GitHub 토큰을 넣어 주세요.</p>
       ${state.secrets?.githubToken
         ? `<div class="list"><div class="row static"><span class="row-main"><span class="row-title">토큰 저장됨</span><span class="row-meta">${esc(state.secrets.githubToken.slice(0, 15))}… · 이 계정의 모든 기기에서 사용</span></span><button class="link-btn" data-action="token-clear">지우기</button></div></div>
            <div class="pad actions"><button class="btn primary" data-action="refresh" data-kind="quotes">주가·환율 지금 업데이트</button><button class="btn" data-action="refresh" data-kind="full">주택 실거래가까지</button></div>`
@@ -836,6 +869,7 @@ const TITLES = { home: '홈', assets: '자산', debts: '부채', fixed: '고정�
 const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라인', demo: '체험 모드' };
 
 function render() {
+  if (state.dragging) return; // 끄는 중에는 다시 그리지 않아요 (실시간 갱신이 와도)
   $('#login').hidden = !!state.user;
   $('#app').hidden = !state.user;
   if (!state.user) return;
@@ -1279,6 +1313,7 @@ function bind() {
     }
     if (a === 'fx') openForm('fx', {});
     if (a === 'refresh') requestRefresh(kind || 'quotes');
+    if (a === 'reorder') { state.reorder = state.reorder === b.dataset.key ? null : b.dataset.key; render(); }
     if (a === 'token-save') {
       const v = $('#gh-token').value.trim();
       if (v && !/^(github_pat_|ghp_)/.test(v)) return toast('github_pat_ 로 시작하는 토큰을 붙여 넣어 주세요.');
@@ -1423,6 +1458,57 @@ function bind() {
   });
 
   $('#update-apply').addEventListener('click', () => location.reload());
+
+  // 순서 바꾸기: 마우스·터치 모두 (포인터 이벤트)
+  let drag = null;
+  $('#view').addEventListener('pointerdown', (e) => {
+    const h = e.target.closest('.sortable .handle');
+    if (!h) return;
+    e.preventDefault();
+    const rowEl = h.closest('.sort-row');
+    drag = { rowEl, list: rowEl.parentElement, startY: e.clientY, top: rowEl.getBoundingClientRect().top };
+    state.dragging = true;
+    rowEl.classList.add('dragging');
+    try { h.setPointerCapture(e.pointerId); } catch { /* 일부 브라우저 */ }
+  });
+  $('#view').addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const { rowEl, list } = drag;
+    // 손가락 위치가 이웃 줄의 가운데를 넘으면 자리를 바꿔요
+    const others = [...list.querySelectorAll('.sort-row:not(.dragging)')];
+    const after = others.find((r) => e.clientY < r.getBoundingClientRect().top + r.offsetHeight / 2);
+    if (after) { if (rowEl.nextElementSibling !== after) list.insertBefore(rowEl, after); }
+    else if (list.lastElementChild !== rowEl) list.appendChild(rowEl);
+    // 줄이 손가락을 따라오도록: 원래 자리(자리를 바꾼 뒤의 위치)에서 얼마나 떨어졌는지만큼 옮겨 그려요
+    const natural = rowEl.getBoundingClientRect().top - (Number(rowEl.dataset.ty) || 0);
+    const ty = drag.top + (e.clientY - drag.startY) - natural;
+    rowEl.dataset.ty = ty;
+    rowEl.style.transform = `translateY(${ty}px)`;
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    drag.rowEl.classList.remove('dragging');
+    drag.rowEl.style.transform = '';
+    delete drag.rowEl.dataset.ty;
+    const list = drag.list;
+    drag = null;
+    state.dragging = false;
+    saveOrder(list);
+  };
+  $('#view').addEventListener('pointerup', endDrag);
+  $('#view').addEventListener('pointercancel', endDrag);
+  $('#view').addEventListener('keydown', (e) => {
+    const h = e.target.closest('.sortable .handle');
+    if (!h || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+    e.preventDefault();
+    const rowEl = h.closest('.sort-row');
+    const sib = e.key === 'ArrowUp' ? rowEl.previousElementSibling : rowEl.nextElementSibling;
+    if (!sib) return;
+    rowEl.parentElement.insertBefore(rowEl, e.key === 'ArrowUp' ? sib : sib.nextElementSibling);
+    const id = rowEl.dataset.id;
+    saveOrder(rowEl.parentElement);
+    document.querySelector(`.sort-row[data-id="${CSS.escape(id)}"] .handle`)?.focus();
+  });
   $('#alerts').addEventListener('click', (e) => {
     const b = e.target.closest('[data-close-alert]');
     if (!b) return;
