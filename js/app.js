@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110j';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110j';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110j';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110j';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110j';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110j';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110j';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110j';
-import { ask, SUGGEST } from './assistant.js?v=20261110j';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110j';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110j';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110j';
-import { createGoogle } from './google.js?v=20261110j';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110j';
-import { createDemoGoogle } from './google-demo.js?v=20261110j';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda } from './agenda.js?v=20261110j';
+import { connect, isDemo } from './store.js?v=20261110k';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110k';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110k';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110k';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110k';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110k';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110k';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110k';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110k';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110k';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110k';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110k';
+import { createGoogle } from './google.js?v=20261110k';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110k';
+import { createDemoGoogle } from './google-demo.js?v=20261110k';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda } from './agenda.js?v=20261110k';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -304,7 +304,8 @@ function viewHome() {
     <input id="home-ask-input" type="text" placeholder="비서에게: 금요일 7시 헬스 넣어줘 · 이번 주 할일 뭐야?" enterkeyhint="send" aria-label="비서에게 물어보기">
     <button class="btn primary" type="submit" aria-label="보내기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
   </form>
-  ${todayBlock()}`;
+  ${todayBlock()}
+  ${monthBlock()}`;
 }
 
 // 자산 → 홈: 총자산, 자산 추이, 고정지출·상환 일정
@@ -1239,6 +1240,66 @@ function todayBlock() {
     </div>`, { action: gsyncLine() });
 }
 
+// ───── 오늘 → 월 달력: 일정(캘린더 색), 할일, 고정지출·상환 ─────
+function monthBlock() {
+  const ym = state.calMonth || today().slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const first = new Date(y, m - 1, 1);
+  const days = new Date(y, m, 0).getDate();
+  const start = new Date(y, m - 1, 1 - first.getDay()); // 일요일부터
+  const weeks = Math.ceil((first.getDay() + days) / 7);
+  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + weeks * 7 - 1);
+  const evs = agendaEvents();
+  const money = new Map();
+  for (const x of outflowsBetween(state.data, start, end, now())) { const k = ymd(x.date); money.set(k, [...(money.get(k) || []), x]); }
+  const tasks = new Map();
+  for (const t of state.agenda?.tasks || []) if (t.due) tasks.set(t.due, [...(tasks.get(t.due) || []), t]);
+  const todayKey = today();
+  const sel = state.calSel || todayKey;
+  const cells = [];
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const k = ymd(d);
+    const de = eventsOn(evs, k);
+    const mo = money.get(k) || [];
+    const tk = (tasks.get(k) || []);
+    const open = tk.filter((t) => !t.done);
+    const label = [`${d.getMonth() + 1}월 ${d.getDate()}일`, de.length ? `일정 ${de.length}개` : '', open.length ? `할일 ${open.length}개` : '', mo.length ? `출금 ${mo.length}건` : ''].filter(Boolean).join(', ');
+    cells.push(`<button class="mday${d.getMonth() !== m - 1 ? ' out' : ''}${k === todayKey ? ' today' : ''}${k === sel ? ' sel' : ''}${d.getDay() === 0 ? ' sun' : d.getDay() === 6 ? ' sat' : ''}" data-action="cal-day" data-key="${k}" aria-label="${label}" aria-pressed="${k === sel}">
+      <span class="num">${d.getDate()}</span>
+      <span class="mdots">${de.slice(0, 4).map((e) => `<i style="--c:${esc(e.color || '#8b8a83')}"></i>`).join('')}${mo.length ? '<i class="m"></i>' : ''}${open.length ? '<i class="t"></i>' : ''}</span>
+      <span class="mchips">${de.slice(0, 3).map((e) => `<span class="mchip${e.partner ? ' partner' : ''}" style="--c:${esc(e.color || '#8b8a83')}">${e.allDay ? '' : `${e.time} `}${esc(e.title)}</span>`).join('')}${de.length > 3 ? `<span class="mmore">+${de.length - 3}</span>` : ''}${mo.map((x) => `<span class="mchip money">${esc(x.name)}</span>`).slice(0, de.length >= 3 ? 0 : 3 - de.length).join('')}${open.length ? `<span class="mtask">할일 ${open.length}</span>` : ''}</span>
+    </button>`);
+  }
+  const a = state.agenda;
+  const outOfRange = a?.from && (ymd(first) < a.from || ymd(new Date(y, m, 0)) > agendaUntil(a));
+  const nav = `<span class="mnav">
+    ${ym !== todayKey.slice(0, 7) ? '<button class="link-btn" data-action="cal-month" data-key="0">오늘</button>' : ''}
+    <button class="icon-btn" data-action="cal-month" data-key="-1" aria-label="지난달"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>
+    <button class="icon-btn" data-action="cal-month" data-key="1" aria-label="다음 달"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>
+  </span>`;
+  return section(`${y === now().getFullYear() ? '' : `${y}년 `}${m}월`, `<div class="panel mcal-wrap">
+      <div class="mcal-head">${'일월화수목금토'.split('').map((w, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}</div>
+      <div class="mcal">${cells.join('')}</div>
+      <div class="mlegend"><span><i style="--c:var(--text-secondary)"></i>일정(캘린더 색)</span><span><i class="t"></i>할일</span><span><i class="m"></i>고정지출·상환</span></div>
+    </div>
+    ${dayDetail(sel, evs, money.get(sel) || outflowsBetween(state.data, fromKey(sel), fromKey(sel), now()), tasks.get(sel) || [])}
+    ${outOfRange ? `<p class="hint">구글 일정은 ${mdw(fromKey(a.from))} ~ ${mdw(fromKey(agendaUntil(a)))}만 받아 둬요.</p>` : ''}
+    ${!a ? '<p class="hint">구글 캘린더를 연결하면 일정·할일도 달력에 보여요.</p>' : ''}`, { action: nav });
+}
+
+/** 달력에서 고른 날: 일정 · 할일 · 나가는 돈 */
+function dayDetail(key, evs, money, tasks) {
+  const d = fromKey(key);
+  const de = eventsOn(evs, key);
+  const rows = [
+    ...de.map((e) => eventRow(e, key)),
+    ...tasks.map(taskRow),
+    ...money.map((x) => `<div class="row static ev"><span class="ev-time">${x.loan ? '상환' : '출금'}</span><span class="ev-dot money"></span><span class="row-main"><span class="row-title">${esc(x.name)}</span><span class="row-meta">${x.loan ? '대출 상환' : '고정지출'}</span></span><span class="row-side"><span class="row-value">${wonExact(x.amount)}</span></span></div>`),
+  ];
+  return `<div class="panel list day-detail"><div class="mini-head">${key === today() ? '오늘 · ' : ''}${mdw(d)}${state.agenda ? `<button class="link-btn" data-action="cal-add" data-key="${key}">+ 일정</button>` : ''}</div>${rows.length ? rows.join('') : empty('이날은 일정·할일·출금이 없어요.')}</div>`;
+}
+
 function viewCalendar() {
   const a = state.agenda;
   if (!a) return section('다가오는 일정', connectCta('앞으로의 일정이'), { action: gsyncLine() });
@@ -1886,6 +1947,18 @@ function bind() {
       toast(v ? '저장했어요. 이제 구글 연결하기를 눌러 주세요.' : '클라이언트 ID를 지웠어요.');
     }
     if (a === 'cal-more') { state.calDays = 31; render(); }
+    if (a === 'cal-day') { state.calSel = b.dataset.key; state.calMonth = b.dataset.key.slice(0, 7); render(); }
+    if (a === 'cal-month') {
+      const n = Number(b.dataset.key);
+      if (!n) { state.calMonth = today().slice(0, 7); state.calSel = today(); } else {
+        const [yy, mm] = (state.calMonth || today().slice(0, 7)).split('-').map(Number);
+        const d = new Date(yy, mm - 1 + n, 1);
+        state.calMonth = ymd(d).slice(0, 7);
+        state.calSel = ymd(d);
+      }
+      render();
+    }
+    if (a === 'cal-add') openForm('event', null, { date: b.dataset.key, title: '' });
     if (a === 'task-toggle') toggleTask(id);
     if (a === 'event-edit') { const ev = state.agenda?.events.find((x) => x.id === id && x.calId === b.dataset.cal); if (ev) openForm('event', ev); }
     if (a === 'task-edit') { const t = state.agenda?.tasks.find((x) => x.id === id); if (t && !t.id.startsWith('tmp-')) openForm('task', t); }

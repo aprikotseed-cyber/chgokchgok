@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110j';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110j';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261110j';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110j';
-import { won, wonExact, mdw, pct } from './format.js?v=20261110j';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine } from './agenda.js?v=20261110j';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110k';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110k';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261110k';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110k';
+import { won, wonExact, mdw, pct } from './format.js?v=20261110k';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine } from './agenda.js?v=20261110k';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -536,6 +536,9 @@ function outflowItems(ctx, start, end) {
     ...(ctx.data.debts || []).flatMap((l) => loanPaymentsIn(l, start, end, ctx.now).map((p) => ({ name: l.name, date: p.date, amount: p.amount, loan: true }))),
   ].sort((a, b) => a.date - b.date);
 }
+
+/** 달력용: 기간 안의 고정지출·대출 상환 [{name, date, amount, loan}] */
+export const outflowsBetween = (data, start, end, now = new Date()) => outflowItems({ data, now: dateOnly(now) }, start, end);
 
 /** 기간 안에 나갈 돈: 고정지출 + 대출 상환 */
 function outflow(ctx, start, end, label) {
