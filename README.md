@@ -1,48 +1,65 @@
-# 나의 재무 비서 — 설정 가이드 (1단계)
+# 차곡차곡 · 나만의 자산 관리
 
-## 1. Firebase 프로젝트 준비
-1. https://console.firebase.google.com 접속 → "프로젝트 추가" (끄적끄적/육삼레벨업과 분리된 새 프로젝트 추천)
-2. 프로젝트 설정 > 일반 > 내 앱 > 웹 앱 추가 → 설정값(firebaseConfig)을 복사
-3. `js/firebase-config.js` 파일 안의 `여기에_...` 부분을 복사한 값으로 교체
+PC·태블릿·휴대폰에서 같은 데이터를 보는 개인 자산 관리 웹앱이에요.
 
-## 2. 로그인 설정 (본인만 접근 가능하게)
-1. Firebase 콘솔 > Authentication > Sign-in method > "이메일/비밀번호" 사용 설정
-2. Authentication > Users > "사용자 추가" → 본인 이메일과 비밀번호를 **직접 1개만** 추가
-   - 회원가입 화면은 만들지 않았어요. 아무나 못 들어오게 하기 위함이에요.
+- **자산**: 저축·현금(예금/적금/연금/보증금…), 주식(종목코드+수량 → 매일 시세 자동), 집(국토부 실거래가 → 시세 자동)
+- **부채**: 원리금균등 / 원금균등 / 만기일시 / 거치기간까지 계산
+- **기록**: 월별 저축·상환 내역 입력 (날짜는 오늘로 자동, 빠뜨린 예전 기록·추가 납입·중도 상환도 날짜를 바꿔 입력)
+  - 기록하면 계좌 잔액·대출 잔액이 자동으로 바뀌고, 수정·삭제하면 되돌려져요 (예전 기록은 '잔액 반영'을 끄고 입력)
+  - 연도별 합계, 선택한 해의 월별 표·항목별 합계·기록 목록
+- **대시보드**: 저축액 / 대출잔액 / 총자산(= 저축액 + 아파트 실거래가 − 대출잔액), 지난달 대비 변화, 연도별 예상 꺾은선그래프(5~40년 조절), 표 보기
 
-## 3. Firestore 데이터베이스 생성
-1. Firebase 콘솔 > Firestore Database > 데이터베이스 만들기 (프로덕션 모드)
-2. "규칙" 탭에서 아래 내용으로 교체 — **본인 계정 외에는 절대 데이터를 읽거나 쓸 수 없게** 막는 규칙입니다.
+`?demo`를 주소 뒤에 붙이면 예시 데이터로 둘러볼 수 있어요 (이 기기에만 저장).
+
+## 구조
 
 ```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
+index.html              화면 뼈대
+css/style.css           디자인 (모바일: 아래 탭바, PC: 왼쪽 메뉴, 다크 모드 지원)
+js/app.js               화면 그리기·입력 폼
+js/projection.js        자산·대출 계산과 연도별 예측 (순수 함수)
+js/records.js           저축·상환 기록과 연도/월별 합계 (순수 함수)
+js/charts.js            그래프
+js/store.js             Firebase 연결 / 체험 모드
+scripts/update-market.mjs  GitHub Actions가 매일 실거래가·주가를 가져오는 스크립트
+.github/workflows/update-market.yml  매일 오전 6시 자동 실행
+firestore.rules         Firestore 보안 규칙
+tests/                  계산 로직 테스트 (node --test tests/*.test.mjs)
 ```
 
-## 4. 배포
-끄적끄적/육삼레벨업과 동일하게 GitHub Pages로 배포하면 됩니다.
-1. 새 GitHub 저장소 생성 (이 파일들을 그대로 업로드)
-2. Settings > Pages > Branch를 main으로 설정
-3. 발급된 주소로 접속 → 로그인 화면이 뜨면 정상 설치 완료
+## 처음 한 번만 하는 설정
 
-> 참고: 저장소가 public이어도, 위 2번(로그인 계정 1개만 존재) + 3번(Firestore 규칙) 두 가지가 실제 보안을 담당해요.
-> 즉 URL을 남이 알아도 로그인 정보가 없으면 아무것도 볼 수 없고, 데이터도 못 건드립니다.
+### 1. Firebase (이미 만들어 둔 `chgokchgok` 프로젝트 사용)
+1. [Firebase 콘솔](https://console.firebase.google.com) → chgokchgok → **Authentication → Sign-in method**에서 이메일/비밀번호 사용 설정
+2. **Authentication → Users → 사용자 추가**로 본인 계정 1개만 추가 (회원가입 화면은 일부러 없어요)
+3. **Firestore Database → 규칙** 탭에 `firestore.rules` 내용을 붙여넣고 게시
+4. **Authentication → 설정 → 승인된 도메인**에 `aprikotseed-cyber.github.io`가 있는지 확인
 
-## 지금까지 만들어진 것 (1단계)
-- 로그인 (본인 전용)
-- 대시보드: 순자산, 이번 달 지출/저축, 카테고리 파이차트, 순자산 추이 그래프, "비서의 한마디"
-- 내역 수동 입력 (수입/지출)
-- 투자자산 + 통장 + 카드 스냅샷 관리 (수익률 자동계산)
-- 예산(카테고리별) · 저축목표 · 순자산목표 설정
-- 카테고리 직접 관리 (추가/삭제)
+### 2. GitHub Pages 배포
+저장소 **Settings → Pages → Branch: main / (root)** 저장 → 몇 분 뒤 `https://aprikotseed-cyber.github.io/chgokchgok/` 접속
 
-## 다음 단계 (2단계 예정) — 현대카드 PDF 자동분류
-카드 PDF를 업로드하면 클로드가 가맹점명을 보고 카테고리를 자동으로 분류해주는 기능이에요.
-다만 이 기능은 **Firebase Cloud Functions(서버 코드)** 가 하나 더 필요해요 — 클로드 API 키를 브라우저에 그대로 넣으면 누구나 개발자도구로 훔쳐볼 수 있어서, 반드시 서버 뒤편에 숨겨야 하기 때문이에요.
-Cloud Functions 설정(Blaze 요금제 전환 필요 - 사용량 기반이라 개인 사용 시 거의 무료)까지 준비되시면 다음 단계로 이어서 만들어드릴게요.
+### 3. 시세 자동 수집 (실거래가·주가)
+GitHub 저장소 **Settings → Secrets and variables → Actions → New repository secret**에 두 개를 추가해요.
+
+| 이름 | 값 |
+|---|---|
+| `DATA_GO_KR_KEY` | [공공데이터포털](https://www.data.go.kr)에서 **"국토교통부_아파트 매매 실거래가 자료"** 활용신청 → 마이페이지의 **일반 인증키(Decoding)** |
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase 콘솔 → 프로젝트 설정 → **서비스 계정 → 새 비공개 키 생성**으로 받은 JSON 파일 내용 전체 |
+
+> 서비스 계정 키는 비밀번호와 같아요. **Secrets에만 넣고, 저장소에 파일로 올리지 마세요.**
+
+그다음 **Actions → 시세 자동 업데이트 → Run workflow**로 한 번 실행해 보면 돼요. 이후 매일 오전 6시에 자동 실행돼요.
+집 주소·종목 같은 개인 정보는 저장소가 아니라 Firestore에만 있어서, 저장소가 공개여도 드러나지 않아요.
+
+## 집 시세 계산 방식
+- 입력한 **시군구 코드 + 단지명(일부) + 전용면적(±2㎡)** 에 맞는 최근 24개월 거래를 모아요 (해제된 거래 제외)
+- **최근 6개월 거래 중 최신 3건 평균**을 현재 시세로 써요. 6개월간 거래가 없으면 마지막 거래가를 써요
+- 단지명이 안 맞으면 앱의 집 카드에 "이 지역에서 찾은 단지 이름" 후보가 떠요. 눌러서 바로 고칠 수 있어요
+- 지분(공동명의 50% 등)을 넣으면 그만큼만 자산에 반영돼요
+
+## 예측 가정
+- 저축: 매달 적립액 + 연 이자율(월 복리)
+- 주식: 현재 평가액 + 매달 추가 투자, 기대 연수익률
+- 집: 현재 시세 × 예상 연 상승률
+- 대출: 상환 방식·만기·거치기간대로 매달 상환
+- 대출 상환금이 저축에서 빠지는 것은 반영하지 않아요 (월 저축액에 이미 상환 후 남는 돈을 넣는 방식)
