@@ -570,7 +570,7 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .gsync { display: inline-flex; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .gsync .warn { color: var(--warn); white-space: normal; }
 .today { display: grid; gap: 12px; }
-@media (min-width: 900px) { .today { grid-template-columns: 1fr 1fr; align-items: start; } }
+@media (min-width: 900px) { .today { grid-template-columns: 1fr 1fr; align-items: stretch; } }
 .mini-head { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 18px 4px; font-size: 13px; font-weight: 700; color: var(--text-secondary); }
 .list > .mini-head + .row, .list > .mini-head + .empty { border-top: 0; }
 .mini-head + .empty { padding-top: 8px; }
@@ -747,3 +747,13 @@ pre.debug { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-
 .field textarea:focus { outline: none; border-color: var(--ink); background: var(--surface-1); }
 .memo-stamp { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .memo-capture-foot .ask-send { margin-left: auto; }
+.kw-add input { flex: 1; min-width: 0; }
+.kw-add .select { width: auto; flex: 0 0 auto; height: 46px; }
+.kw-list { margin-bottom: 4px; }
+
+/* 단축어 안내 */
+.sc-codes { display: grid; gap: 8px; margin: 14px 0; }
+.sc-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.sc-label { font-weight: 700; color: var(--text-secondary); }
+.sc-row code, .steps code { font-size: 12px; background: var(--surface-2); padding: 2px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+.sc-row code { padding: 8px 10px; }

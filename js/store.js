@@ -62,6 +62,9 @@ export async function connect(h) {
     save: (data) => F.setDoc(mainRef, data),
     /** 하루 자산 기록 한 줄 (같은 날이면 덮어써요) */
     saveHistory: (day, entry) => F.setDoc(historyRef, { days: { [day]: entry } }, { merge: true }),
+    /** 단축어용 키: 이 계정의 로그인 유지 토큰 (단축어가 본인 받은편지함에만 쓸 수 있어요) */
+    shortcutKey: () => auth.currentUser?.refreshToken || '',
+    apiKey: firebaseConfig.apiKey,
     saveMemo: ({ id, ...memo }) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'memos', id), memo),
     deleteMemo: (id) => F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'memos', id)),
     saveAgenda: (agenda) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'agenda'), agenda),
@@ -132,6 +135,8 @@ function demoStore(h) {
     pushDevices: async () => [],
     saveSecret: async () => { throw new Error('체험 모드에서는 저장하지 않아요'); },
     saveAgenda: async () => {},
+    shortcutKey: () => '',
+    apiKey: '체험모드',
     saveMemo: async (m) => { memos = [m, ...memos.filter((x) => x.id !== m.id)]; putMemos(); },
     deleteMemo: async (id) => { memos = memos.filter((x) => x.id !== id); putMemos(); },
     removePushDevice: async () => {},

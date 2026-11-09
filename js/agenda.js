@@ -421,3 +421,43 @@ export function choiceOf(rule) {
   if (rule.freq === 'yearly') return 'yearly';
   return 'keep';
 }
+
+// ───── 캘린더 고르기: ① 말한 캘린더 이름 → ② 나만의 낱말 → ③ 기본 규칙 ─────
+const CAL_SAY = { work: ['work', '워크', '업무'], life: ['life', '라이프'], exercise: ['exercise', '엑서사이즈', '운동'], cherish: ['cherish', '체리시'], birthday: ['birthday', '버스데이', '생일'] };
+
+/**
+ * '라이프에 금요일 7시 라스런회의', 'Work 캘린더에 내일 상담' → {text: 캘린더 말을 뺀 글, calName}
+ * calendars: [{name}] (내 캘린더들), keywords: [{word, cal}] (설정의 나만의 낱말)
+ */
+export function pickCalendar(text, calendars = [], keywords = []) {
+  const names = calendars.map((c) => c.name);
+  const find = (w) => {
+    const k = w.toLowerCase();
+    return names.find((n) => n.toLowerCase() === k)
+      || names.find((n) => (CAL_SAY[n.toLowerCase()] || []).includes(k));
+  };
+  let s = String(text || '').trim();
+  let calName = '';
+  // 맨 앞: '라이프에 …', 'Work 캘린더에 …', '운동 캘린더로 …'
+  const m = s.match(/^(\S+?)\s*(?:캘린더)?\s*(?:에|로|으로)\s+/);
+  if (m && find(m[1]) && (m[0].includes('캘린더') || /에|로/.test(m[0]))) { calName = find(m[1]); s = s.slice(m[0].length); }
+  // 맨 뒤: '… 라이프 캘린더에'
+  if (!calName) {
+    const e = s.match(/\s+(\S+?)\s*캘린더(?:에|로|으로)?\s*$/);
+    if (e && find(e[1])) { calName = find(e[1]); s = s.slice(0, e.index); }
+  }
+  if (!calName) {
+    const hit = (keywords || []).find((k) => k.word && s.includes(k.word) && names.includes(k.cal));
+    if (hit) calName = hit.cal;
+  }
+  return { text: s, calName };
+}
+
+/** 일정 한 줄 → 일정 + 캘린더 이름 (말한 캘린더 / 나만의 낱말 / 기본 규칙 순) */
+export function parseEventInput(text, now, calendars = [], keywords = []) {
+  const { text: rest, calName } = pickCalendar(text, calendars, keywords);
+  const p = parseQuickEvent(rest, now);
+  const want = calName || (keywords || []).find((k) => k.word && p.title.includes(k.word))?.cal || classifyEvent(p.title);
+  const cal = calendars.find((c) => c.name.toLowerCase() === want.toLowerCase());
+  return { ...p, calName: cal?.name || want };
+}

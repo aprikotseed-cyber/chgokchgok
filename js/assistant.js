@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110u';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110u';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261110u';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110u';
-import { won, wonExact, mdw, pct } from './format.js?v=20261110u';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel } from './agenda.js?v=20261110u';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110w';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110w';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261110w';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110w';
+import { won, wonExact, mdw, pct } from './format.js?v=20261110w';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261110w';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -704,10 +704,10 @@ function addAnswer(ctx, now) {
       action: { kind: 'task', title, due, ...(repeat ? { repeat } : {}) },
     };
   }
-  const p = parseQuickEvent(body, now);
+  const p = parseEventInput(body, now, ctx.agenda.calendars || [], ctx.agenda.keywords || []);
   if (!p.title) return { text: '어떤 일정을 넣을까요? 예: ‘금요일 7시 헬스 넣어줘’' };
   const ev = { ...p, date: p.date || ymd(ctx.now) };
-  const want = classifyEvent(p.title);
+  const want = p.calName;
   const cal = (ctx.agenda.calendars || []).find((c) => c.name.toLowerCase() === want.toLowerCase());
   return {
     text: `이 일정을 넣을까요?\n· ${eventLine(ev)}${p.repeat ? `\n· 반복: ${repeatLabel(p.repeat, ev.date)}` : ''}\n· 캘린더: ${cal?.name || want}${p.date ? '' : '\n날짜를 말씀하지 않아서 오늘로 넣을게요.'}${p.allDay ? '\n시간을 말씀하지 않아서 종일 일정이에요.' : ''}`,

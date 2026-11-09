@@ -1,11 +1,13 @@
 // GitHub Actions: 앱을 열지 않아도 구글 캘린더·태스크에서 일정·할일을 받아 Firestore(agenda)에 저장해요.
 // 1) 앱에서 '자동 동기화 켜기'를 누르면 secrets.googleAuthCode가 저장돼요 → 여기서 오래 쓰는 연결(refresh token)로 바꿔요.
-// 2) 연결된 사용자마다 1시간에 한 번 새로 받아요.
+// 2) 단축어가 보낸 일정·할일·메모(users/{uid}/inbox, 본인만 읽는 곳)를 구글·메모에 넣고 알림을 보내요.
+// 3) 연결된 사용자마다 1시간에 한 번 새로 받아요.
 // 필요한 GitHub Secret: FIREBASE_SERVICE_ACCOUNT, GOOGLE_CLIENT_SECRET (구글 콘솔의 OAuth 클라이언트 보안 비밀번호)
 // 한국 날짜로 계산하도록 워크플로에서 TZ=Asia/Seoul로 실행해요.
 import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { fetchAgenda, keepExternal } from '../js/agenda.js';
+import { getFirestore, FieldValue, FieldPath } from 'firebase-admin/firestore';
+import { getMessaging } from 'firebase-admin/messaging';
+import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, eventLine, repeatLabel, dueLabel, dayKey } from '../js/agenda.js';
 import { fetchCalDav } from '../js/caldav.js';
 import { listApi } from '../js/google.js';
 
@@ -43,6 +45,98 @@ function serverApi(accessToken) {
     }
     return items;
   });
+}
+
+// ───── 단축어 받은편지함 ─────
+const APP_URL = process.env.APP_URL || 'https://aprikotseed-cyber.github.io/chgokchgok/';
+const KIND = { 일정: 'event', 할일: 'task', 메모: 'memo', event: 'event', task: 'task', memo: 'memo' };
+
+async function notify(userRef, title, body) {
+  const devices = (await userRef.collection('data').doc('push').get()).data()?.devices || [];
+  if (!devices.length) return;
+  await getMessaging().sendEachForMulticast({
+    tokens: devices.map((x) => x.token),
+    webpush: { notification: { title, body, icon: `${APP_URL}icon-192.png`, tag: `chgok-inbox-${Date.now()}` }, fcmOptions: { link: `${APP_URL}#home` } },
+  }).catch((e) => console.log('알림 실패:', e.message));
+}
+
+async function googleFetch(at, url, body) {
+  const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${at}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`구글 오류 ${res.status}: ${j.error?.message || ''}`);
+  return j;
+}
+
+/** 받은편지함 하나 처리 → 알림에 쓸 한 줄 */
+async function handleInbox(userRef, item, ctx) {
+  const kind = KIND[String(item.kind || '').trim()] || 'memo';
+  const text = String(item.text || '').trim();
+  if (!text) return null;
+  if (kind === 'memo') {
+    const t = Date.now();
+    await userRef.collection('memos').doc(`m${t.toString(36)}${Math.random().toString(36).slice(2, 5)}`).set({ text, pinned: false, createdAt: item.at || t, updatedAt: t, source: 'shortcut' });
+    return `메모: ${text.split('\n')[0]}`;
+  }
+  const at = await ctx.accessToken();
+  if (kind === 'event') {
+    const cals = (await ctx.api().calendars(false)).filter((c) => ['owner', 'writer'].includes(c.accessRole)).map((c) => ({ id: c.id, name: c.summaryOverride || c.summary || '' }));
+    const p = parseEventInput(text, new Date(), cals, ctx.gs.keywords || []);
+    if (!p.title) throw new Error('일정 내용을 알아듣지 못했어요');
+    const ev = { ...p, date: p.date || dayKey(new Date()) };
+    const cal = cals.find((c) => c.name === p.calName) || cals.find((c) => c.name.toLowerCase() === 'life') || cals[0];
+    await googleFetch(at, `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`, toGoogleEvent(ev));
+    return `${cal.name}: ${eventLine(ev)}${ev.repeat ? ` (${repeatLabel(ev.repeat, ev.date)})` : ''}`;
+  }
+  const { title, due, repeat } = parseQuickTask(text, new Date());
+  if (!title) throw new Error('할일 내용을 알아듣지 못했어요');
+  const lists = await ctx.api().taskLists(false);
+  const listId = lists.some((l) => l.id === ctx.gs.taskList) ? ctx.gs.taskList : lists[0]?.id;
+  await googleFetch(at, `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`, { title, ...(due ? { due: toTaskDue(due) } : {}) });
+  // 반복 할일 규칙은 앱 설정에 (앱과 같은 곳)
+  if (repeat) await userRef.collection('data').doc('main').update(new FieldPath('settings', 'taskRepeat', title), repeat).catch(() => {});
+  return `할일: ${title}${due ? ` · ${dueLabel(due, dayKey(new Date()))}` : ''}${repeat ? ` (${repeatLabel(repeat, due)})` : ''}`;
+}
+
+const inbox = (await db.collectionGroup('inbox').get()).docs;
+const byUser = new Map();
+for (const d of inbox) {
+  const userRef = d.ref.parent.parent; // users/{uid}
+  if (!byUser.has(userRef.path)) byUser.set(userRef.path, { userRef, items: [] });
+  byUser.get(userRef.path).items.push(d);
+}
+for (const { userRef, items } of byUser.values()) {
+  const sec = (await userRef.collection('data').doc('secrets').get()).data() || {};
+  const gs = (await userRef.collection('data').doc('main').get()).data()?.settings?.google || {};
+  let at = null;
+  const ctx = {
+    gs,
+    async accessToken() {
+      if (at) return at;
+      if (!sec.googleRefresh || !gs.clientId || !SECRET) throw new Error('구글 자동 동기화가 켜져 있어야 일정·할일을 넣을 수 있어요');
+      at = (await token({ refresh_token: sec.googleRefresh, client_id: gs.clientId, client_secret: SECRET, grant_type: 'refresh_token' })).access_token;
+      return at;
+    },
+    api: () => serverApi(at),
+  };
+  const done = [];
+  const failed = [];
+  for (const d of items.sort((a, b) => (a.data().at || 0) - (b.data().at || 0))) {
+    try {
+      const line = await handleInbox(userRef, d.data(), ctx);
+      if (line) done.push(line);
+      await d.ref.delete();
+    } catch (e) {
+      console.log('받은편지함 처리 실패:', e.message); // 내용은 남기지 않아요 (공개 로그)
+      failed.push(e.message);
+      // 세 번 넘게 실패하면 메모로라도 남기고 지워요
+      const tries = (d.data().tries || 0) + 1;
+      if (tries >= 3) { await handleInbox(userRef, { kind: '메모', text: `[넣지 못한 ${d.data().kind || ''}] ${d.data().text || ''}` }, ctx).catch(() => {}); await d.ref.delete(); }
+      else await d.ref.update({ tries });
+    }
+  }
+  console.log(`받은편지함: 넣음 ${done.length}개, 실패 ${failed.length}개`);
+  if (done.length) await notify(userRef, '차곡차곡에 넣었어요', done.join('\n'));
+  if (failed.length) await notify(userRef, '차곡차곡에 넣지 못했어요', [...new Set(failed)].join('\n'));
 }
 
 const docs = (await db.collectionGroup('data').get()).docs.filter((d) => d.id === 'secrets');
