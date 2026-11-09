@@ -76,3 +76,13 @@ test('비서: 일정·할일 넣기는 확인 카드로', () => {
   assert.match(ask('헬스 넣어줘', data, {}, now, null).text, /연결되지 않았어요/);
   assert.match(A('고정지출 얼마야'), /매달 고정지출은/); // 넣기 말이 없으면 그대로
 });
+
+test('비서: 반복 일정·할일 넣기', () => {
+  const ag = { ...agenda, calendars: [{ id: 'l', name: 'Life' }, { id: 'x', name: 'Exercise' }] };
+  const a = ask('매주 토요일 화장실 청소 할일 추가해줘', data, {}, now, ag);
+  assert.deepEqual([a.action.title, a.action.due, a.action.repeat.byday], ['화장실 청소', '2026-11-14', [6]]);
+  assert.match(a.text, /반복: 매주 토요일/);
+  const b = ask('매주 화요일 7시 헬스 일정 넣어줘', data, {}, now, ag);
+  assert.deepEqual([b.action.ev.date, b.action.ev.time, b.action.ev.calName], ['2026-11-10', '19:00', 'Exercise']);
+  assert.match(b.text, /반복: 매주 화요일/);
+});
