@@ -1,5 +1,5 @@
 import { connect, isDemo } from './store.js';
-import { project, currentTotals, currentPayment, stockValue, homeValue, milestones, normTicker, loanMonth } from './projection.js';
+import { project, currentTotals, currentPayment, stockValue, homeValue, milestones, normTicker, loanThisMonth, graduatedInfo } from './projection.js';
 import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today } from './records.js';
 import { won, pct, esc, ymLabel, dateTime } from './format.js';
 import { projectionChart, homeChart, redrawAll } from './charts.js';
@@ -72,7 +72,8 @@ const FORMS = {
       { key: 'original', label: '처음 빌린 금액', type: 'money', hint: '상환 진행률 표시용 (선택)' },
       { key: 'balance', label: '현재 남은 원금', type: 'money' },
       { key: 'rate', label: '연 금리', type: 'pct' },
-      { key: 'method', label: '상환 방식', type: 'select', options: [['annuity', '원리금균등'], ['equal', '원금균등'], ['bullet', '만기일시']] },
+      { key: 'method', label: '상환 방식', type: 'select', options: [['annuity', '원리금균등'], ['equal', '원금균등'], ['graduated', '체증식 (보금자리론 등)'], ['bullet', '만기일시']] },
+      { key: 'payment', label: '이번 달 원리금 (체증식만)', type: 'money', showIf: { method: 'graduated' }, hint: '은행 앱·상환 스케줄표의 이번 달 납입액(원금+이자). 이걸로 매달 늘어나는 금액을 계산해요' },
       { key: 'maturity', label: '만기', type: 'month' },
       { key: 'graceEnd', label: '거치기간 끝 (선택)', type: 'month', hint: '이때까지는 이자만 내요' },
     ],
@@ -113,11 +114,11 @@ function recordDefaults(type, targetId) {
   }
   const l = (state.data.debts || []).find((x) => x.id === targetId);
   if (!l) return {};
-  const m = loanMonth(Number(l.balance) || 0, { ...l, _now: new Date() }, 1);
+  const m = loanThisMonth(l);
   return { amount: Math.round(m.principal / 100) * 100, interest: Math.round(m.interest / 100) * 100, kind: '정기 상환' };
 }
 
-const METHOD = { annuity: '원리금균등', equal: '원금균등', bullet: '만기일시' };
+const METHOD = { annuity: '원리금균등', equal: '원금균등', graduated: '체증식', bullet: '만기일시' };
 
 // ───────────────────────── 저장 ─────────────────────────
 let saveTimer;
@@ -276,6 +277,13 @@ function viewAssets() {
   ${m.updatedAt ? `<p class="fine center">시세 자동 업데이트: ${dateTime(m.updatedAt)}</p>` : ''}`;
 }
 
+function gradLine(l) {
+  if (l.method !== 'graduated') return '';
+  const g = graduatedInfo(l);
+  if (!g) return '<div class="item-sub warn">체증식은 \'이번 달 원리금\'을 넣어야 정확해요 (지금은 원리금균등으로 계산 중)</div>';
+  return `<div class="item-sub">매달 약 ${Math.round(g.step).toLocaleString()}원씩 증가 → 마지막 회차 약 ${won(g.last)}</div>`;
+}
+
 function viewDebts() {
   const d = state.data;
   const t = currentTotals(d, state.market);
@@ -287,6 +295,7 @@ function viewDebts() {
       <div class="item-title">${esc(l.name)} <span class="chip">${METHOD[l.method] || ''}</span></div>
       <div class="item-num">${won(l.balance)}</div>
       <div class="item-sub">연 ${pct(l.rate, 2)} · 이번 달 약 ${won(currentPayment(l))} · 만기 ${ymLabel(l.maturity)}${l.graceEnd ? ` · 거치 ${ymLabel(l.graceEnd)}까지` : ''}</div>
+      ${gradLine(l)}
       ${done != null ? `<div class="progress" role="progressbar" aria-valuenow="${done.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"><span style="width:${done}%"></span></div><div class="item-sub">${won(orig)} 중 ${pct(done, 0)} 상환</div>` : ''}`);
   }).join('');
   return `
@@ -439,12 +448,21 @@ function openForm(kind, item) {
     } else {
       input = `<input id="${id}" name="${f.key}" type="text" value="${esc(val)}" placeholder="${esc(f.placeholder || '')}" ${f.required ? 'required' : ''}>`;
     }
-    return `<div class="field"><label for="${id}">${f.label}</label>${input}${hint}</div>`;
+    const show = f.showIf ? ` data-show-key="${Object.keys(f.showIf)[0]}" data-show-val="${Object.values(f.showIf)[0]}"` : '';
+    return `<div class="field"${show}><label for="${id}">${f.label}</label>${input}${hint}</div>`;
   }).join('');
   $('#editor-delete').hidden = !item || kind === 'stockPlan';
   $('#editor').showModal();
+  syncShowIf();
   $('#editor-fields').querySelectorAll('[data-money]').forEach(previewMoney);
   if (matchMedia('(hover: hover)').matches) $('#editor-fields input')?.focus(); // 모바일은 키보드가 바로 뜨지 않게
+}
+
+/** 상환 방식처럼 다른 값에 따라 보여야 하는 칸 처리 */
+function syncShowIf() {
+  $('#editor-fields').querySelectorAll('[data-show-key]').forEach((el) => {
+    el.hidden = $(`#f-${el.dataset.showKey}`)?.value !== el.dataset.showVal;
+  });
 }
 
 function previewMoney(input) {
@@ -477,6 +495,11 @@ function saveForm() {
   } else {
     const list = (d[editing.kind] ||= []);
     const i = list.findIndex((x) => x.id === editing.id);
+    // 체증식 원리금은 '언제 기준'인지 함께 저장해야 다음 달부터 자동으로 늘려 계산할 수 있어요
+    if (editing.kind === 'debts' && vals.method === 'graduated') {
+      const prev = list.find((x) => x.id === editing.id);
+      if (!prev || prev.payment !== vals.payment || prev.method !== 'graduated' || !prev.paymentAsOf) vals.paymentAsOf = new Date().toISOString().slice(0, 7);
+    }
     if (i >= 0) list[i] = { ...list[i], ...vals };
     else list.push({ id: crypto.randomUUID().slice(0, 8), ...vals });
   }
@@ -593,6 +616,7 @@ function bind() {
         if (el && v[k] !== undefined) { el.value = v[k] === '' ? '' : (v[k] / 1e4).toLocaleString(undefined, { maximumFractionDigits: 4 }); previewMoney(el); }
       }
     }
+    syncShowIf();
     if (e.target.name === 'lawdCd') e.target.closest('.field').querySelector('output').textContent = SIGUNGU.find(([c]) => c === e.target.value)?.[1] || '';
   });
 

@@ -85,7 +85,7 @@ function sampleData() {
     stockPlan: { monthly: 500_000, rate: 6 },
     homes: [{ id: 'h1', name: '우리 집', lawdCd: '41135', aptName: '예시마을', area: 84, share: 100, useAuto: true, manualPrice: 950_000_000, growth: 2 }],
     debts: [
-      { id: 'd1', name: '주택담보대출', kind: '주택담보대출', original: 400_000_000, balance: 352_000_000, rate: 3.9, method: 'annuity', maturity: '2054-03', graceEnd: '' },
+      { id: 'd1', name: '아낌e보금자리론', kind: '주택담보대출', original: 400_000_000, balance: 352_000_000, rate: 3.9, method: 'graduated', payment: 1_250_000, paymentAsOf: new Date().toISOString().slice(0, 7), maturity: '2054-03', graceEnd: '' },
       { id: 'd2', name: '신용대출', kind: '신용대출', original: 30_000_000, balance: 18_000_000, rate: 5.2, method: 'equal', maturity: '2029-06', graceEnd: '' },
     ],
     settings: { horizon: 20 },
