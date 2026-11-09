@@ -514,3 +514,17 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .btn.small { height: 34px; padding: 0 12px; font-size: 13px; }
 .steps { margin: 0 0 10px; padding-left: 20px; font-size: 14px; line-height: 1.7; color: var(--text-secondary); }
 .steps a { color: var(--text-primary); font-weight: 600; }
+
+/* ───── 순서 바꾸기 ───── */
+.head-actions { display: inline-flex; align-items: baseline; gap: 14px; }
+.sort-btn { font-size: 15px; letter-spacing: -0.12em; padding: 2px 4px; }
+.link-btn.done { color: var(--text-primary); }
+.sort-hint { padding: 0 4px 8px; }
+.sort-row { gap: 10px; user-select: none; -webkit-user-select: none; transition: box-shadow .15s; background: var(--surface-1); }
+.handle {
+  display: grid; place-items: center; width: 36px; height: 36px; margin-left: -8px; flex-shrink: 0;
+  font-size: 20px; color: var(--text-muted); cursor: grab; border-radius: 8px; touch-action: none;
+}
+.handle:hover, .handle:focus-visible { background: var(--surface-2); color: var(--text-primary); }
+.sort-row.dragging { position: relative; z-index: 2; box-shadow: 0 8px 24px rgb(0 0 0 / .16); border-radius: 12px; }
+.sort-row.dragging .handle { cursor: grabbing; }
