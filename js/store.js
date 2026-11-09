@@ -31,6 +31,7 @@ export async function connect(h) {
 
   let unsub = [];
   let mainRef = null;
+  let historyRef = null;
   A.onAuthStateChanged(auth, (user) => {
     unsub.forEach((u) => u());
     unsub = [];
@@ -38,12 +39,14 @@ export async function connect(h) {
     if (!user) return;
     mainRef = F.doc(db, 'users', user.uid, 'data', 'main');
     const marketRef = F.doc(db, 'users', user.uid, 'data', 'market');
+    historyRef = F.doc(db, 'users', user.uid, 'data', 'history');
     unsub.push(
       F.onSnapshot(mainRef, { includeMetadataChanges: true }, (s) => {
         h.onSync(s.metadata.hasPendingWrites ? 'saving' : s.metadata.fromCache ? 'offline' : 'saved');
         if (!s.metadata.hasPendingWrites) h.onData(s.exists() ? s.data() : null);
       }),
       F.onSnapshot(marketRef, (s) => h.onMarket(s.exists() ? s.data() : {})),
+      F.onSnapshot(historyRef, (s) => h.onHistory?.(s.exists() ? s.data().days || {} : {})),
     );
   });
 
@@ -51,6 +54,8 @@ export async function connect(h) {
     login: (email, pw) => A.signInWithEmailAndPassword(auth, email, pw),
     logout: () => A.signOut(auth),
     save: (data) => F.setDoc(mainRef, data),
+    /** 하루 자산 기록 한 줄 (같은 날이면 덮어써요) */
+    saveHistory: (day, entry) => F.setDoc(historyRef, { days: { [day]: entry } }, { merge: true }),
     pushSupported: async () => {
       const M = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-messaging.js`);
       return M.isSupported();
@@ -93,16 +98,20 @@ function demoStore(h) {
   const KEY = 'chgok-demo';
   let data = JSON.parse(localStorage.getItem(KEY) || 'null') || sampleData();
   const market = sampleMarket();
+  const HKEY = 'chgok-demo-history';
+  const history = JSON.parse(localStorage.getItem(HKEY) || 'null') || sampleHistory();
   setTimeout(() => {
     h.onAuth({ email: '체험 모드' });
     h.onData(data);
     h.onMarket(market);
+    h.onHistory?.(history);
     h.onSync('demo');
   });
   return {
     login: async () => {},
     logout: async () => { localStorage.removeItem(KEY); location.href = location.pathname; },
     save: async (d) => { data = d; localStorage.setItem(KEY, JSON.stringify(d)); },
+    saveHistory: async (day, entry) => { history[day] = entry; localStorage.setItem(HKEY, JSON.stringify(history)); },
     pushSupported: async () => false,
     enablePush: async () => { throw new Error('체험 모드에서는 알림을 켤 수 없어요'); },
     pushDevices: async () => [],
@@ -205,4 +214,21 @@ function sampleSchedule() {
     pay += 1_830;
   }
   return rows;
+}
+
+/** 체험용 자산 기록: 2년 동안 매일, 조금씩 오르내리며 늘어나는 모양 */
+function sampleHistory() {
+  const days = {};
+  const today = new Date();
+  const start = new Date(today.getFullYear() - 2, today.getMonth(), today.getDate());
+  let net = 452_000_000;
+  for (let d = new Date(start), i = 0; d < today; d.setDate(d.getDate() + 1), i++) {
+    net += 385_000 + Math.sin(i / 9) * 600_000 + Math.sin(i / 40) * 250_000;
+    const debts = 430_000_000 - i * 25_000;
+    const homes = 1_000_000_000 + i * 110_000;
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const stocks = Math.round(18_000_000 + i * 14_000 + Math.sin(i / 5) * 450_000);
+    days[k] = { net: Math.round(net), savings: Math.round(net - homes + debts), stocks, homes, debts };
+  }
+  return days;
 }
