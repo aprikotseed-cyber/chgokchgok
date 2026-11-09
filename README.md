@@ -44,8 +44,8 @@ js/history.js           하루 한 줄 자산 기록과 일별·월별·연도�
 js/trades.js            주식 매수·매도 (이동평균)
 js/store.js             Firebase 연결 / 체험 모드
 scripts/update-market.mjs  GitHub Actions가 매일 실거래가·주가를 가져오는 스크립트
-.github/workflows/update-market.yml  매일 오전 6시: 아파트 실거래가 + 주가·환율
-.github/workflows/quotes.yml         장중 1시간마다: 주가·환율만
+.github/workflows/update-market.yml  매일 오전 6시 17분(미국장 마감 가격): 아파트 실거래가 + 주가·환율
+.github/workflows/quotes.yml         국내장 중 1시간마다(매시 13분): 주가·환율만
 firestore.rules         Firestore 보안 규칙
 tests/                  계산 로직 테스트 (node --test tests/*.test.mjs)
 ```

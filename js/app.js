@@ -1,14 +1,14 @@
-import { connect, isDemo } from './store.js?v=20261109r';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109r';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109r';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109r';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109r';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109r';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109r';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109r';
-import { ask, SUGGEST } from './assistant.js?v=20261109r';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109r';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109r';
+import { connect, isDemo } from './store.js?v=20261109t';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109t';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109t';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109t';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109t';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109t';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109t';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109t';
+import { ask, SUGGEST } from './assistant.js?v=20261109t';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109t';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109t';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -752,7 +752,7 @@ function viewSettings() {
         <div class="pad actions"><button class="btn primary" data-action="fb-copy">목록 복사하기</button><button class="btn" data-action="misses-clear">목록 비우기</button></div>
         <p class="hint pad">복사한 내용을 Claude와의 대화에 붙여 넣으면, 이 질문들을 알아듣게 고치고 다시 틀리지 않도록 시험 문제로 저장해 둘게요. 금액은 N으로 가려져요.</p>`
       : empty('비서 답이 엉뚱하면 말풍선 아래 ‘이 답이 맞지 않았나요?’를 눌러 주세요. 모르는 질문도 여기에 저절로 모여요.')}</div>`)}
-  ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">주가와 환율은 장이 열린 평일에 1시간마다 (국내장 오전 9시~오후 3시 반, 미국장 밤 10시 반~새벽 5시 반), 주택 실거래가는 매일 오전 6시에 가져와요. 지금 바로 받으려면 GitHub 저장소의 Actions → 주가·환율 장중 업데이트(또는 시세 자동 업데이트) → Run workflow를 누르세요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 주택 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
+  ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">국내 주가와 환율은 평일 장중에 1시간마다 (오전 9시 13분~오후 3시 43분), 미국 주가는 매일 아침 6시 17분에 미국장 마감 가격으로, 주택 실거래가도 아침 6시 17분에 가져와요. GitHub 예약 실행이라 몇 분~십여 분 늦을 수 있어요. 지금 바로 받으려면 GitHub 저장소의 Actions → 주가·환율 장중 업데이트(또는 시세 자동 업데이트) → Run workflow를 누르세요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 주택 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
   </div><div class="col-side">
   ${section('백업', `<div class="panel"><div class="pad actions">
       <button class="btn" data-action="export">백업 파일 받기</button>

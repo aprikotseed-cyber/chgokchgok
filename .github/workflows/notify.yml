@@ -2,7 +2,7 @@ name: 비서 알림
 
 on:
   schedule:
-    - cron: '0 23 * * *' # 매일 오전 8시 (한국 시간)
+    - cron: '3 23 * * *' # 매일 오전 8시 3분 (한국 시간, 정각은 붐벼서 비켜 둠)
   workflow_dispatch: {}   # Actions 탭에서 'Run workflow'로 바로 실행 가능
 
 jobs:
