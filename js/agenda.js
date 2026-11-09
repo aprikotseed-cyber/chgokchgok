@@ -60,7 +60,7 @@ const dayKeyDate = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 export function normTask(t, listId = '') {
   return {
     id: t.id, listId, title: t.title || '(제목 없음)', notes: t.notes || '',
-    due: t.due ? t.due.slice(0, 10) : '', done: t.status === 'completed',
+    due: t.due ? t.due.slice(0, 10) : '', done: t.status === 'completed', deleted: !!t.deleted,
     completedAt: t.completed ? t.completed.slice(0, 10) : '', updated: t.updated || '',
   };
 }
@@ -257,17 +257,23 @@ export async function fetchAgenda(g, gs = {}, now = new Date(), interactive = fa
   });
   const shown = calendars.filter((c) => calPref(c, gs).show);
   const lists = await g.taskLists(interactive);
+  // 새 할일을 넣을 목록 (설정에서 고른 것, 없으면 첫 목록)
   const listId = lists.some((l) => l.id === gs.taskList) ? gs.taskList : lists[0]?.id || '';
-  const [evs, tasks] = await Promise.all([
+  // 할일은 모든 목록에서 받아요 (설정에서 숨긴 목록만 빼고)
+  const hidden = new Set(gs.hideLists || []);
+  const shownLists = lists.filter((l) => !hidden.has(l.id));
+  const [evs, perList] = await Promise.all([
     Promise.all(shown.map((c) => g.events(c.id, from.toISOString(), to.toISOString(), interactive)
       .then((items) => items.filter((e) => e.status !== 'cancelled').map((e) => normEvent(e, { id: c.id, summary: c.name, backgroundColor: c.color, partner: calPref(c, gs).partner }))))),
-    listId ? g.tasks(listId, interactive) : [],
+    Promise.all(shownLists.map((l) => g.tasks(l.id, interactive).then((items) => items.map((x) => normTask(x, l.id))))),
   ]);
   const old = dayKey(addDays(t, -30));
+  const tasks = perList.flat().filter((x) => !x.deleted && x.title !== '(제목 없음)').filter((x) => !x.done || !x.completedAt || x.completedAt >= old);
   return {
-    calendars, lists: lists.map((l) => ({ id: l.id, title: l.title || '' })), listId,
+    calendars, listId,
+    lists: lists.map((l) => ({ id: l.id, title: l.title || '', show: !hidden.has(l.id), count: tasks.filter((x) => x.listId === l.id && !x.done).length })),
     events: evs.flat(),
-    tasks: tasks.filter((x) => !x.deleted && (x.title || '').trim()).map((x) => normTask(x, listId)).filter((x) => !x.done || !x.completedAt || x.completedAt >= old),
+    tasks,
     from: dayKey(from), until: dayKey(addDays(to, -1)),
     syncedAt: Date.now(),
   };

@@ -191,7 +191,7 @@ button { font: inherit; color: inherit; }
   .side-foot { display: flex; flex-direction: column; gap: 6px; margin-top: auto; padding-top: 16px; }
   .side-foot .sync { padding: 0 12px; }
 
-  .view { max-width: 1240px; margin: 0; padding: 40px 48px 72px; }
+  .view { max-width: none; margin: 0; padding: 40px 48px 72px; } /* PC: 화면 가득 */
   .page-title { display: block; font-size: 26px; letter-spacing: -0.03em; margin-bottom: 24px; }
   .view > .page-title + * { margin-top: 0; }
 
@@ -665,13 +665,34 @@ dialog.lock img { width: 96px; height: 96px; }
 .day-detail { margin-top: 12px; }
 @media (min-width: 900px) {
   .mcal-wrap { padding: 10px 12px 14px; }
-  .mday { align-items: stretch; min-height: 104px; padding: 6px; border-radius: 8px; }
+  .mday { align-items: stretch; min-height: 128px; padding: 8px; border-radius: 10px; }
+  .mday .num { font-size: 15px; width: 30px; height: 30px; }
+  .mcal-head span { font-size: 14px; }
   .mday .num { align-self: flex-start; }
   .mdots { display: none; }
   .mchips { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
-  .mchip { font-size: 11px; line-height: 1.5; padding: 0 5px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    background: color-mix(in srgb, var(--c) 18%, transparent); border-left: 3px solid var(--c); }
+  .mchip { font-size: 13px; line-height: 1.6; padding: 1px 7px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--text-primary); }
   .mchip.partner { opacity: .7; }
   .mchip.money { --c: var(--hot-ink); }
-  .mmore, .mtask { font-size: 11px; color: var(--text-muted); padding-left: 5px; }
+  .mmore, .mtask { font-size: 12px; color: var(--text-muted); padding-left: 7px; }
+  .mlegend { font-size: 13px; }
 }
+
+/* ───── 오늘 맨 위 비서 칸 ───── */
+.ask-box {
+  display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 12px;
+  background: var(--surface-1); border: 1.5px solid var(--border); border-radius: var(--r);
+}
+.ask-box:focus-within { border-color: var(--ink); }
+.ask-label { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+.ask-box textarea {
+  width: 100%; min-height: 84px; resize: none; border: 0; background: none; padding: 0;
+  font: inherit; font-size: 17px; line-height: 1.5; color: var(--text-primary);
+}
+.ask-box textarea:focus { outline: none; }
+.ask-send { align-self: flex-end; border: 0; background: none; padding: 6px 4px; font: inherit; font-size: 15px; font-weight: 700; color: var(--text-primary); cursor: pointer; }
+.ask-send:hover { opacity: .7; }
+.view > .ask-box:first-child { margin-top: 8px; }
+.view > .ask-box + .block { margin-top: 24px; }
+@media (min-width: 900px) { .ask-box textarea { min-height: 72px; } }
