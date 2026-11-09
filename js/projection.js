@@ -1,4 +1,4 @@
-import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261109g';
+import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261109h';
 // 자산·부채 계산과 연도별 예측. 화면(app.js)과 테스트가 함께 쓰는 순수 함수만 둡니다.
 // 금액 단위는 모두 '원'입니다.
 
@@ -38,11 +38,15 @@ export function stockDetail(s, market) {
   else { cur = avgCur; price = Number(s.avgPrice) || 0; }
 
   const value = price * qty;               // 그 나라 돈으로
-  const valueKrw = value * fx(cur);
   const avg = Number(s.avgPrice) || 0;
   const cost = avgCur === cur ? avg * qty : null;       // 같은 통화로 비교할 수 있을 때만
   const costKrw = Number(s.costKrw) || (avgCur === 'KRW' ? avg * qty : null);
-  const out = { cur, price, value, valueKrw, cost, costKrw, fxNow: fx(cur) };
+  // 환율을 아직 못 받았으면 0원으로 두지 않고, 매입 환율로 임시 계산해요 (화면에 따로 표시)
+  let fxNow = fx(cur);
+  let fxEstimated = false;
+  if (!fxNow && cur !== 'KRW' && cost && costKrw) { fxNow = costKrw / cost; fxEstimated = true; }
+  const valueKrw = value * fxNow;
+  const out = { cur, price, value, valueKrw, cost, costKrw, fxNow, fxEstimated };
   if (cost) out.ret = ((value - cost) / cost) * 100;
   if (costKrw) {
     out.profitKrw = valueKrw - costKrw;
@@ -95,6 +99,15 @@ export function graduatedStep(balance, ratePct, months, firstPayment, elapsed = 
 /** 대출에 체증식 정보(_grace, _gradD)를 붙여 둡니다. 시뮬레이션 시작 시 한 번만 계산 */
 function prepareLoan(loan, now) {
   const l = { ...loan, _now: now };
+  // 거치 후 원리금균등: 실행월 + 거치 기간까지는 이자만, 그 뒤로는 원리금균등
+  if (l.method === 'grace_annuity') {
+    l.method = 'annuity';
+    if (l.startDate) {
+      const [y, m] = l.startDate.split('-').map(Number);
+      const end = new Date(y, m - 1 + (Number(l.graceYears) || 1) * 12 - 1, 1);
+      l.graceEnd = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}`;
+    }
+  }
   if (l.method === 'graduated') {
     const grace = Math.max(0, monthsFrom(now, l.graceEnd) ?? 0);
     const n = (monthsFrom(now, l.maturity) ?? 0) - grace;

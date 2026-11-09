@@ -142,3 +142,28 @@ test('해외주식: 시세가 없으면 수동 현재가($)를 환율로 바꿔 
   const { stockValue } = await import('../js/projection.js');
   assert.equal(stockValue({ ticker: 'XYZ', qty: 2, manualPrice: 10, manualCur: 'USD' }, { fx: { USD: 1500 } }), 30_000);
 });
+
+test('해외주식: 환율을 아직 못 받았으면 0원이 아니라 매입 환율로 임시 계산', async () => {
+  const { stockDetail } = await import('../js/projection.js');
+  // 0.083주, 평균 $705, 원화 매입 79,473원 (매입 환율 약 1,358원), 수동 현재가 $709.05, 환율 없음
+  const d = stockDetail({ ticker: 'VOO', market: 'us', qty: 0.083, avgPrice: 705, avgCur: 'USD', costKrw: 79_473, manualPrice: 709.05, manualCur: 'USD' }, { fx: {} });
+  assert.equal(d.fxEstimated, true);
+  assert.ok(d.valueKrw > 79_000 && d.valueKrw < 80_500, String(d.valueKrw));
+  assert.equal(Math.round(d.fxEffect), 0); // 환율 효과는 알 수 없으니 0
+});
+
+test('거치 후 원리금균등: 거치 기간에는 이자만, 끝나면 원리금균등으로 만기에 0원', async () => {
+  const { currentPayment } = await import('../js/projection.js');
+  // 2026년 3월 실행, 2년 거치 → 2028년 2월까지 이자만
+  const loan = { balance: 120_000_000, rate: 4, method: 'grace_annuity', graceYears: 2, startDate: '2026-03', maturity: '2046-02' };
+  assert.equal(Math.round(currentPayment(loan, now)), 400_000); // 이자만: 1.2억 × 4% ÷ 12
+  const { points } = project({ debts: [loan] }, {}, { years: 21, now });
+  assert.equal(points.find((p) => p.year === 2027).debts, 120_000_000);
+  assert.ok(points.find((p) => p.year === 2028).debts < 120_000_000);
+  assert.ok(points.find((p) => p.year === 2046).debts < 1);
+  // 거치가 끝난 뒤(2028년 3월 기준) 다음 회차부터 만기까지 남은 215회 원리금균등
+  const after = currentPayment(loan, new Date(2028, 2, 5));
+  const i = 0.04 / 12;
+  const expect = (120_000_000 * i) / (1 - Math.pow(1 + i, -215));
+  assert.ok(Math.abs(after - expect) < 1, `${after} vs ${expect}`);
+});

@@ -68,14 +68,14 @@ test('고정지출: 합계, 분류, 항목, 이번 달 남은 출금, 기간', (
 test('자산·주식·환율', () => {
   assert.match(A('총자산 얼마야').text, /총자산은/);
   assert.match(A('지난달 대비 얼마 늘었어?').text, /10월 기록보다/);
-  assert.match(A('적금 얼마 모였어').text, /주거래 적금 잔액은 1,800만원/);
-  assert.match(A('집값 얼마야').text, /우리 집 시세는 9억원/);
+  assert.match(A('적금 얼마 모였어').text, /주거래 적금 잔액은 18,000,000원/);
+  assert.match(A('집값 얼마야').text, /우리 집 시세는 900,000,000원/);
   const us = A('해외주식 수익 얼마야').text;
-  assert.match(us, /해외주식: 평가 770만원 · 수익 \+120만원/);
-  assert.match(us, /환율 효과 \+55만원/);
-  assert.match(A('VOO 수익률').text, /달러 기준 \+10%[\s\S]*원화 수익 \+120만원/);
+  assert.match(us, /해외주식: 평가 7,700,000원 · 수익 \+1,200,000원/);
+  assert.match(us, /환율 효과 \+550,000원/);
+  assert.match(A('VOO 수익률').text, /달러 기준 \+10%[\s\S]*원화 수익 \+1,200,000원/);
   assert.match(A('환율 얼마야').text, /1,400원[\s\S]*평균 매입 환율은 1,300원/);
-  assert.match(A('올해 저축한 돈').text, /2026년에 저축한 금액은 100만원/);
+  assert.match(A('올해 저축한 돈').text, /2026년에 저축한 금액은 1,000,000원/);
 });
 
 test('모르는 질문은 아는 척하지 않는다', () => {

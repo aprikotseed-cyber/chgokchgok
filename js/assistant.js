@@ -1,11 +1,11 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261109g';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261109g';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261109g';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261109g';
-import { won, wonExact, mdw, pct } from './format.js?v=20261109g';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261109h';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261109h';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261109h';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261109h';
+import { won, wonExact, mdw, pct } from './format.js?v=20261109h';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -272,10 +272,10 @@ const H = {
         const r = nextScheduled(l.schedule, ymd(ctx.now));
         if (!r) { lines.push({ at: Infinity, text: `${l.name}: 모두 갚았어요.` }); continue; }
         const d = toDate(r.date);
-        lines.push({ at: d, text: `${l.name}: ${mdw(d)} (${dd(daysBetween(ctx.now, d))}) ${wonExact(r.payment)} · ${r.n}회차\n  원금 ${wonExact(r.principal)} · 이자 ${wonExact(r.interest)}` });
+        lines.push({ at: d, text: `${l.name}: ${mdw(d)} (${dd(daysBetween(ctx.now, d))}) ${wonExact(r.payment)} · ${r.n}회차${l.account ? ` · ${l.account}` : ''}\n  원금 ${wonExact(r.principal)} · 이자 ${wonExact(r.interest)}` });
       } else if (l.payDay) {
         const d = nextDue(l.payDay, ctx.now);
-        lines.push({ at: d, text: `${l.name}: ${mdw(d)} (${dd(daysBetween(ctx.now, d))}) 약 ${wonExact(currentPayment(l, ctx.now))}` });
+        lines.push({ at: d, text: `${l.name}: ${mdw(d)} (${dd(daysBetween(ctx.now, d))}) ${wonExact(currentPayment(l, ctx.now))}${l.account ? ` · ${l.account}` : ''}` });
       } else lines.push({ at: Infinity, text: `${l.name}: 이번 달 약 ${wonExact(currentPayment(l, ctx.now))} (상환일을 넣으면 날짜도 알려드려요)` });
     }
     // 가까운 날짜부터

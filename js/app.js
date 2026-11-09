@@ -1,11 +1,11 @@
-import { connect, isDemo } from './store.js?v=20261109g';
-import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109g';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109g';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109g';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109g';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109g';
-import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109g';
-import { ask, SUGGEST } from './assistant.js?v=20261109g';
+import { connect, isDemo } from './store.js?v=20261109h';
+import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109h';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109h';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109h';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109h';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109h';
+import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109h';
+import { ask, SUGGEST } from './assistant.js?v=20261109h';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -45,8 +45,8 @@ const FORMS = {
     fields: [
       { key: 'name', label: '이름', type: 'text', placeholder: '주거래 적금', required: true },
       { key: 'kind', label: '종류', type: 'select', options: ['예금', '적금', '파킹통장', '연금', '청약', '보증금', '기타'] },
-      { key: 'balance', label: '현재 잔액', type: 'money' },
-      { key: 'monthly', label: '매달 넣는 돈', type: 'money' },
+      { key: 'balance', label: '현재 잔액', type: 'won' },
+      { key: 'monthly', label: '매달 넣는 돈', type: 'won' },
       { key: 'rate', label: '연 이자율', type: 'pct' },
     ],
   },
@@ -68,7 +68,7 @@ const FORMS = {
   },
   stockPlan: {
     title: '주식 투자 계획',
-    fields: [{ key: 'monthly', label: '매달 추가 투자', type: 'money' }],
+    fields: [{ key: 'monthly', label: '매달 추가 투자', type: 'won' }],
   },
   homes: {
     title: '집',
@@ -79,7 +79,7 @@ const FORMS = {
       { key: 'area', label: '전용면적', type: 'number', unit: '㎡', hint: '±2㎡ 안의 거래만 써요 (84타입이면 84)' },
       { key: 'share', label: '내 지분', type: 'pct', def: 100 },
       { key: 'useAuto', label: '실거래가로 시세 자동 반영', type: 'check', def: true },
-      { key: 'manualPrice', label: '직접 입력 시세', type: 'money', hint: '자동 시세를 끄거나 아직 거래가 없을 때 사용' },
+      { key: 'manualPrice', label: '직접 입력 시세', type: 'won', hint: '자동 시세를 끄거나 아직 거래가 없을 때 사용' },
     ],
   },
   debts: {
@@ -91,11 +91,14 @@ const FORMS = {
       { key: 'original', label: '처음 빌린 금액', type: 'won', noSchedule: true, hint: '상환 진행률 표시용 (선택)' },
       { key: 'balance', label: '현재 남은 원금', type: 'won', noSchedule: true },
       { key: 'rate', label: '연 금리', type: 'pct' },
-      { key: 'method', label: '상환 방식', type: 'select', options: [['annuity', '원리금균등'], ['equal', '원금균등'], ['graduated', '체증식'], ['bullet', '만기일시']], noSchedule: true },
+      { key: 'method', label: '상환 방식', type: 'select', options: [['annuity', '원리금균등'], ['grace_annuity', '거치 후 원리금균등'], ['equal', '원금균등'], ['graduated', '체증식'], ['bullet', '만기일시']], noSchedule: true },
+      { key: 'graceYears', label: '거치 기간', type: 'seg', options: [[1, '1년'], [2, '2년'], [3, '3년']], def: 1, showIf: { method: 'grace_annuity' }, noSchedule: true, hint: '거치 기간에는 이자만 내고, 끝나면 남은 기간 동안 원리금균등으로 갚아요' },
+      { key: 'startDate', label: '대출 실행월', type: 'month', showIf: { method: 'grace_annuity' }, noSchedule: true, hint: '거치 기간이 언제 끝나는지 계산하는 데 써요' },
       { key: 'payment', label: '이번 달 원리금', type: 'won', showIf: { method: 'graduated' }, noSchedule: true, hint: '은행 앱·상환 스케줄표의 이번 달 납입액. 이걸로 매달 늘어나는 금액을 계산해요' },
       { key: 'payDay', label: '매달 상환일', type: 'day', noSchedule: true, hint: '상환일 5·3·1일 전에 알려드려요' },
       { key: 'maturity', label: '만기', type: 'month', noSchedule: true },
-      { key: 'graceEnd', label: '거치기간 끝 (선택)', type: 'month', noSchedule: true, hint: '이때까지는 이자만 내요' },
+      { key: 'graceEnd', label: '거치기간 끝 (선택)', type: 'month', showIf: { method: ['annuity', 'equal', 'graduated'] }, noSchedule: true, hint: '이때까지는 이자만 내요' },
+      { key: 'account', label: '출금 계좌', type: 'text', placeholder: '예: 신한 주거래 통장', hint: '상환일 알림과 일정에 함께 보여드려요' },
     ],
   },
   fixed: {
@@ -114,7 +117,7 @@ const FORMS = {
     fields: [
       { key: 'targetId', label: '계좌', type: 'ref', source: 'savings' },
       { key: 'date', label: '날짜', type: 'date', hint: '오늘 날짜가 들어가 있어요. 빠뜨린 예전 기록은 날짜만 바꾸면 돼요' },
-      { key: 'amount', label: '저축한 금액', type: 'money' },
+      { key: 'amount', label: '저축한 금액', type: 'won' },
       { key: 'kind', label: '구분', type: 'select', options: ['정기 납입', '추가 납입'] },
       { key: 'memo', label: '메모', type: 'text', placeholder: '선택' },
       { key: 'applied', label: '계좌 잔액에 더하기', type: 'check', def: true, hint: '잔액에 이미 포함된 예전 기록이면 끄세요' },
@@ -125,8 +128,8 @@ const FORMS = {
     fields: [
       { key: 'targetId', label: '대출', type: 'ref', source: 'debts', filter: (l) => !l.schedule?.length },
       { key: 'date', label: '날짜', type: 'date', hint: '오늘 날짜가 들어가 있어요. 빠뜨린 예전 기록은 날짜만 바꾸면 돼요' },
-      { key: 'amount', label: '갚은 원금', type: 'money', hint: '이번 달 예상 원금이에요. 은행 내역대로 고치면 돼요' },
-      { key: 'interest', label: '함께 낸 이자', type: 'money' },
+      { key: 'amount', label: '갚은 원금', type: 'won', hint: '이번 달 예상 원금이에요. 은행 내역대로 고치면 돼요' },
+      { key: 'interest', label: '함께 낸 이자', type: 'won' },
       { key: 'kind', label: '구분', type: 'select', options: ['정기 상환', '중도 상환'] },
       { key: 'memo', label: '메모', type: 'text', placeholder: '선택' },
       { key: 'applied', label: '대출 잔액에서 빼기', type: 'check', def: true, hint: '잔액에 이미 반영된 예전 기록이면 끄세요' },
@@ -134,7 +137,7 @@ const FORMS = {
   },
 };
 const isRecord = (kind) => kind === 'saving' || kind === 'repayment';
-const METHOD = { annuity: '원리금균등', equal: '원금균등', graduated: '체증식', bullet: '만기일시' };
+const METHOD = { annuity: '원리금균등', grace_annuity: '거치 후 원리금균등', equal: '원금균등', graduated: '체증식', bullet: '만기일시' };
 
 /** 계좌·대출을 고르면 미리 채울 금액 */
 function recordDefaults(type, targetId) {
@@ -145,7 +148,7 @@ function recordDefaults(type, targetId) {
   const l = (state.data.debts || []).find((x) => x.id === targetId);
   if (!l) return {};
   const m = loanThisMonth(l);
-  return { amount: Math.round(m.principal / 100) * 100, interest: Math.round(m.interest / 100) * 100, kind: '정기 상환' };
+  return { amount: Math.round(m.principal), interest: Math.round(m.interest), kind: '정기 상환' };
 }
 
 // ───────────────────────── 저장 ─────────────────────────
@@ -270,7 +273,7 @@ function scheduleRow(u) {
   return row({
     kind: u.type === 'loan' ? 'debts' : 'fixed', id: u.id,
     title: `<span class="badge ${hot ? 'hot' : ''}">${dday(u.dday)}</span>${esc(u.name)}`,
-    meta: `${mdw(u.date)} · ${u.type === 'loan' ? '대출 상환' : '고정지출'}`,
+    meta: [mdw(u.date), u.type === 'loan' ? '대출 상환' : '고정지출', esc(u.account || '')].filter(Boolean).join(' · '),
     value: u.type === 'loan' ? won(u.amount) : wonExact(u.amount),
   });
 }
@@ -344,7 +347,7 @@ function stockSection(d, m) {
     const cost = withCost.reduce((a, { x }) => a + x.costKrw, 0);
     const fxEff = rowsData.reduce((a, { x }) => a + (x.fxEffect || 0), 0);
     summary = `<section class="panel stats gap">
-      <div class="stat"><span class="eyebrow">평가금액</span><span class="stat-num">${won(sumKrw)}</span><span class="stat-sub">${usd(valUsd)}</span></div>
+      <div class="stat"><span class="eyebrow">평가금액</span><span class="stat-num">${won(sumKrw)}</span><span class="stat-sub">${usd(valUsd)}${rowsData.some(({ x }) => x.fxEstimated) ? ' · 환율 받기 전 (매입 환율로 임시 계산)' : ''}</span></div>
       <div class="stat"><span class="eyebrow">원화 수익</span><span class="stat-num ${cost ? tone(profit) : ''}">${cost ? signed(profit) : '-'}</span><span class="stat-sub">${cost ? `${pct((profit / cost) * 100)} · 환율 효과 ${signed(fxEff)}` : '원화 매입금액을 넣으면 보여요'}</span></div>
     </section>`;
   } else {
@@ -359,7 +362,7 @@ function stockSection(d, m) {
   const rows = rowsData.map(({ s, x }) => {
     const q = m.stocks?.[normTicker(s.ticker)];
     const price = x.cur === 'USD' ? usd(x.price) : wonExact(x.price);
-    const meta = [esc(s.ticker || ''), `${Number(s.qty || 0).toLocaleString()}주`, `현재가 ${price}${q?.price ? '' : ' (수동)'}`, x.buyFx ? `매입 환율 ${wonExact(x.buyFx)}` : '', q?.error ? `<span class="warn">${esc(q.error)}</span>` : ''].filter(Boolean).join(' · ');
+    const meta = [esc(s.ticker || ''), `${Number(s.qty || 0).toLocaleString()}주`, `현재가 ${price}${q?.price ? '' : ' (수동)'}`, x.buyFx && !x.fxEstimated ? `매입 환율 ${wonExact(x.buyFx)}` : '', x.fxEstimated ? '<span class="warn">환율을 받기 전이라 매입 환율로 계산 중</span>' : '', q?.error ? `<span class="warn">${esc(q.error)}</span>` : ''].filter(Boolean).join(' · ');
     let sub = '';
     if (x.cur === 'USD') {
       const parts = [];
@@ -398,7 +401,7 @@ function scheduledLoanRow(l) {
   return `<div class="loan">
     <button class="row stack" data-action="edit" data-kind="debts" data-id="${esc(l.id)}">
       <span class="row-line"><span class="row-title">${esc(l.name)}</span><span class="row-value">${wonExact(bal)}</span></span>
-      <span class="row-meta">${[l.kind, '상환스케줄 적용', l.rate ? `연 ${pct(l.rate, 2)}` : '', `${sch.length}회 중 ${paid}회 납부`, `만기 ${last.slice(0, 4)}년 ${Number(last.slice(5, 7))}월`].filter(Boolean).join(' · ')}</span>
+      <span class="row-meta">${[l.kind, '상환스케줄 적용', l.rate ? `연 ${pct(l.rate, 2)}` : '', `${sch.length}회 중 ${paid}회 납부`, `만기 ${last.slice(0, 4)}년 ${Number(last.slice(5, 7))}월`, l.account ? `출금 ${esc(l.account)}` : ''].filter(Boolean).join(' · ')}</span>
       ${next ? `<span class="row-meta">다음 출금 ${mdw(toDate(next.date))} · ${wonExact(next.payment)} (원금 ${wonExact(next.principal)} · 이자 ${wonExact(next.interest)})</span>` : '<span class="row-meta">모두 갚았어요</span>'}
       <span class="progress" role="progressbar" aria-valuenow="${done.toFixed(0)}" aria-valuemin="0" aria-valuemax="100" aria-label="상환 진행률"><span style="width:${done}%"></span></span>
       <span class="row-meta">${won(orig)} 중 ${pct(done, 1)} 상환</span>
@@ -430,7 +433,7 @@ function debtSide(d) {
     </section>`)}
   ${section('앞으로 나갈 상환', `<div class="panel list">${next.slice(0, 6).map((x) => row({
       kind: 'debts', id: x.l.id, title: esc(x.l.name),
-      meta: `${mdw(x.date)}${x.n ? ` · ${x.n}회차` : ''}`, value: wonExact(x.amount),
+      meta: [mdw(x.date), x.n ? `${x.n}회차` : '', esc(x.l.account || '')].filter(Boolean).join(' · '), value: wonExact(x.amount),
       sub: dday(daysBetween(now(), x.date)),
     })).join('') || empty('상환일이나 상환스케줄을 넣으면 여기에 나와요.')}</div>`)}`;
 }
@@ -446,8 +449,8 @@ function viewDebts() {
     const g = l.method === 'graduated' ? graduatedInfo(l) : null;
     const next = l.payDay ? nextDue(l.payDay, now()) : null;
     const meta = [
-      l.kind, METHOD[l.method], `연 ${pct(l.rate, 2)}`, `만기 ${ymLabel(l.maturity)}`,
-      l.graceEnd ? `거치 ${ymLabel(l.graceEnd)}까지` : '',
+      l.kind, METHOD[l.method] + (l.method === 'grace_annuity' ? ` (${l.graceYears || 1}년)` : ''), `연 ${pct(l.rate, 2)}`, `만기 ${ymLabel(l.maturity)}`,
+      l.graceEnd && l.method !== 'grace_annuity' ? `거치 ${ymLabel(l.graceEnd)}까지` : '', l.account ? `출금 ${esc(l.account)}` : '',
     ].filter(Boolean).join(' · ');
     const lines = [
       next ? `다음 상환 ${mdw(next)} · 약 ${won(currentPayment(l))}` : `이번 달 약 ${won(currentPayment(l))} · <span class="warn">상환일 미입력</span>`,
@@ -487,9 +490,9 @@ function viewFixed() {
       if (l.schedule?.length) {
         // 이번 달 스케줄 회차 (이미 나갔어도 보여줘요)
         const r = l.schedule.find((x) => x.date.slice(0, 7) === `${y}-${String(mo + 1).padStart(2, '0')}`);
-        return r ? { kind: 'debts', id: l.id, name: l.name, day: Number(r.date.slice(8)), amount: r.payment, meta: `대출 상환 · ${r.n}회차`, loan: true } : null;
+        return r ? { kind: 'debts', id: l.id, name: l.name, day: Number(r.date.slice(8)), amount: r.payment, meta: [`대출 상환 · ${r.n}회차`, l.account].filter(Boolean).join(' · '), loan: true } : null;
       }
-      return l.payDay && loanBalance(l) > 0 ? { kind: 'debts', id: l.id, name: l.name, day: Number(l.payDay), amount: currentPayment(l), meta: '대출 상환', loan: true } : null;
+      return l.payDay && loanBalance(l) > 0 ? { kind: 'debts', id: l.id, name: l.name, day: Number(l.payDay), amount: currentPayment(l), meta: ['대출 상환', l.account].filter(Boolean).join(' · '), loan: true } : null;
     }).filter(Boolean),
   ].map((x) => ({ ...x, eff: Math.min(x.day, last) })).sort((a, b) => a.eff - b.eff || (a.loan ? -1 : 1));
 
@@ -649,7 +652,6 @@ const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라�
 function render() {
   $('#login').hidden = !!state.user;
   $('#app').hidden = !state.user;
-  $('#assistant-open').hidden = !state.user;
   if (!state.user) return;
   if (!VIEWS[state.tab]) state.tab = 'home';
   document.querySelectorAll('[data-tab]').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === state.tab ? 'page' : 'false'));
@@ -727,6 +729,8 @@ function openForm(kind, item) {
       input = `<div class="schedule-box" id="${id}">${scheduleStatus(editing.schedule)}</div>
         <label class="btn file">${editing.schedule ? '다른 파일로 바꾸기' : '상환스케줄 파일 불러오기'}<input type="file" id="schedule-file" accept=".xls,.xlsx,.html,.htm,.csv,.txt" hidden></label>
         ${editing.schedule ? '<button type="button" class="link-btn" id="schedule-clear">스케줄 해제</button>' : ''}`;
+    } else if (f.type === 'seg') {
+      input = `<div class="segment seg-field" role="radiogroup">${f.options.map(([k, l]) => `<button type="button" role="radio" aria-selected="${String(k) === String(val)}" data-seg="${f.key}" data-val="${k}">${l}</button>`).join('')}</div><input type="hidden" id="${id}" value="${esc(val)}">`;
     } else if (f.type === 'pct') {
       input = `<div class="unit"><input id="${id}" name="${f.key}" type="number" step="0.01" inputmode="decimal" value="${val}"><span>%</span></div>`;
     } else if (f.type === 'day') {
@@ -744,7 +748,7 @@ function openForm(kind, item) {
     } else {
       input = `<input id="${id}" name="${f.key}" type="text" value="${esc(val)}" placeholder="${esc(f.placeholder || '')}" ${f.required ? 'required' : ''}>`;
     }
-    const show = (f.showIf ? ` data-show-key="${Object.keys(f.showIf)[0]}" data-show-val="${Object.values(f.showIf)[0]}"` : '') + (f.noSchedule ? ' data-no-schedule' : '');
+    const show = (f.showIf ? ` data-show-key="${Object.keys(f.showIf)[0]}" data-show-val="${[].concat(Object.values(f.showIf)[0]).join('|')}"` : '') + (f.noSchedule ? ' data-no-schedule' : '');
     return `<div class="field"${show}><label for="${id}">${f.label}</label>${input}${hint}</div>`;
   }).join('');
   $('#editor-delete').hidden = !item || kind === 'stockPlan';
@@ -756,7 +760,7 @@ function openForm(kind, item) {
 
 function syncShowIf() {
   $('#editor-fields').querySelectorAll('[data-show-key]').forEach((el) => {
-    el.hidden = $(`#f-${el.dataset.showKey}`)?.value !== el.dataset.showVal;
+    el.hidden = !el.dataset.showVal.split('|').includes($(`#f-${el.dataset.showKey}`)?.value);
   });
   if (editing?.schedule) $('#editor-fields').querySelectorAll('[data-no-schedule]').forEach((el) => (el.hidden = true));
 }
@@ -807,6 +811,7 @@ function readForm() {
     else if (f.type === 'schedule') out.schedule = editing.schedule || null;
     else if (f.type === 'pct' || f.type === 'number') out[f.key] = el.value === '' ? (f.def ?? 0) : Number(el.value);
     else if (f.type === 'day') out[f.key] = el.value ? Number(el.value) : '';
+    else if (f.type === 'seg') out[f.key] = Number(el.value) || f.def;
     else out[f.key] = el.value.trim();
   }
   return out;
@@ -925,7 +930,7 @@ function openAssistant() {
 }
 
 function bind() {
-  $('#assistant-open').addEventListener('click', openAssistant);
+  document.querySelectorAll('.assistant-open').forEach((b) => b.addEventListener('click', openAssistant));
   $('#assistant-close').addEventListener('click', () => $('#assistant').close());
   $('#assistant').addEventListener('click', (e) => {
     if (e.target === $('#assistant')) $('#assistant').close();
@@ -1050,6 +1055,11 @@ function bind() {
       previewMoney(c.closest('.field').querySelector('[data-cmoney]'));
     }
     if (e.target.id === 'schedule-clear') { editing.schedule = null; rerenderScheduleField(); }
+    const sg = e.target.closest('[data-seg]');
+    if (sg) {
+      $(`#f-${sg.dataset.seg}`).value = sg.dataset.val;
+      sg.parentElement.querySelectorAll('button').forEach((x) => x.setAttribute('aria-selected', String(x === sg)));
+    }
   });
   $('#editor-fields').addEventListener('change', async (e) => {
     if (e.target.id !== 'schedule-file' || !e.target.files[0]) return;
@@ -1075,7 +1085,7 @@ function bind() {
       const v = recordDefaults(editing.kind, e.target.value);
       for (const k of ['amount', 'interest']) {
         const el = $(`#f-${k}`);
-        if (el && v[k] !== undefined) { el.value = moneyText(v[k]); previewMoney(el); }
+        if (el && v[k] !== undefined) { el.value = v[k] === '' ? '' : Number(v[k]).toLocaleString('ko-KR'); previewMoney(el); }
       }
     }
     syncShowIf();

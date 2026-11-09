@@ -1,18 +1,10 @@
 // 금액 표시 도우미 (내부 단위는 원)
 
-/** 3억 2,500만원 형태 */
+/** 1원 단위까지 그대로: 733,184,512원 (앱 전체 금액 표시) */
 export function won(n) {
   if (n == null || isNaN(n)) return '-';
-  const sign = n < 0 ? '-' : '';
-  let a = Math.abs(Math.round(n));
-  if (a >= 1e8) {
-    let eok = Math.floor(a / 1e8);
-    let man = Math.round((a % 1e8) / 1e4);
-    if (man === 10000) { eok += 1; man = 0; }
-    return `${sign}${eok.toLocaleString()}억${man ? ` ${man.toLocaleString()}만` : ''}원`;
-  }
-  if (a >= 1e4) return `${sign}${Math.round(a / 1e4).toLocaleString()}만원`;
-  return `${sign}${a.toLocaleString()}원`;
+  const v = Math.round(Number(n));
+  return `${v < 0 ? '-' : ''}${Math.abs(v).toLocaleString('ko-KR')}원`;
 }
 
 /** 그래프 축용 짧은 표기: 3.2억, 4,500만 */

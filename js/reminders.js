@@ -1,7 +1,7 @@
 // 매달 정해진 날짜에 나가는 돈(대출 상환, 고정지출)의 일정과 알림.
 // 화면과 GitHub Actions 알림 스크립트가 함께 씁니다. 날짜는 시각 없이 '그날'로만 다룹니다.
-import { currentPayment, loanBalance } from './projection.js?v=20261109g';
-import { nextScheduled, ymd } from './schedule.js?v=20261109g';
+import { currentPayment, loanBalance } from './projection.js?v=20261109h';
+import { nextScheduled, ymd } from './schedule.js?v=20261109h';
 
 const DAY = 86_400_000;
 
@@ -36,7 +36,7 @@ export function upcoming(data, from, days = 31) {
     const date = fixedDate || nextDue(type === 'loan' ? item.payDay : item.day, from);
     if (!date) return;
     const dday = daysBetween(from, date);
-    if (dday <= days) out.push({ type, id: item.id, name: item.name, amount, date, dday });
+    if (dday <= days) out.push({ type, id: item.id, name: item.name, amount, date, dday, account: item.account || '', exact: type === 'fixed' || !!fixedDate });
   };
   for (const l of data.debts || []) {
     if (loanBalance(l, from) <= 0 && !l.schedule?.length) continue;
@@ -62,8 +62,8 @@ const krw = (n) => `${Math.round(n).toLocaleString('ko-KR')}원`;
 const md = (d) => `${d.getMonth() + 1}월 ${d.getDate()}일`;
 
 export function alertText(a) {
-  if (a.type === 'loan') return `${a.name} 상환 ${a.dday}일 전이에요. ${md(a.date)} 약 ${krw(a.amount)}`;
-  return `내일 ${a.name} ${krw(a.amount)}이 빠져나가요.`;
+  if (a.type === 'loan') return `${a.name} 상환 ${a.dday}일 전이에요. ${md(a.date)} ${a.exact ? '' : '약 '}${krw(a.amount)}${a.account ? ` (${a.account})` : ''}`;
+  return `내일 ${a.name} ${krw(a.amount)}이 빠져나가요.${a.account ? ` (${a.account})` : ''}`;
 }
 
 /** 여러 알림을 휴대폰 알림 한 건으로 묶기 */
