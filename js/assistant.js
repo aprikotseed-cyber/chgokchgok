@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110r';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110r';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261110r';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110r';
-import { won, wonExact, mdw, pct } from './format.js?v=20261110r';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel } from './agenda.js?v=20261110r';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110s';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110s';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261110s';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110s';
+import { won, wonExact, mdw, pct } from './format.js?v=20261110s';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel } from './agenda.js?v=20261110s';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -185,6 +185,11 @@ export function ask(question, data, market = {}, now = new Date(), agenda = null
   if (!q) return { text: '궁금한 걸 적어 주세요.', chips: SUGGEST };
   const ctx = { q, raw: question, data, market, agenda, now: dateOnly(now), time: parseTime(q, now), ents: findEntities(q, data, agenda) };
 
+  // '목요일 면담을 수요일 2시로 옮겨줘', '면담 일정 지워줘': 일정 옮기기·지우기 (확인 카드로)
+  if (agenda && (MOVE_RE.test(q) || DEL_RE.test(q)) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) {
+    const r = changeAnswer(ctx, now);
+    if (r) return r;
+  }
   // '내일 3시 상담 넣어줘', '우유 사기 할일 추가해줘': 일정·할일 넣기 (확인 카드로)
   if (ADD_RE.test(q) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) return addAnswer(ctx, now);
 
@@ -706,3 +711,65 @@ function addAnswer(ctx, now) {
     action: { kind: 'event', ev: { ...ev, calName: cal?.name || want } },
   };
 }
+
+// ───── 일정 옮기기·지우기 ─────
+const MOVE_RE = /(옮겨|옮기|바꿔|바꾸|변경|미뤄|미루|당겨|당기|이동)/;
+const DEL_RE = /(지워|지우|삭제|없애|취소해|취소하|빼줘|빼 줘)/;
+const RAW_MOVE = /\s*(?:으로|로)\s*(?:좀\s*)?(?:옮겨|옮기|바꿔|바꾸|변경|미뤄|미루|당겨|당기|이동)/;
+
+/** 말한 일정 찾기: 제목이 가장 비슷하고, 날짜를 말했으면 그날, 아니면 가장 가까운 앞으로의 일정 */
+function findEvent(ctx, text) {
+  const q = norm(text.replace(/일정|약속|스케줄/g, ''));
+  const day = parseTime(q, ctx.now);
+  const today = ymd(ctx.now);
+  let best = [];
+  let top = 0;
+  for (const e of ctx.agenda.events) {
+    const sc = nameScore(q, e.title);
+    if (sc < 3) continue;
+    if (day?.kind === 'day' && e.startKey !== ymd(day.start)) continue;
+    if (sc > top) { top = sc; best = [e]; } else if (sc === top) best.push(e);
+  }
+  best.sort((a, b) => (a.startKey < today) - (b.startKey < today) || a.startKey.localeCompare(b.startKey) || a.time.localeCompare(b.time));
+  return best[0] || null;
+}
+const whenOf = (e) => `${eventLine({ ...e, date: e.startKey }).replace(` ${e.title}`, '')}`;
+
+function changeAnswer(ctx, now) {
+  const raw = ctx.raw.trim();
+  const isDel = DEL_RE.test(ctx.q) && !MOVE_RE.test(ctx.q);
+  // 옮기기: '…을/를 [새 날짜·시간](으)로 옮겨줘'
+  let source = raw;
+  let target = '';
+  if (!isDel) {
+    const m = raw.match(RAW_MOVE);
+    const before = m ? raw.slice(0, m.index) : raw.replace(/(옮겨|옮기|바꿔|바꾸|변경|미뤄|미루|당겨|당기|이동)[\s\S]*$/, '');
+    const obj = before.match(/^(.*\S)(?:을|를)\s+(.*)$/);
+    if (obj) { source = obj[1]; target = m ? obj[2] : ''; } else { source = before; target = ''; }
+    // '을/를' 없이 '면담 수요일 2시로 옮겨줘': 제목 뒤를 새 날짜로
+    if (!obj && m) {
+      const e0 = findEvent(ctx, before);
+      if (e0) { const i = before.indexOf(e0.title); if (i >= 0) { source = before.slice(0, i + e0.title.length); target = before.slice(i + e0.title.length); } }
+    }
+  }
+  const e = findEvent(ctx, isDel ? raw.replace(DEL_RE, ' ') : source);
+  if (!e) return null; // 일정을 못 찾으면 다른 답으로
+  if (e.partner || !(ctx.agenda.calendars || []).some((c) => c.id === e.calId)) return { text: `‘${e.title}’${josa(e.title, '은', '는')} ${e.partner ? '반려자' : '보기만 하는'} 캘린더 일정이라 여기서 바꿀 수 없어요.` };
+  const base = { kind: '', calId: e.calId, id: e.id, title: e.title };
+  if (isDel) {
+    return { text: `이 일정을 지울까요?\n· ${whenOf(e)} ${e.title}${e.recurring ? '\n반복 일정이라 이 날 하나만 지워요.' : ''}`, action: { ...base, kind: 'delete' } };
+  }
+  const p = parseQuickEvent(String(target).replace(/에$/, ''), now);
+  if (!p.date && p.allDay) return { text: `‘${e.title}’(${whenOf(e)})을 언제로 옮길까요?\n예: ‘${e.title} 수요일 오후 2시로 옮겨줘’` };
+  const len = e.allDay ? 0 : (toMin(e.endTime) - toMin(e.time) + 1440) % 1440 || 60;
+  const to = { date: p.date || e.startKey, allDay: p.allDay ? e.allDay : false, time: p.allDay ? e.time : p.time, endTime: '' };
+  if (!to.allDay) to.endTime = p.time && p.endTime && p.endTime !== hmOf(toMin(p.time) + 60) ? p.endTime : hmOf(toMin(to.time) + len);
+  const span = e.allDay && e.endKey > e.startKey ? Math.round((fromKey(e.endKey) - fromKey(e.startKey)) / 86400000) : 0;
+  if (span) to.endDate = ymd(new Date(fromKey(to.date).getTime() + span * 86400000));
+  return {
+    text: `이 일정을 옮길까요?\n· ${whenOf(e)} ${e.title}\n→ ${eventLine({ ...to, title: '' }).trim()}${e.recurring ? '\n반복 일정이라 이 날 하나만 옮겨요.' : ''}`,
+    action: { ...base, kind: 'move', to },
+  };
+}
+const toMin = (hm) => (hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : 0);
+const hmOf = (m) => `${String(Math.floor(Math.min(m, 1439) / 60)).padStart(2, '0')}:${String(Math.min(m, 1439) % 60).padStart(2, '0')}`;
