@@ -1,15 +1,15 @@
-import { connect, isDemo } from './store.js?v=20261110b';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110b';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110b';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110b';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110b';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110b';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110b';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110b';
-import { ask, SUGGEST } from './assistant.js?v=20261110b';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110b';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110b';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110b';
+import { connect, isDemo } from './store.js?v=20261110c';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110c';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110c';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110c';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110c';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110c';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110c';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110c';
+import { ask, SUGGEST } from './assistant.js?v=20261110c';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110c';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110c';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110c';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -691,6 +691,19 @@ function viewFixed() {
 }
 
 // ───────────────────────── 기록 ─────────────────────────
+/** 기록 탭 월별 묶음이 펼쳐져 있는지: 직접 펼치거나 접은 건 기억하고, 아니면 가장 최근 달만 */
+function monthOpen(ym, index) {
+  const key = `rec-${ym}`;
+  return state.open.has(key) || (index === 0 && !state.open.has(`${key}-closed`));
+}
+
+/** [모두 펼치기] / [모두 접기]: 지금 다 펼쳐져 있으면 접기, 아니면 펼치기 */
+function monthsToggle(yms) {
+  if (yms.length < 2) return '';
+  const allOpen = yms.every((ym, i) => monthOpen(ym, i));
+  return `<button class="link-btn" data-action="months-all" data-open="${allOpen ? '0' : '1'}" data-yms="${yms.join(',')}">${allOpen ? '모두 접기' : '모두 펼치기'}</button>`;
+}
+
 function viewRecords() {
   const d = state.data;
   const recs = [...(d.records || []), ...scheduleRecords(d, today())];
@@ -739,7 +752,7 @@ function viewRecords() {
   </div><div class="col-main">
   ${section(`${year}년 기록`, list.length ? Object.entries(groups).map(([ym, rs], gi) => {
       const key = `rec-${ym}`;
-      const isOpen = state.open.has(key) || (gi < 2 && !state.open.has(`${key}-closed`));
+      const isOpen = monthOpen(ym, gi); // 처음에는 가장 최근 달만 펼쳐요
       return `<details class="panel month" data-key="${key}" ${isOpen ? 'open' : ''}>
         <summary><b>${Number(ym.slice(5))}월</b><span>${[`입금 ${won(sumOf(rs, 'saving'))}`, sumOf(rs, 'withdraw') ? `출금 ${won(sumOf(rs, 'withdraw'))}` : '', `상환 ${won(sumOf(rs, 'repayment'))}`].filter(Boolean).join(' · ')}</span></summary>
         <div class="list">${rs.map((r) => row({
@@ -750,7 +763,7 @@ function viewRecords() {
           sub: r.interest ? `이자 ${won(r.interest)}` : '',
         })).join('')}</div>
       </details>`;
-    }).join('') : `<div class="panel">${empty('아직 기록이 없어요. 위 버튼이나 자산 탭 계좌의 입금·출금 버튼으로 기록해 보세요.')}</div>`, { sum: `${list.length}건` })}
+    }).join('') : `<div class="panel">${empty('아직 기록이 없어요. 위 버튼이나 자산 탭 계좌의 입금·출금 버튼으로 기록해 보세요.')}</div>`, { sum: `${list.length}건`, action: monthsToggle(Object.keys(groups)) })}
 
 
   </div></div>`;
@@ -1334,6 +1347,14 @@ function bind() {
     }
     if (a === 'fx') openForm('fx', {});
     if (a === 'refresh') requestRefresh(kind || 'quotes');
+    if (a === 'months-all') {
+      const open = b.dataset.open === '1';
+      for (const ym of b.dataset.yms.split(',')) {
+        const key = `rec-${ym}`;
+        if (open) { state.open.add(key); state.open.delete(`${key}-closed`); } else { state.open.delete(key); state.open.add(`${key}-closed`); }
+      }
+      render();
+    }
     if (a === 'reorder') { state.reorder = state.reorder === b.dataset.key ? null : b.dataset.key; render(); }
     if (a === 'token-save') {
       const v = $('#gh-token').value.trim();
@@ -1409,6 +1430,9 @@ function bind() {
     const key = e.target.dataset?.key;
     if (!key) return;
     if (e.target.open) { state.open.add(key); state.open.delete(`${key}-closed`); } else { state.open.delete(key); state.open.add(`${key}-closed`); }
+    // 월을 하나씩 펼치거나 접으면 [모두 펼치기/접기] 글자도 바로 맞춰요
+    const all = $('[data-action="months-all"]');
+    if (key.startsWith('rec-') && all) all.outerHTML = monthsToggle(all.dataset.yms.split(','));
   }, true);
 
   $('#view').addEventListener('input', (e) => {
