@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110g';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110g';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110g';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110g';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110g';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110g';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110g';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110g';
-import { ask, SUGGEST } from './assistant.js?v=20261110g';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110g';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110g';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110g';
-import { createGoogle } from './google.js?v=20261110g';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110g';
-import { createDemoGoogle } from './google-demo.js?v=20261110g';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine } from './agenda.js?v=20261110g';
+import { connect, isDemo } from './store.js?v=20261110i';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110i';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110i';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110i';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110i';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110i';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110i';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110i';
+import { ask, SUGGEST } from './assistant.js?v=20261110i';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110i';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110i';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110i';
+import { createGoogle } from './google.js?v=20261110i';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110i';
+import { createDemoGoogle } from './google-demo.js?v=20261110i';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine } from './agenda.js?v=20261110i';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -296,7 +296,19 @@ const details = (key, summary, body) => `<details data-key="${key}" ${state.open
 const dday = (n) => (n === 0 ? '오늘' : `D-${n}`);
 
 // ───────────────────────── 대시보드 ─────────────────────────
+// 오늘: 비서 입력줄 + 오늘 일정·할일
 function viewHome() {
+  return `
+  <form id="home-ask" class="ask-bar" autocomplete="off">
+    ${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>'}
+    <input id="home-ask-input" type="text" placeholder="비서에게: 금요일 7시 헬스 넣어줘 · 이번 주 할일 뭐야?" enterkeyhint="send" aria-label="비서에게 물어보기">
+    <button class="btn primary" type="submit" aria-label="보내기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </form>
+  ${todayBlock()}`;
+}
+
+// 자산 → 홈: 총자산, 자산 추이, 고정지출·상환 일정
+function viewMoney() {
   const d = state.data;
   const t = currentTotals(d, state.market);
   const saved = t.savings + t.stocks;
@@ -314,12 +326,6 @@ function viewHome() {
   const noPayDay = (d.debts || []).some((l) => !l.schedule?.length && loanBalance(l) > 0 && !l.payDay);
 
   return `
-  <form id="home-ask" class="ask-bar" autocomplete="off">
-    ${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>'}
-    <input id="home-ask-input" type="text" placeholder="비서에게: 금요일 7시 헬스 넣어줘 · 이번 주 할일 뭐야?" enterkeyhint="send" aria-label="비서에게 물어보기">
-    <button class="btn primary" type="submit" aria-label="보내기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-  </form>
-  ${todayBlock()}
   ${isEmpty ? `<p class="notice">아직 입력된 자산이 없어요. <a href="#assets">자산</a>과 <a href="#debts">부채</a>에서 하나씩 추가해 보세요.</p>` : ''}
   <div class="summary">
   <section class="hero">
@@ -480,6 +486,21 @@ function assetsSummary(d, m) {
   }
   const gain = value - cost;
   return { value, gain, rate: cost ? (gain / cost) * 100 : 0 };
+}
+
+/** 대출 잔액과 지난달(월 기록) 대비 줄어든 금액·비율. diff > 0 이면 줄었어요 */
+function debtSummary() {
+  const value = currentTotals(state.data, state.market).debts;
+  const ym = today().slice(0, 7);
+  const snaps = state.data.snapshots || {};
+  const prevKey = Object.keys(snaps).filter((k) => k < ym && snaps[k]?.debts != null).sort().pop();
+  if (!prevKey || !snaps[prevKey].debts) return { value, diff: null };
+  const diff = snaps[prevKey].debts - value;
+  return { value, prevKey, diff, rate: (diff / snaps[prevKey].debts) * 100 };
+}
+function debtsTitleSum() {
+  const D = debtSummary();
+  return `<span class="title-sum"><b>${won(D.value)}</b>${D.diff != null ? `<span class="${D.diff > 0 ? 'down' : 'up'}">${D.diff > 0 ? '−' : '+'}${won(Math.abs(D.diff))} (${D.diff > 0 ? '−' : '+'}${pct(Math.abs(D.rate), 2)}) <small>${ymLabel(D.prevKey)} 대비</small></span>` : ''}</span>`;
 }
 
 function assetsTitleSum() {
@@ -655,9 +676,14 @@ function viewDebts() {
       ${done != null ? `<span class="progress" role="progressbar" aria-valuenow="${done.toFixed(0)}" aria-valuemin="0" aria-valuemax="100" aria-label="상환 진행률"><span style="width:${done}%"></span></span><span class="row-meta">${won(orig)} 중 ${pct(done, 0)} 상환</span>` : ''}
     </button>`;
   }).join('');
+  const D = debtSummary();
   return `
+  <section class="hero m-only">
+    <div class="eyebrow">대출 잔액</div>
+    <div class="hero-num">${won(t.debts)}</div>
+    ${D.diff != null ? `<div class="delta ${D.diff > 0 ? 'down' : 'up'}">${D.diff > 0 ? '−' : '+'}${won(Math.abs(D.diff))} (${D.diff > 0 ? '−' : '+'}${pct(Math.abs(D.rate), 2)})<span>${ymLabel(D.prevKey)} 대비</span></div>` : ''}
+  </section>
   <section class="panel stats">
-    <div class="stat"><span class="eyebrow">대출잔액</span><span class="stat-num">${won(t.debts)}</span></div>
     <div class="stat"><span class="eyebrow">이번 달 상환 (원금+이자)</span><span class="stat-num">${won(pay)}</span></div>
   </section>
   <div class="cols"><div class="col-main">
@@ -1224,9 +1250,11 @@ function viewTasks() {
 function lockSettings() {
   const c = lockConfig();
   if (state.lockOk == null) return '<div class="panel"><p class="hint pad">확인 중…</p></div>';
-  if (!state.lockOk && !c) return '<div class="panel"><p class="pad">이 기기·브라우저에서는 생체 인증 잠금을 쓸 수 없어요. (아이폰은 Face ID나 Touch ID, PC는 지문이나 Windows Hello가 필요해요)</p></div>';
+  if (!window.PublicKeyCredential && !c) return '<div class="panel"><p class="pad">이 브라우저에서는 생체 인증 잠금을 쓸 수 없어요.</p></div>';
+  // 아이폰 홈 화면 앱은 '지원함'을 제대로 알려주지 않을 때가 있어서, 버튼은 그대로 두고 직접 시도해 봐요
   if (!c) return `<div class="panel"><p class="pad">앱을 열 때 Face ID를 통과해야 화면이 보이게 해요. 이 기기에만 적용되고, 기기마다 따로 켜요.</p>
-    <div class="pad"><button class="btn primary" data-action="lock-on">이 기기에서 잠금 켜기</button></div></div>`;
+    <div class="pad"><button class="btn primary" data-action="lock-on">이 기기에서 잠금 켜기</button></div>
+    ${state.lockOk ? '' : '<p class="hint pad">이 기기가 생체 인증 지원 여부를 알려주지 않았어요. 버튼을 눌러 시도해 보세요. 아이폰은 설정 → 내 이름 → iCloud → 암호(키체인)가 켜져 있어야 해요.</p>'}</div>`;
   const opts = [[0, '바로'], [1, '1분 뒤'], [5, '5분 뒤'], [15, '15분 뒤']];
   return `<div class="panel list">
     <div class="row static"><span class="row-main"><span class="row-title">켜짐 · 이 기기</span><span class="row-meta">앱을 열 때, 그리고 다른 앱에 다녀오면 다시 잠가요</span></span><button class="link-btn" data-action="lock-off">끄기</button></div>
@@ -1271,11 +1299,11 @@ function setGoogle(patch) {
 }
 
 // ───────────────────────── 그리기 ─────────────────────────
-const VIEWS = { home: viewHome, calendar: viewCalendar, tasks: viewTasks, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
-const TITLES = { home: '오늘', calendar: '일정', tasks: '할일', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
+const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
+const TITLES = { home: '오늘', money: '자산 홈', calendar: '일정', tasks: '할일', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
 // 자산 메뉴 안의 작은 탭: 자산 | 부채 | 고정지출
-const MONEY_TABS = [['assets', '자산'], ['debts', '부채'], ['fixed', '고정지출']];
-const navTab = (t) => (t === 'debts' || t === 'fixed' ? 'assets' : t);
+const MONEY_TABS = [['money', '홈'], ['assets', '자산'], ['debts', '부채'], ['fixed', '고정지출']];
+const navTab = (t) => (MONEY_TABS.some(([k]) => k === t) ? 'money' : t);
 const subNav = () => `<nav class="segment subnav" aria-label="자산 메뉴">${MONEY_TABS.map(([k, l]) => `<a href="#${k}" role="tab" aria-selected="${state.tab === k}">${l}</a>`).join('')}</nav>`;
 const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라인', demo: '체험 모드' };
 
@@ -1288,8 +1316,8 @@ function render() {
   document.querySelectorAll('[data-tab]').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === navTab(state.tab) ? 'page' : 'false'));
   renderSync();
   renderAlerts();
-  const money = navTab(state.tab) === 'assets';
-  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
+  const money = navTab(state.tab) === 'money';
+  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : state.tab === 'debts' ? debtsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
   afterRender();
 }
 
@@ -1326,7 +1354,7 @@ function renderSync() {
 }
 
 function afterRender() {
-  if (state.tab === 'home') {
+  if (state.tab === 'money') {
     const c = $('#chart-trend');
     const mode = state.data.settings?.trendMode || 'day';
     if (c) trendChart(c, trend(state.history, state.data.snapshots, mode, now()).points, mode);
@@ -1817,7 +1845,7 @@ function bind() {
     if (a === 'g-sync') syncAgenda(true);
     if (a === 'lock-on') {
       try { await enableLock(state.user?.email); toast('잠금을 켰어요. 다음에 앱을 열면 Face ID로 열려요.'); }
-      catch (err) { toast(err.name === 'NotAllowedError' ? '등록을 취소했어요.' : `잠금을 켜지 못했어요: ${err.message}`); }
+      catch (err) { toast(err.name === 'NotAllowedError' ? 'Face ID 등록이 취소됐거나 허용되지 않았어요. iCloud 암호(키체인)가 켜져 있는지 확인해 주세요.' : `잠금을 켜지 못했어요 (${err.name}): ${err.message}`); }
       render();
     }
     if (a === 'lock-off' && confirm('이 기기에서 Face ID 잠금을 끌까요?')) { disableLock(); toast('잠금을 껐어요.'); render(); }
@@ -2134,7 +2162,7 @@ async function main() {
     onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onSecrets: (sc) => { state.secrets = sc || {}; if (state.tab === 'settings') render(); },
-    onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'home') render(); recordDaily(); },
+    onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'money') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
     onAgenda: (a) => {
       const first = !agendaLoaded;
