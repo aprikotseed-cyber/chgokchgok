@@ -51,6 +51,7 @@ js/google.js            구글 캘린더(읽기)·구글 태스크(읽기·쓰�
 js/google-demo.js       체험 모드용 예시 일정·할일
 js/briefing.js          아침 브리핑 알림 내용 (순수 함수)
 js/lock.js              Face ID(생체 인증) 화면 잠금, 기기마다 설정에서 켜기
+js/caldav.js            네이버 캘린더(CalDAV) 읽기·iCalendar 반복 일정 펼치기 (GitHub 자동 동기화용)
 scripts/update-market.mjs  GitHub Actions가 매일 실거래가·주가를 가져오는 스크립트
 .github/workflows/update-market.yml  매일 오전 6시 17분(미국장 마감 가격): 아파트 실거래가 + 주가·환율
 .github/workflows/quotes.yml         국내장 중 1시간마다(매시 13분): 주가·환율만
@@ -130,6 +131,10 @@ GitHub 저장소 **Settings → Secrets and variables → Actions → New reposi
 3. 앱 설정 → 구글 캘린더·할일 → **자동 동기화 켜기** (앱 안 업데이트 버튼용 GitHub 토큰 필요).
 
 앱이 받은 인증 코드를 `users/{uid}/data/secrets`에 잠깐 저장하면 `.github/workflows/agenda-sync.yml`(`scripts/agenda-sync.mjs`)이 오래 쓰는 연결로 바꾸고, 오전 6시~밤 11시 1시간마다와 아침 브리핑 직전에 일정·할일을 받아 `agenda` 문서에 저장해요.
+
+### 반려자 네이버 캘린더 (읽기만)
+
+GitHub Secrets에 `NAVER_CALDAV_ID`(네이버 아이디)와 `NAVER_CALDAV_PASSWORD`(네이버 2단계 인증의 애플리케이션 비밀번호)를 넣으면, 자동 동기화가 CalDAV(`caldav.calendar.naver.com`)로 네이버 캘린더를 읽어 반려자 일정으로 합쳐요 (`js/caldav.js`). 반복 일정·빼는 날·옮긴 날을 한국 시간으로 펼쳐요.
 
 ## 앱 안 [업데이트] 버튼
 자산 탭 주식 제목 옆 **업데이트**를 누르면 GitHub에서 Run workflow를 누른 것처럼 주가·환율을 바로 받아와요 (1분쯤 뒤 반영).

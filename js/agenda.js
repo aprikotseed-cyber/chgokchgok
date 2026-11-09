@@ -278,3 +278,12 @@ export async function fetchAgenda(g, gs = {}, now = new Date(), interactive = fa
     syncedAt: Date.now(),
   };
 }
+
+/** 구글에서 새로 받을 때, 네이버처럼 GitHub에서만 받아 오는 캘린더는 이전 것을 그대로 남겨요 */
+export function keepExternal(next, prev) {
+  if (!prev) return next;
+  const ext = (prev.calendars || []).filter((c) => c.ext);
+  if (!ext.length) return next;
+  const ids = new Set(ext.map((c) => c.id));
+  return { ...next, calendars: [...next.calendars, ...ext], events: [...next.events, ...(prev.events || []).filter((e) => ids.has(e.calId))], naver: prev.naver };
+}

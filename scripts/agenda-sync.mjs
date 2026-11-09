@@ -5,10 +5,14 @@
 // 한국 날짜로 계산하도록 워크플로에서 TZ=Asia/Seoul로 실행해요.
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { fetchAgenda } from '../js/agenda.js';
+import { fetchAgenda, keepExternal } from '../js/agenda.js';
+import { fetchCalDav } from '../js/caldav.js';
 import { listApi } from '../js/google.js';
 
 const SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+// 반려자 네이버 캘린더 (선택): 네이버 아이디 + 애플리케이션 비밀번호 (GitHub Secrets)
+const NAVER_ID = process.env.NAVER_CALDAV_ID || '';
+const NAVER_PW = process.env.NAVER_CALDAV_PASSWORD || '';
 initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
 const db = getFirestore();
 db.settings({ ignoreUndefinedProperties: true });
@@ -70,7 +74,18 @@ for (const doc of docs) {
   // ② 일정·할일 받기
   try {
     const { access_token: at } = await token({ refresh_token: refresh, client_id: gs.clientId, client_secret: SECRET, grant_type: 'refresh_token' });
-    const agenda = await fetchAgenda(serverApi(at), gs, new Date());
+    let agenda = await fetchAgenda(serverApi(at), gs, new Date());
+    if (NAVER_ID && NAVER_PW) {
+      try {
+        const nv = await fetchCalDav({ base: 'https://caldav.calendar.naver.com/', user: NAVER_ID, pass: NAVER_PW, from: agenda.from, to: agenda.until, gs });
+        agenda = { ...agenda, calendars: [...agenda.calendars, ...nv.calendars], events: [...agenda.events, ...nv.events], naver: { at: Date.now(), count: nv.events.length } };
+        console.log(`네이버 캘린더 ${nv.calendars.length}개, 일정 ${nv.events.length}개`);
+      } catch (e) {
+        console.log('네이버 캘린더 실패:', e.message);
+        const prev = (await userRef.doc('agenda').get()).data();
+        agenda = { ...keepExternal(agenda, prev), naver: { at: Date.now(), error: e.message } }; // 지난번에 받은 것은 남겨요
+      }
+    }
     await userRef.doc('agenda').set({ ...agenda, by: 'server' });
     await doc.ref.set({ googleSyncedAt: Date.now(), googleLinkError: FieldValue.delete() }, { merge: true });
     console.log(`일정 ${agenda.events.length}개, 할일 ${agenda.tasks.length}개 저장`);

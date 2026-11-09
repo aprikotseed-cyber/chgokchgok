@@ -22,6 +22,8 @@ jobs:
           TZ: Asia/Seoul
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NAVER_CALDAV_ID: ${{ secrets.NAVER_CALDAV_ID }}
+          NAVER_CALDAV_PASSWORD: ${{ secrets.NAVER_CALDAV_PASSWORD }}
       - run: node scripts/notify.mjs
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
