@@ -1,15 +1,15 @@
-import { connect, isDemo } from './store.js?v=20261109v';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109v';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109v';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109v';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109v';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109v';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109v';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109v';
-import { ask, SUGGEST } from './assistant.js?v=20261109v';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109v';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109v';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261109v';
+import { connect, isDemo } from './store.js?v=20261109w';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109w';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109w';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109w';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109w';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109w';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109w';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109w';
+import { ask, SUGGEST } from './assistant.js?v=20261109w';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109w';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109w';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261109w';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -416,7 +416,7 @@ function viewAssets() {
   </section>
   <div class="cols"><div class="col-main">
   ${section('저축·현금', state.reorder === 'savings' ? sortList('savings', d.savings, (s) => ({ title: esc(s.name), value: won(s.balance) })) : `<div class="panel list">${sav || empty('예금, 적금, 연금, 보증금 등을 추가해 보세요.')}</div>`, { sum: won(t.savings), action: listActions('savings', (d.savings || []).length) })}
-  ${section('주식', stk, { action: addBtn('stocks', '새 종목') })}
+  ${section('주식', stk, { action: `<span class="head-actions">${refreshBtn(m)}${addBtn('stocks', '새 종목')}</span>` })}
   </div><div class="col-side">
   ${section('주택', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
   </div></div>
@@ -761,14 +761,17 @@ function viewRecords() {
 const COOLDOWN = 2 * 60_000;
 
 /** 업데이트 시각 + [지금 업데이트] 버튼 */
+/** 자산 탭 맨 아래: 업데이트 시각만 */
 function updateLine(m) {
+  const times = m.updatedAt || m.quotesAt ? `주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트` : '아직 받은 시세가 없어요';
+  return `<p class="hint update-time">${times}</p>`;
+}
+
+/** 주식 제목 옆 '업데이트' (글자 버튼). 요청 뒤 새 값이 올 때까지 '업데이트 중…' */
+function refreshBtn(m) {
   const r = state.refresh;
   const waiting = r && Date.now() - r.at < 5 * 60_000 && String(m.quotesAt?.seconds || m.quotesAt) === r.quotesAt;
-  const times = m.updatedAt || m.quotesAt ? `주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트` : '아직 받은 시세가 없어요';
-  return `<div class="update-row">
-    <p class="hint update-time">${times}</p>
-    <button class="btn small" data-action="refresh" data-kind="quotes" ${waiting ? 'disabled' : ''}>${waiting ? '업데이트 중… 1분쯤 걸려요' : '지금 업데이트'}</button>
-  </div>`;
+  return `<button class="link-btn" data-action="refresh" data-kind="quotes" ${waiting ? 'disabled' : ''} title="주가·환율 지금 받아오기">${waiting ? '업데이트 중…' : '업데이트'}</button>`;
 }
 
 async function requestRefresh(kind) {
@@ -822,7 +825,7 @@ function viewSettings() {
         <p class="hint pad">복사한 내용을 Claude와의 대화에 붙여 넣으면, 이 질문들을 알아듣게 고치고 다시 틀리지 않도록 시험 문제로 저장해 둘게요. 금액은 N으로 가려져요.</p>`
       : empty('비서 답이 엉뚱하면 말풍선 아래 ‘이 답이 맞지 않았나요?’를 눌러 주세요. 모르는 질문도 여기에 저절로 모여요.')}</div>`)}
   ${section('지금 업데이트 버튼', `<div class="panel">
-      <p class="pad">자산 탭 아래 <b>지금 업데이트</b>를 누르면 GitHub에서 Run workflow를 누른 것처럼 바로 주가·환율을 받아와요. 처음 한 번 GitHub 토큰을 넣어 주세요.</p>
+      <p class="pad">자산 탭 주식 제목 옆 <b>업데이트</b>를 누르면 GitHub에서 Run workflow를 누른 것처럼 바로 주가·환율을 받아와요. 처음 한 번 GitHub 토큰을 넣어 주세요.</p>
       ${state.secrets?.githubToken
         ? `<div class="list"><div class="row static"><span class="row-main"><span class="row-title">토큰 저장됨</span><span class="row-meta">${esc(state.secrets.githubToken.slice(0, 15))}… · 이 계정의 모든 기기에서 사용</span></span><button class="link-btn" data-action="token-clear">지우기</button></div></div>
            <div class="pad actions"><button class="btn primary" data-action="refresh" data-kind="quotes">주가·환율 지금 업데이트</button><button class="btn" data-action="refresh" data-kind="full">주택 실거래가까지</button></div>`

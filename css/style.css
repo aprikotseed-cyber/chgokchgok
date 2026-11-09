@@ -528,3 +528,4 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .handle:hover, .handle:focus-visible { background: var(--surface-2); color: var(--text-primary); }
 .sort-row.dragging { position: relative; z-index: 2; box-shadow: 0 8px 24px rgb(0 0 0 / .16); border-radius: 12px; }
 .sort-row.dragging .handle { cursor: grabbing; }
+.link-btn:disabled { color: var(--text-muted); cursor: default; }

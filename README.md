@@ -105,8 +105,8 @@ GitHub 저장소 **Settings → Secrets and variables → Actions → New reposi
 - 대출은 **매달 상환일**을 넣어야 알림과 일정에 나와요.
 - 주말·공휴일에 실제 출금일이 밀리는 것은 따로 계산하지 않아요.
 
-## 앱 안 [지금 업데이트] 버튼
-자산 탭 맨 아래 **지금 업데이트**를 누르면 GitHub에서 Run workflow를 누른 것처럼 주가·환율을 바로 받아와요 (1분쯤 뒤 반영).
+## 앱 안 [업데이트] 버튼
+자산 탭 주식 제목 옆 **업데이트**를 누르면 GitHub에서 Run workflow를 누른 것처럼 주가·환율을 바로 받아와요 (1분쯤 뒤 반영).
 처음 한 번 앱 **설정 → 지금 업데이트 버튼**에 GitHub 토큰을 넣어야 해요.
 1. [새 토큰 만들기 (Fine-grained)](https://github.com/settings/personal-access-tokens/new)
 2. Repository access: Only select repositories → chgokchgok
