@@ -119,3 +119,26 @@ test('예측에 집값·주가 상승률을 쓰지 않는다 (예전 데이터�
   const months = (2028 - 2026) * 12 + 1; // 2026년 12월 ~ 2028년 12월
   assert.equal(last.stocks, 7_000_000 + 100_000 * months);
 });
+
+test('해외주식: 주가 효과와 환율 효과로 원화 수익을 나눈다', async () => {
+  const { stockDetail, stockMarket } = await import('../js/projection.js');
+  const market = { stocks: { VOO: { price: 550, currency: 'USD' } }, fx: { USD: 1400 } };
+  // 10주를 평균 500달러에 샀고, 그때 원화로 6,500,000원(환율 1,300원) 들었음
+  const s = { ticker: 'VOO', market: 'us', qty: 10, avgPrice: 500, avgCur: 'USD', costKrw: 6_500_000 };
+  const d = stockDetail(s, market);
+  assert.equal(d.value, 5500);
+  assert.equal(d.valueKrw, 7_700_000);
+  assert.equal(d.buyFx, 1300);
+  assert.equal(Math.round(d.ret), 10);                 // 달러 기준 +10%
+  assert.equal(d.profitKrw, 1_200_000);                // 원화 기준 +120만원
+  assert.equal(d.priceEffect, 650_000);                // 50달러 × 10주 × 1,300원
+  assert.equal(d.fxEffect, 550_000);                   // 5,500달러 × 100원
+  assert.equal(d.priceEffect + d.fxEffect, d.profitKrw);
+  assert.equal(stockMarket({ ticker: '005930' }), 'kr');
+  assert.equal(stockMarket({ ticker: 'AAPL' }), 'us');
+});
+
+test('해외주식: 시세가 없으면 수동 현재가($)를 환율로 바꿔 평가', async () => {
+  const { stockValue } = await import('../js/projection.js');
+  assert.equal(stockValue({ ticker: 'XYZ', qty: 2, manualPrice: 10, manualCur: 'USD' }, { fx: { USD: 1500 } }), 30_000);
+});

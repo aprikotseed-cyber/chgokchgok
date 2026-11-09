@@ -1,3 +1,4 @@
+import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261109e';
 // 자산·부채 계산과 연도별 예측. 화면(app.js)과 테스트가 함께 쓰는 순수 함수만 둡니다.
 // 금액 단위는 모두 '원'입니다.
 
@@ -10,11 +11,53 @@ export function monthsFrom(now, ym) {
 }
 
 /** 주식 한 종목의 원화 평가금액 */
-export function stockValue(s, market) {
+/** 종목이 어느 묶음인지: 국내(kr) / 해외(us) / 연금저축(pension). 예전 데이터는 종목코드로 추정 */
+export function stockMarket(s) {
+  if (s.market) return s.market;
+  return /^\d{6}$/.test(String(s.ticker || '').trim()) ? 'kr' : 'us';
+}
+
+/**
+ * 종목 하나의 평가·수익. 해외주식은 달러 기준 수익과 원화 기준 수익(환율 포함)을 나눠서 계산해요.
+ *  - 평가(달러) = 수량 × 현재가($),  평가(원) = 평가(달러) × 지금 환율
+ *  - 매입(원)  = 직접 넣은 '원화 매입금액'. 없으면 평균매수가가 원화일 때 수량 × 평균매수가
+ *  - 매입 환율 = 매입(원) ÷ 매입(달러)
+ *  - 원화 수익 = 평가(원) − 매입(원) = 주가 효과 + 환율 효과
+ *      주가 효과 = (평가($) − 매입($)) × 매입 환율
+ *      환율 효과 = 평가($) × (지금 환율 − 매입 환율)
+ */
+export function stockDetail(s, market) {
+  const qty = Number(s.qty) || 0;
+  const fx = (c) => (c === 'KRW' ? 1 : market?.fx?.[c] || 0);
   const q = market?.stocks?.[normTicker(s.ticker)];
-  let price = q?.price ?? (Number(s.manualPrice) || Number(s.avgPrice) || 0);
-  if (q?.currency && q.currency !== 'KRW') price *= market?.fx?.[q.currency] ?? 0;
-  return price * (Number(s.qty) || 0);
+  const avgCur = s.avgCur || 'KRW'; // 예전 데이터의 평균매수가는 원화
+  let cur;
+  let price;
+  if (q?.price) { cur = q.currency || 'KRW'; price = q.price; }
+  else if (Number(s.manualPrice)) { cur = s.manualCur || 'KRW'; price = Number(s.manualPrice); }
+  else { cur = avgCur; price = Number(s.avgPrice) || 0; }
+
+  const value = price * qty;               // 그 나라 돈으로
+  const valueKrw = value * fx(cur);
+  const avg = Number(s.avgPrice) || 0;
+  const cost = avgCur === cur ? avg * qty : null;       // 같은 통화로 비교할 수 있을 때만
+  const costKrw = Number(s.costKrw) || (avgCur === 'KRW' ? avg * qty : null);
+  const out = { cur, price, value, valueKrw, cost, costKrw, fxNow: fx(cur) };
+  if (cost) out.ret = ((value - cost) / cost) * 100;
+  if (costKrw) {
+    out.profitKrw = valueKrw - costKrw;
+    out.retKrw = (out.profitKrw / costKrw) * 100;
+  }
+  if (cur !== 'KRW' && cost && costKrw) {
+    out.buyFx = costKrw / cost;
+    out.priceEffect = (value - cost) * out.buyFx;
+    out.fxEffect = value * (out.fxNow - out.buyFx);
+  }
+  return out;
+}
+
+export function stockValue(s, market) {
+  return stockDetail(s, market).valueKrw;
 }
 
 export function normTicker(t) {
@@ -93,17 +136,27 @@ export function loanMonth(balance, loan, step) {
 }
 
 /** 지금 시점의 합계 */
-export function currentTotals(data, market) {
+/** 대출의 지금 남은 원금. 상환스케줄이 있으면 스케줄 기준(오늘까지 낸 회차 반영) */
+export function loanBalance(loan, now = new Date()) {
+  if (loan.schedule?.length) return scheduleBalanceAt(loan.schedule, ymd(now));
+  return Number(loan.balance) || 0;
+}
+
+export function currentTotals(data, market, now = new Date()) {
   const savings = (data.savings || []).reduce((a, s) => a + (Number(s.balance) || 0), 0);
   const stocks = (data.stocks || []).reduce((a, s) => a + stockValue(s, market), 0);
   const homes = (data.homes || []).reduce((a, h) => a + homeValue(h, market), 0);
-  const debts = (data.debts || []).reduce((a, d) => a + (Number(d.balance) || 0), 0);
+  const debts = (data.debts || []).reduce((a, d) => a + loanBalance(d, now), 0);
   const assets = savings + stocks + homes;
   return { savings, stocks, homes, assets, debts, net: assets - debts };
 }
 
 /** 대출별 이번 달 예상 원금·이자 */
 export function loanThisMonth(loan, now = new Date()) {
+  if (loan.schedule?.length) {
+    const r = nextScheduled(loan.schedule, ymd(now));
+    return r ? { principal: r.principal, interest: r.interest, date: r.date } : { principal: 0, interest: 0 };
+  }
   return loanMonth(Number(loan.balance) || 0, prepareLoan(loan, now), 1);
 }
 
@@ -127,7 +180,7 @@ export function project(data, market, { years = 15, now = new Date() } = {}) {
   let stock = currentTotals({ stocks: data.stocks }, market).stocks;
   const stockMonthly = Number(plan.monthly) || 0;
   const homes = (data.homes || []).map((h) => ({ v: homeValue(h, market) })); // 집값 상승률은 가정하지 않아요
-  const loans = (data.debts || []).map((d) => ({ d: prepareLoan(d, now), bal: Number(d.balance) || 0 }));
+  const loans = (data.debts || []).map((d) => ({ d: prepareLoan(d, now), bal: loanBalance(d, now), schedule: d.schedule?.length ? d.schedule : null }));
 
   const snap = (label, year) => {
     const s = savings.reduce((a, x) => a + x.bal, 0);
@@ -148,9 +201,11 @@ export function project(data, market, { years = 15, now = new Date() } = {}) {
     step++;
     for (const s of savings) s.bal = s.bal * (1 + s.r) + s.monthly;
     stock += stockMonthly; // 주가 상승률은 가정하지 않아요
-    for (const l of loans) l.bal -= loanMonth(l.bal, l.d, step).principal;
+    for (const l of loans) if (!l.schedule) l.bal -= loanMonth(l.bal, l.d, step).principal;
     if ((startMonth + step) % 12 === 11) {
       const year = now.getFullYear() + Math.floor((startMonth + step) / 12);
+      // 상환스케줄이 있는 대출은 계산 대신 스케줄의 그해 말 잔액을 그대로 써요
+      for (const l of loans) if (l.schedule) l.bal = scheduleBalanceAt(l.schedule, `${year}-12-31`);
       points.push(snap(`${year}`, year));
       recorded++;
     }
