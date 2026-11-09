@@ -2,6 +2,8 @@
 // 필요한 GitHub Secrets: FIREBASE_SERVICE_ACCOUNT (서비스 계정 JSON 전체), DATA_GO_KR_KEY (공공데이터포털 인증키)
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { currentTotals } from '../js/projection.js';
+import { makeEntry } from '../js/history.js';
 import { parseTrades, apiError, matchTrades, nameCandidates, estimate, recentMonths, yahooSymbols } from './market-lib.mjs';
 
 const MONTHS = 24;
@@ -99,4 +101,14 @@ for (const d of docs) {
   const quotes = { stocks, fx: { ...(prev.fx || {}), ...fx }, quotesAt: FieldValue.serverTimestamp() };
   if (QUOTES_ONLY) await marketRef.set(quotes, { merge: true }); // 집 시세는 그대로 두고 주가·환율만 바꿔요
   else await marketRef.set({ homes, ...quotes, updatedAt: FieldValue.serverTimestamp() });
+
+  // 오늘의 자산 기록 (앱을 안 연 날도 추이 그래프가 이어지게). 한국 날짜 기준
+  const k = new Date(Date.now() + 9 * 3600_000);
+  const today = new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
+  const day = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const fxAll = { ...(prev.fx || {}), ...fx };
+  if (!fxAll.USD && data.settings?.usdKrw) fxAll.USD = Number(data.settings.usdKrw);
+  const totals = currentTotals(data, { homes: QUOTES_ONLY ? prev.homes || {} : homes, stocks, fx: fxAll }, today);
+  await d.ref.parent.doc('history').set({ days: { [day]: makeEntry(totals) } }, { merge: true });
+  console.log(`자산 기록 ${day}: ${Math.round(totals.net).toLocaleString()}원`);
 }

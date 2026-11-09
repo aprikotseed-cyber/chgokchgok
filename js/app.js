@@ -1,18 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261109k';
-import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109k';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109k';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109k';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109k';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109k';
-import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109k';
-import { ask, SUGGEST } from './assistant.js?v=20261109k';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109k';
+import { connect, isDemo } from './store.js?v=20261109l';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109l';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109l';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109l';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109l';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109l';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109l';
+import { trend, makeEntry, sameEntry } from './history.js?v=20261109l';
+import { ask, SUGGEST } from './assistant.js?v=20261109l';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109l';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109l';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
 const EMPTY = () => ({
   savings: [], stocks: [], homes: [], debts: [], fixed: [],
-  settings: { horizon: 20 }, snapshots: {}, records: [],
+  settings: {}, snapshots: {}, records: [],
 });
 
 const state = {
@@ -24,6 +26,7 @@ const state = {
   push: { loaded: false, supported: false, devices: [] },
   stockTab: null,        // 주식 묶음: kr / us / pension
   marketRaw: {},
+  history: {},          // 하루 한 줄 자산 기록 {날짜: {...}}
 };
 let store;
 
@@ -162,8 +165,23 @@ let saveTimer;
 function commit() {
   refreshMarket();
   render();
+  recordDaily();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => store.save(JSON.parse(JSON.stringify(state.data))).catch((e) => toast(`저장하지 못했어요: ${e.message}`)), 300);
+}
+
+/** 오늘의 자산 기록 (값이 바뀌었을 때만 저장) */
+let historyTimer;
+function recordDaily() {
+  if (!state.user || !state.historyLoaded) return;
+  const t = currentTotals(state.data, state.market);
+  if (!t.assets && !t.debts) return;
+  const day = today();
+  const entry = makeEntry(t);
+  if (sameEntry(state.history[day], entry)) return;
+  state.history = { ...state.history, [day]: entry };
+  clearTimeout(historyTimer);
+  historyTimer = setTimeout(() => store.saveHistory(day, entry).catch(() => {}), 1500);
 }
 
 /** 이번 달 합계를 남겨 두면 '지난달 대비' 변화를 보여줄 수 있어요 */
@@ -213,12 +231,9 @@ function viewHome() {
   const pay = (d.debts || []).reduce((a, l) => a + currentPayment(l), 0);
   const isEmpty = !t.assets && !t.debts;
 
-  const horizon = d.settings?.horizon || 20;
-  const { points } = project(d, state.market, { years: horizon });
-  const ms = milestones(points);
-  const mText = [];
-  if (ms.debtFreeYear !== undefined) mText.push(ms.debtFreeYear ? `${ms.debtFreeYear}년에 대출을 모두 갚아요` : `${horizon}년 안에는 대출이 남아요`);
-  if (ms.nextNet?.year) mText.push(`총자산 ${won(ms.nextNet.target)} 돌파 ${ms.nextNet.year}년`);
+  const mode = d.settings?.trendMode || 'day';
+  const tr = trend(state.history, d.snapshots, mode, now());
+  const RANGE = { day: '최근 30일', month: '최근 12개월', year: '전체 기간' };
 
   const soon = upcoming(d, now(), 14);
   const noPayDay = (d.debts || []).some((l) => !l.schedule?.length && loanBalance(l) > 0 && !l.payDay);
@@ -247,23 +262,20 @@ function viewHome() {
     { action: '<a class="link-btn" href="#fixed">고정지출 전체</a>' })}
 
   </div><div class="col-main">
-  ${section('연도별 예상', `<div class="panel chart-panel">
+  ${section('자산 추이', `<div class="panel chart-panel">
       <div class="chart-top">
-        <ul class="legend">
-          <li><i style="background:var(--series-1)"></i>저축액</li>
-          <li><i style="background:var(--series-2)"></i>대출잔액</li>
-          <li><i style="background:var(--series-3)"></i>총자산</li>
-        </ul>
-        <label class="range"><input type="range" id="horizon" min="5" max="40" step="1" value="${horizon}" aria-label="예측 기간"><output id="horizon-val">${horizon}년</output></label>
+        <div class="segment" role="tablist" aria-label="기간">${[['day', '일별'], ['month', '월별'], ['year', '연도별']].map(([k, l]) => `<button role="tab" aria-selected="${mode === k}" data-action="trend" data-key="${k}">${l}</button>`).join('')}</div>
+        ${tr.points.length > 1 ? `<span class="trend-sum"><span class="hint">${RANGE[mode]}</span> <b class="${tr.change >= 0 ? 'up' : 'down'}">${tr.change >= 0 ? '+' : '−'}${won(Math.abs(tr.change))} (${tr.change >= 0 ? '+' : ''}${pct(tr.rate, 2)})</b></span>` : ''}
       </div>
-      <div class="chart-box"><canvas id="chart-projection" role="img" aria-label="연도별 저축액, 대출잔액, 총자산 예측"></canvas></div>
-      ${mText.length ? `<p class="caption">${mText.join(' · ')}</p>` : ''}
-      ${details('home-table', '표로 보기', `<div class="table-scroll"><table>
-        <thead><tr><th>연도</th><th>저축액</th><th>주택</th><th>대출잔액</th><th>총자산</th></tr></thead>
-        <tbody>${points.map((p) => `<tr><th>${p.label === '현재' ? '지금' : `${p.year}년 말`}</th><td>${won(p.savings + p.stocks)}</td><td>${won(p.homes)}</td><td>${won(p.debts)}</td><td>${won(p.net)}</td></tr>`).join('')}</tbody>
-      </table></div>`)}
+      ${tr.points.length > 1
+        ? `<div class="chart-box"><canvas id="chart-trend" role="img" aria-label="${RANGE[mode]} 총자산 추이"></canvas></div>`
+        : `<p class="empty">${tr.points.length ? '기록이 쌓이는 중이에요.' : '아직 기록이 없어요.'} 오늘부터 매일 총자산이 자동으로 기록돼서, 내일부터 그래프로 보여요.</p>`}
+      ${tr.points.length ? details('trend-table', '표로 보기', `<div class="table-scroll"><table>
+        <thead><tr><th>${{ day: '날짜', month: '월', year: '연도' }[mode]}</th><th>총자산</th><th>저축액</th><th>주택</th><th>대출잔액</th></tr></thead>
+        <tbody>${tr.points.slice().reverse().map((p) => `<tr><th>${p.label}</th><td>${won(p.net)}</td><td>${p.savings == null ? '-' : won(p.savings)}</td><td>${p.homes == null ? '-' : won(p.homes)}</td><td>${won(p.debts)}</td></tr>`).join('')}</tbody>
+      </table></div>`) : ''}
     </div>
-    <p class="hint">저축은 매달 적립과 이자, 대출은 상환 방식대로 계산해요. 주택·주식은 지금 시세 그대로 둬요.</p>`)}
+    <p class="hint">총자산 = 저축액(주식 포함) + 주택 − 대출잔액. 앱을 열 때와 시세를 받아올 때마다 그날 값으로 기록해요.</p>`)}
   </div></div>`;
 }
 
@@ -684,9 +696,11 @@ function viewSettings() {
       <p class="pad">매일 오전 8시에 확인해서 <b>대출 상환일 5·3·1일 전</b>, <b>고정지출 출금 하루 전</b>에 휴대폰으로 알려드려요. 앱을 열면 대시보드의 '다가오는 2주'에서도 볼 수 있어요.</p>
       ${pushBody}
     </div>`)}
-  ${section('비서가 못 알아들은 질문', `<div class="panel list">${(state.data.assistantMisses || []).length
-      ? `${state.data.assistantMisses.slice().reverse().map((m) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(m.q)}</span><span class="row-meta">${dateTime(m.at)}</span></span></div>`).join('')}<div class="pad"><button class="link-btn" data-action="misses-clear">목록 비우기</button></div>`
-      : empty('아직 없어요. 비서가 모르는 질문을 받으면 여기에 모아 둘게요. 이 목록을 알려주시면 알아듣는 말을 늘릴 수 있어요.')}</div>`)}
+  ${section('비서 개선 목록', `<div class="panel list">${(state.data.assistantMisses || []).length
+      ? `${state.data.assistantMisses.map((m, i) => ({ m, i })).reverse().map(({ m, i }) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(m.q)}</span><span class="row-meta">${[m.kind === 'wrong' || m.a ? '엉뚱한 답' : '모른다고 답함', m.want ? `원래 원한 것: ${esc(m.want)}` : '', dateTime(m.at)].filter(Boolean).join(' · ')}</span></span><button class="link-btn" data-action="fb-del" data-i="${i}">지우기</button></div>`).join('')}
+        <div class="pad actions"><button class="btn primary" data-action="fb-copy">목록 복사하기</button><button class="btn" data-action="misses-clear">목록 비우기</button></div>
+        <p class="hint pad">복사한 내용을 Claude와의 대화에 붙여 넣으면, 이 질문들을 알아듣게 고치고 다시 틀리지 않도록 시험 문제로 저장해 둘게요. 금액은 N으로 가려져요.</p>`
+      : empty('비서 답이 엉뚱하면 말풍선 아래 ‘이 답이 맞지 않았나요?’를 눌러 주세요. 모르는 질문도 여기에 저절로 모여요.')}</div>`)}
   ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">주가와 환율은 장이 열린 평일에 1시간마다 (국내장 오전 9시~오후 3시 반, 미국장 밤 10시 반~새벽 5시 반), 주택 실거래가는 매일 오전 6시에 가져와요. 지금 바로 받으려면 GitHub 저장소의 Actions → 주가·환율 장중 업데이트(또는 시세 자동 업데이트) → Run workflow를 누르세요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 주택 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
   </div><div class="col-side">
   ${section('백업', `<div class="panel"><div class="pad actions">
@@ -733,8 +747,8 @@ function renderSync() {
 
 function afterRender() {
   if (state.tab === 'home') {
-    const { points } = project(state.data, state.market, { years: state.data.settings?.horizon || 20 });
-    projectionChart($('#chart-projection'), points);
+    const c = $('#chart-trend');
+    if (c) trendChart(c, trend(state.history, state.data.snapshots, state.data.settings?.trendMode || 'day', now()).points);
   }
   if (state.tab === 'assets') {
     for (const h of state.data.homes || []) {
@@ -938,6 +952,7 @@ function checkDay() {
     state.day = today();
     render();
     recordSnapshot();
+    recordDaily();
   }
 }
 
@@ -1017,10 +1032,18 @@ function saveTrade(vals) {
 // ───────────────────────── 비서 ─────────────────────────
 const chat = [];
 
-function chatHtml(m) {
+function chatHtml(m, i) {
   const text = esc(m.text).replace(/\n/g, '<br>');
   if (m.me) return `<div class="msg me">${text}</div>`;
-  return `<div class="msg bot">${text}</div>${m.chips?.length ? `<div class="as-chips">${m.chips.map((c) => `<button type="button" class="pill" data-q="${esc(c.q)}">${esc(c.label)}</button>`).join('')}</div>` : ''}`;
+  // 질문에 대한 답이면 아래에 '이 답이 맞지 않았나요?'
+  let fb = '';
+  if (m.q && !m.unknown) {
+    if (m.fb === 'sent') fb = '<p class="fb-done">개선 목록에 담았어요. 고맙습니다.</p>';
+    else if (m.fb === 'open') fb = `<form class="fb-form" data-fb="${i}"><input type="text" placeholder="원래 뭘 알고 싶으셨어요? (선택)" aria-label="원래 알고 싶었던 것"><button type="submit" class="pill">담기</button></form>`;
+    else fb = `<button type="button" class="fb" data-fb="${i}">이 답이 맞지 않았나요?</button>`;
+  }
+  if (m.unknown) fb = '<p class="fb-done">이 질문은 개선 목록에 자동으로 담겼어요.</p>';
+  return `<div class="msg bot">${text}</div>${fb}${m.chips?.length ? `<div class="as-chips">${m.chips.map((c) => `<button type="button" class="pill" data-q="${esc(c.q)}">${esc(c.label)}</button>`).join('')}</div>` : ''}`;
 }
 
 function renderChat() {
@@ -1029,19 +1052,19 @@ function renderChat() {
   log.scrollTop = log.scrollHeight;
 }
 
+function saveFeedback(item) {
+  state.data.assistantMisses = addFeedback(state.data.assistantMisses, item);
+  commit();
+}
+
 function askAssistant(q) {
   q = q.trim();
   if (!q) return;
   chat.push({ me: true, text: q });
   const a = ask(q, state.data, state.market, new Date());
-  chat.push({ text: a.text, chips: a.chips });
-  // 모르는 질문은 모아 두었다가 설정에서 보여줘요
-  if (a.unknown) {
-    const misses = (state.data.assistantMisses || []).filter((m) => m.q !== q);
-    misses.push({ q, at: new Date().toISOString() });
-    state.data.assistantMisses = misses.slice(-30);
-    commit();
-  }
+  chat.push({ text: a.text, chips: a.chips, q, unknown: !!a.unknown });
+  // 모르는 질문은 저절로 개선 목록에
+  if (a.unknown) saveFeedback({ q, kind: 'unknown' });
   renderChat();
 }
 
@@ -1059,6 +1082,21 @@ function bind() {
     if (e.target === $('#assistant')) $('#assistant').close();
     const chip = e.target.closest('[data-q]');
     if (chip) askAssistant(chip.dataset.q);
+    const fb = e.target.closest('button.fb');
+    if (fb) {
+      chat[fb.dataset.fb].fb = 'open';
+      renderChat();
+      $('#as-log .fb-form input')?.focus();
+    }
+  });
+  $('#assistant').addEventListener('submit', (e) => {
+    const f = e.target.closest('.fb-form');
+    if (!f) return;
+    e.preventDefault();
+    const m = chat[f.dataset.fb];
+    saveFeedback({ q: m.q, kind: 'wrong', a: m.text, want: f.querySelector('input').value.trim() });
+    m.fb = 'sent';
+    renderChat();
   });
   $('#as-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -1103,6 +1141,7 @@ function bind() {
       }
     }
     if (a === 'fx') openForm('fx', {});
+    if (a === 'trend') { state.data.settings = { ...(state.data.settings || {}), trendMode: b.dataset.key }; commit(); }
     if (a === 'stock-tab') { state.stockTab = b.dataset.key; render(); }
     if (a === 'stock-pin') {
       const cur = state.data.settings?.stockPin;
@@ -1121,7 +1160,19 @@ function bind() {
       toast(`단지명을 '${b.dataset.name}'(으)로 바꿨어요. 다음 자동 수집 때 반영돼요.`);
     }
     if (a === 'logout') store.logout();
-    if (a === 'misses-clear') { state.data.assistantMisses = []; commit(); }
+    if (a === 'misses-clear' && confirm('개선 목록을 모두 지울까요? (복사해 두셨는지 확인해 주세요)')) { state.data.assistantMisses = []; commit(); }
+    if (a === 'fb-del') { state.data.assistantMisses.splice(Number(b.dataset.i), 1); commit(); }
+    if (a === 'fb-copy') {
+      const text = feedbackText(state.data.assistantMisses, today());
+      try { await navigator.clipboard.writeText(text); toast('복사했어요. Claude와의 대화에 붙여 넣어 주세요.'); }
+      catch {
+        // 복사가 막힌 브라우저: 글을 보여주고 직접 복사
+        const ta = Object.assign(document.createElement('textarea'), { value: text, className: 'copy-box', readOnly: true });
+        b.closest('.panel').append(ta);
+        ta.select();
+        toast('글을 길게 눌러 복사해 주세요.');
+      }
+    }
     if (a === 'export') {
       const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: 'application/json' });
       Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `차곡차곡-백업-${today()}.json` }).click();
@@ -1160,14 +1211,8 @@ function bind() {
   }, true);
 
   $('#view').addEventListener('input', (e) => {
-    if (e.target.id === 'horizon') {
-      $('#horizon-val').textContent = `${e.target.value}년`;
-      state.data.settings = { ...(state.data.settings || {}), horizon: Number(e.target.value) };
-      projectionChart($('#chart-projection'), project(state.data, state.market, { years: Number(e.target.value) }).points);
-    }
   });
   $('#view').addEventListener('change', async (e) => {
-    if (e.target.id === 'horizon') commit();
     if (e.target.id === 'import' && e.target.files[0]) {
       try {
         const d = JSON.parse(await e.target.files[0].text());
@@ -1250,8 +1295,9 @@ async function main() {
   bind();
   store = await connect({
     onAuth: (u) => { state.user = u; state.push.loaded = false; render(); },
-    onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); },
-    onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); },
+    onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
+    onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
+    onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'home') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
   });
   $('#boot').hidden = true;

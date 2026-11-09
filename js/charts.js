@@ -1,5 +1,5 @@
 // Chart.js(전역 Chart)로 그리는 꺾은선그래프. 색은 CSS 변수에서 읽어 라이트/다크 모드를 따릅니다.
-import { won, wonShort, ymLabel } from './format.js?v=20261109k';
+import { won, wonShort, ymLabel } from './format.js?v=20261109l';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const charts = new Map();
@@ -77,6 +77,40 @@ export function projectionChart(canvas, points) {
       plugins: {
         ...base().plugins,
         tooltip: { ...base().plugins.tooltip, callbacks: { ...base().plugins.tooltip.callbacks, title: (c) => (c[0].label === '현재' ? '지금' : `${c[0].label}년 말`) } },
+      },
+    },
+  });
+}
+
+/** 자산 추이: 총자산 한 줄. 손을 대면 그날의 저축액·주택·대출잔액도 */
+export function trendChart(canvas, points) {
+  const color = css('--series-3');
+  draw(canvas, {
+    type: 'line',
+    data: {
+      labels: points.map((p) => p.label),
+      datasets: [{
+        label: '총자산', data: points.map((p) => p.net),
+        borderColor: color, backgroundColor: `${color}1a`, pointBackgroundColor: color,
+        pointRadius: points.length <= 14 ? 3 : 0, pointBorderColor: css('--surface-1'), pointBorderWidth: 2, tension: 0.2,
+        fill: 'start', // 아래를 옅게 채워 증가 흐름이 잘 보이게
+      }],
+    },
+    options: {
+      ...base(),
+      scales: { ...base().scales, y: { ...base().scales.y, grace: '5%' } },
+      plugins: {
+        ...base().plugins,
+        tooltip: {
+          ...base().plugins.tooltip,
+          callbacks: {
+            label: (c) => ` 총자산  ${won(c.parsed.y)}`,
+            afterBody: (c) => {
+              const p = points[c[0].dataIndex];
+              return p.savings == null ? [] : [`저축액 ${won(p.savings)}`, `주택 ${won(p.homes)}`, `대출잔액 ${won(p.debts)}`];
+            },
+          },
+        },
       },
     },
   });
