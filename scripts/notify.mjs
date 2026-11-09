@@ -31,7 +31,8 @@ for (const doc of mains) {
   const res = await messaging.sendEachForMulticast({
     tokens,
     webpush: {
-      notification: { title: n.title, body: n.body, icon: `${APP_URL}icon-192.png`, tag: `chgok-${today.toISOString().slice(0, 10)}` },
+      // requireInteraction: PC(Chrome·Edge)에서는 닫을 때까지 화면에 남아 있어요 (아이폰은 원래 알림센터에 남아요)
+      notification: { title: n.title, body: n.body, icon: `${APP_URL}icon-192.png`, tag: `chgok-${today.toISOString().slice(0, 10)}`, requireInteraction: true },
       fcmOptions: { link: `${APP_URL}#home` },
     },
   });
