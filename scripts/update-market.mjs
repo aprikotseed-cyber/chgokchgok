@@ -54,7 +54,7 @@ async function quote(symbol) {
 
 async function updateStocks(stocks) {
   const out = {};
-  const currencies = new Set();
+  const currencies = new Set(['USD']); // 해외주식 원화 환산·환율 효과 계산에 항상 필요
   for (const s of stocks) {
     const t = String(s.ticker || '').trim().toUpperCase();
     if (!t || out[t]) continue;

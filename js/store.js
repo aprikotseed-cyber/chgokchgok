@@ -118,13 +118,16 @@ function sampleData() {
       { id: 's3', name: '교직원 연금저축', kind: '연금', balance: 12_000_000, monthly: 300_000, rate: 4 },
     ],
     stocks: [
-      { id: 't1', name: '삼성전자', ticker: '005930', qty: 120, avgPrice: 68_000 },
-      { id: 't2', name: 'S&P500 ETF', ticker: 'VOO', qty: 15, avgPrice: 650_000 },
+      { id: 't1', name: '삼성전자', ticker: '005930', market: 'kr', qty: 40, avgPrice: 68_000, avgCur: 'KRW' },
+      { id: 't2', name: 'Vanguard S&P 500', ticker: 'VOO', market: 'us', qty: 15, avgPrice: 471.2, avgCur: 'USD', costKrw: 9_520_000 },
+      { id: 't3', name: 'Invesco QQQ', ticker: 'QQQ', market: 'us', qty: 8, avgPrice: 452.8, avgCur: 'USD', costKrw: 4_890_000 },
+      { id: 't4', name: 'Apple', ticker: 'AAPL', market: 'us', qty: 12, avgPrice: 198.5, avgCur: 'USD', costKrw: 3_310_000 },
+      { id: 't5', name: 'TIGER 미국S&P500', ticker: '360750', market: 'pension', qty: 210, avgPrice: 17_850, avgCur: 'KRW' },
     ],
     stockPlan: { monthly: 500_000 },
     homes: [{ id: 'h1', name: '우리 집', lawdCd: '41135', aptName: '예시마을', area: 84, share: 100, useAuto: true, manualPrice: 950_000_000 }],
     debts: [
-      { id: 'd1', name: '아낌e보금자리론', kind: '주택담보대출', original: 400_000_000, balance: 352_000_000, rate: 3.9, payDay: 25, method: 'graduated', payment: 1_250_000, paymentAsOf: new Date().toISOString().slice(0, 7), maturity: '2054-03', graceEnd: '' },
+      { id: 'd1', name: '아낌e보금자리론', kind: '주택담보대출', rate: 3.9, method: 'graduated', schedule: sampleSchedule(), original: 400_000_000, balance: 0, maturity: '' },
       { id: 'd2', name: '신용대출', kind: '신용대출', original: 30_000_000, balance: 18_000_000, rate: 5.2, payDay: 14, method: 'equal', maturity: '2029-06', graceEnd: '' },
     ],
     settings: { horizon: 20 },
@@ -153,7 +156,10 @@ function sampleMarket() {
   return {
     updatedAt: new Date().toISOString(),
     fx: { USD: 1395 },
-    stocks: { '005930': { price: 71_200, currency: 'KRW', name: 'Samsung Electronics' }, VOO: { price: 552.3, currency: 'USD', name: 'Vanguard S&P 500 ETF' } },
+    stocks: {
+      '005930': { price: 71_200, currency: 'KRW' }, '360750': { price: 21_340, currency: 'KRW' },
+      VOO: { price: 552.3, currency: 'USD' }, QQQ: { price: 498.1, currency: 'USD' }, AAPL: { price: 226.4, currency: 'USD' },
+    },
     homes: {
       h1: {
         estimate: 1_085_000_000, basis: '최근 6개월 실거래 3건 평균', monthly,
@@ -182,4 +188,22 @@ function sampleRecords() {
     if (i === 3) out.push({ id: `rx${n++}`, type: 'repayment', targetId: 'd2', date: `${ym}-15`, amount: 5_000_000, interest: 0, kind: '중도 상환', memo: '신용대출 일부 상환', applied: false });
   }
   return out;
+}
+
+/** 체험용 상환스케줄: 체증식(매달 같은 금액씩 증가), 매달 17일 출금 */
+function sampleSchedule() {
+  const rows = [];
+  let bal = 400_000_000;
+  const i = 0.039 / 12;
+  let pay = 1_302_000;
+  for (let n = 1; n <= 360 && bal > 0; n++) {
+    const d = new Date(2024, 2 + n, 17);
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-17`;
+    const interest = Math.round(bal * i);
+    const principal = n === 360 ? bal : Math.min(bal, pay - interest);
+    bal -= principal;
+    rows.push({ n, due: date, date, payment: principal + interest, principal, interest, balance: bal });
+    pay += 1_830;
+  }
+  return rows;
 }

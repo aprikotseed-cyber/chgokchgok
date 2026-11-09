@@ -1,6 +1,7 @@
 // 매달 정해진 날짜에 나가는 돈(대출 상환, 고정지출)의 일정과 알림.
 // 화면과 GitHub Actions 알림 스크립트가 함께 씁니다. 날짜는 시각 없이 '그날'로만 다룹니다.
-import { currentPayment } from './projection.js';
+import { currentPayment, loanBalance } from './projection.js?v=20261109e';
+import { nextScheduled, ymd } from './schedule.js?v=20261109e';
 
 const DAY = 86_400_000;
 
@@ -31,13 +32,20 @@ export function daysBetween(from, to) {
 /** 앞으로 days일 안에 나갈 돈 (대출 상환 + 고정지출), 날짜순 */
 export function upcoming(data, from, days = 31) {
   const out = [];
-  const add = (type, item, amount) => {
-    const date = nextDue(type === 'loan' ? item.payDay : item.day, from);
+  const add = (type, item, amount, fixedDate) => {
+    const date = fixedDate || nextDue(type === 'loan' ? item.payDay : item.day, from);
     if (!date) return;
     const dday = daysBetween(from, date);
     if (dday <= days) out.push({ type, id: item.id, name: item.name, amount, date, dday });
   };
-  for (const l of data.debts || []) if ((Number(l.balance) || 0) > 0) add('loan', l, currentPayment(l, dateOnly(from)));
+  for (const l of data.debts || []) {
+    if (loanBalance(l, from) <= 0 && !l.schedule?.length) continue;
+    if (l.schedule?.length) {
+      // 상환스케줄이 있으면 실제 출금일(영업일)과 그 회차 금액을 그대로 써요
+      const r = nextScheduled(l.schedule, ymd(dateOnly(from)));
+      if (r) { const [y, m, d] = r.date.split('-').map(Number); add('loan', l, r.payment, new Date(y, m - 1, d)); }
+    } else add('loan', l, currentPayment(l, dateOnly(from)));
+  }
   for (const f of data.fixed || []) if (f.active !== false) add('fixed', f, Number(f.amount) || 0);
   // 같은 날이면 대출 상환을 먼저
   return out.sort((a, b) => a.dday - b.dday || (a.type === b.type ? 0 : a.type === 'loan' ? -1 : 1) || a.name.localeCompare(b.name));

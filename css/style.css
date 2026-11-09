@@ -345,3 +345,23 @@ dialog h2 { font-size: 19px; margin-bottom: 18px; }
   th:first-child { padding-left: 16px; }
   th:last-child, td:last-child { padding-right: 16px; }
 }
+
+/* ───── 주식 묶음·통화 전환 ───── */
+.gap { margin-top: 8px; }
+.segment small { margin-left: 5px; font-size: 12px; font-weight: 500; color: var(--text-muted); }
+.block > .segment { margin-bottom: 10px; }
+.unit.cm input { padding-right: 96px; }
+.cur { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--surface-1); }
+.cur button { width: 36px; height: 30px; border: 0; border-radius: 6px; background: none; font-size: 15px; font-weight: 700; color: var(--text-muted); cursor: pointer; }
+.cur button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.stat-num.up { color: var(--up); }
+.stat-num.down { color: var(--down); }
+
+/* ───── 상환스케줄 ───── */
+.schedule-box small { display: block; line-height: 1.5; }
+.schedule-info { padding: 12px 14px; border-radius: 10px; background: var(--surface-2); }
+.schedule-info b { display: block; font-size: 14px; }
+.btn.file { align-self: flex-start; margin-top: 4px; }
+#schedule-clear { align-self: flex-start; }
+.loan + .loan { border-top: 1px solid var(--border); }
+.loan > details { border-top: 1px solid var(--border); }

@@ -1,9 +1,10 @@
-import { connect, isDemo } from './store.js?v=20261109d';
-import { project, currentTotals, currentPayment, stockValue, homeValue, milestones, normTicker, loanThisMonth, graduatedInfo } from './projection.js?v=20261109d';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today } from './records.js?v=20261109d';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109d';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109d';
-import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109d';
+import { connect, isDemo } from './store.js?v=20261109e';
+import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109e';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109e';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109e';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109e';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109e';
+import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109e';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -19,6 +20,8 @@ const state = {
   day: today(),          // 날짜가 바뀌면 화면을 다시 그리기 위해 기억
   open: new Set(),       // 펼쳐 둔 <details> (실시간 갱신 때도 유지)
   push: { loaded: false, supported: false, devices: [] },
+  stockTab: null,        // 주식 묶음: kr / us / pension
+  marketRaw: {},
 };
 let store;
 
@@ -49,12 +52,18 @@ const FORMS = {
   stocks: {
     title: '주식 종목',
     fields: [
-      { key: 'name', label: '종목 이름', type: 'text', placeholder: '삼성전자', required: true },
-      { key: 'ticker', label: '종목코드', type: 'text', placeholder: '005930 또는 AAPL', hint: '국내는 6자리 코드, 해외는 티커. 매일 아침 시세를 가져와요' },
+      { key: 'market', label: '구분', type: 'select', options: [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']] },
+      { key: 'name', label: '종목 이름', type: 'text', placeholder: 'S&P500 ETF', required: true },
+      { key: 'ticker', label: '종목코드', type: 'text', placeholder: '005930 또는 VOO', hint: '국내는 6자리 코드, 해외는 티커. 매일 아침 시세를 가져와요' },
       { key: 'qty', label: '보유 수량', type: 'number', unit: '주' },
-      { key: 'avgPrice', label: '평균 매수가', type: 'won', hint: '수익률 계산용 (해외 주식도 원화로)' },
-      { key: 'manualPrice', label: '수동 현재가', type: 'won', hint: '자동 시세가 없을 때만 사용해요' },
+      { key: 'avgPrice', label: '평균 매수가', type: 'cmoney', curKey: 'avgCur' },
+      { key: 'costKrw', label: '원화 매입금액 (총액)', type: 'won', showIf: { market: 'us' }, hint: '증권사 앱의 원화 매입금액. 평균 매수가($)와 비교해 매입 환율과 환율 효과를 계산해요' },
+      { key: 'manualPrice', label: '수동 현재가', type: 'cmoney', curKey: 'manualCur', hint: '자동 시세가 없을 때만 써요' },
     ],
+  },
+  fx: {
+    title: '달러 환율',
+    fields: [{ key: 'usdKrw', label: '1달러', type: 'won', hint: '자동 환율을 아직 못 받았을 때만 써요. 매일 아침 자동 환율이 들어오면 그걸 우선해요' }],
   },
   stockPlan: {
     title: '주식 투자 계획',
@@ -77,14 +86,15 @@ const FORMS = {
     fields: [
       { key: 'name', label: '이름', type: 'text', placeholder: '아낌e보금자리론', required: true },
       { key: 'kind', label: '종류', type: 'select', options: ['주택담보대출', '신용대출', '교직원공제회', '기타'] },
-      { key: 'original', label: '처음 빌린 금액', type: 'money', hint: '상환 진행률 표시용 (선택)' },
-      { key: 'balance', label: '현재 남은 원금', type: 'money' },
+      { key: 'schedule', label: '상환스케줄', type: 'schedule' },
+      { key: 'original', label: '처음 빌린 금액', type: 'won', noSchedule: true, hint: '상환 진행률 표시용 (선택)' },
+      { key: 'balance', label: '현재 남은 원금', type: 'won', noSchedule: true },
       { key: 'rate', label: '연 금리', type: 'pct' },
-      { key: 'method', label: '상환 방식', type: 'select', options: [['annuity', '원리금균등'], ['equal', '원금균등'], ['graduated', '체증식'], ['bullet', '만기일시']] },
-      { key: 'payment', label: '이번 달 원리금', type: 'money', showIf: { method: 'graduated' }, hint: '은행 앱·상환 스케줄표의 이번 달 납입액. 이걸로 매달 늘어나는 금액을 계산해요' },
-      { key: 'payDay', label: '매달 상환일', type: 'day', hint: '상환일 5·3·1일 전에 알려드려요' },
-      { key: 'maturity', label: '만기', type: 'month' },
-      { key: 'graceEnd', label: '거치기간 끝 (선택)', type: 'month', hint: '이때까지는 이자만 내요' },
+      { key: 'method', label: '상환 방식', type: 'select', options: [['annuity', '원리금균등'], ['equal', '원금균등'], ['graduated', '체증식'], ['bullet', '만기일시']], noSchedule: true },
+      { key: 'payment', label: '이번 달 원리금', type: 'won', showIf: { method: 'graduated' }, noSchedule: true, hint: '은행 앱·상환 스케줄표의 이번 달 납입액. 이걸로 매달 늘어나는 금액을 계산해요' },
+      { key: 'payDay', label: '매달 상환일', type: 'day', noSchedule: true, hint: '상환일 5·3·1일 전에 알려드려요' },
+      { key: 'maturity', label: '만기', type: 'month', noSchedule: true },
+      { key: 'graceEnd', label: '거치기간 끝 (선택)', type: 'month', noSchedule: true, hint: '이때까지는 이자만 내요' },
     ],
   },
   fixed: {
@@ -112,7 +122,7 @@ const FORMS = {
   repayment: {
     title: '상환 기록',
     fields: [
-      { key: 'targetId', label: '대출', type: 'ref', source: 'debts' },
+      { key: 'targetId', label: '대출', type: 'ref', source: 'debts', filter: (l) => !l.schedule?.length },
       { key: 'date', label: '날짜', type: 'date', hint: '오늘 날짜가 들어가 있어요. 빠뜨린 예전 기록은 날짜만 바꾸면 돼요' },
       { key: 'amount', label: '갚은 원금', type: 'money', hint: '이번 달 예상 원금이에요. 은행 내역대로 고치면 돼요' },
       { key: 'interest', label: '함께 낸 이자', type: 'money' },
@@ -138,8 +148,16 @@ function recordDefaults(type, targetId) {
 }
 
 // ───────────────────────── 저장 ─────────────────────────
+/** 자동 환율이 없으면 직접 넣은 환율을 써요 */
+function refreshMarket() {
+  const raw = state.marketRaw || {};
+  const usd = raw.fx?.USD || Number(state.data.settings?.usdKrw) || 0;
+  state.market = { ...raw, fx: { ...(raw.fx || {}), USD: usd }, fxAuto: !!raw.fx?.USD };
+}
+
 let saveTimer;
 function commit() {
+  refreshMarket();
   render();
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => store.save(JSON.parse(JSON.stringify(state.data))).catch((e) => toast(`저장하지 못했어요: ${e.message}`)), 300);
@@ -200,7 +218,7 @@ function viewHome() {
   if (ms.nextNet?.year) mText.push(`총자산 ${won(ms.nextNet.target)} 돌파 ${ms.nextNet.year}년`);
 
   const soon = upcoming(d, now(), 14);
-  const noPayDay = (d.debts || []).some((l) => l.balance > 0 && !l.payDay);
+  const noPayDay = (d.debts || []).some((l) => !l.schedule?.length && loanBalance(l) > 0 && !l.payDay);
 
   return `
   ${isEmpty ? `<p class="notice">아직 입력된 자산이 없어요. <a href="#assets">자산</a>과 <a href="#debts">부채</a>에서 하나씩 추가해 보세요.</p>` : ''}
@@ -263,19 +281,7 @@ function viewAssets() {
     value: won(s.balance),
   })).join('');
 
-  const stk = (d.stocks || []).map((s) => {
-    const q = m.stocks?.[normTicker(s.ticker)];
-    const v = stockValue(s, m);
-    const cost = (Number(s.avgPrice) || 0) * (Number(s.qty) || 0);
-    const ret = cost ? ((v - cost) / cost) * 100 : null;
-    const price = q?.price ? (q.currency === 'KRW' ? wonExact(q.price) : `${q.price.toLocaleString()} ${q.currency}`) : s.manualPrice ? `${wonExact(s.manualPrice)} (수동)` : '시세 대기';
-    return row({
-      kind: 'stocks', id: s.id, title: esc(s.name),
-      meta: `${esc(s.ticker || '')} · ${Number(s.qty || 0).toLocaleString()}주 · ${price}${q?.error ? ` · <span class="warn">${esc(q.error)}</span>` : ''}`,
-      value: won(v),
-      sub: ret != null ? `<span class="${ret >= 0 ? 'up' : 'down'}">${ret >= 0 ? '+' : ''}${pct(ret)}</span>` : '',
-    });
-  }).join('');
+  const stk = stockSection(d, m);
 
   const homes = (d.homes || []).map((h) => {
     const mh = m.homes?.[h.id];
@@ -297,20 +303,110 @@ function viewAssets() {
   const plan = d.stockPlan || {};
   return `
   ${section('저축·현금', `<div class="panel list">${sav || empty('예금, 적금, 연금, 보증금 등을 추가해 보세요.')}</div>`, { sum: won(t.savings), action: addBtn('savings') })}
-  ${section('주식', `<div class="panel list">
-      ${row({ kind: 'stockPlan', id: 'plan', action: 'plan', title: '매달 추가 투자', value: won(plan.monthly || 0), cls: 'muted-row' })}
-      ${stk || empty('종목코드와 수량만 넣으면 매일 아침 시세가 반영돼요.')}
-    </div>`, { sum: won(t.stocks), action: addBtn('stocks', '종목') })}
+  ${section('주식', `${stk}
+    <div class="panel list gap">${row({ kind: 'stockPlan', id: 'plan', action: 'plan', title: '매달 추가 투자', value: won(plan.monthly || 0), cls: 'muted-row' })}</div>`,
+    { sum: won(t.stocks), action: addBtn('stocks', '종목') })}
   ${section('아파트', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
   ${m.updatedAt ? `<p class="hint center">시세 업데이트 ${dateTime(m.updatedAt)}</p>` : ''}`;
 }
 
+const MARKETS = [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']];
+const usd = (n, digits = 2) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+const signed = (n, f = won) => `${n >= 0 ? '+' : '−'}${f(Math.abs(n))}`;
+const tone = (n) => (n >= 0 ? 'up' : 'down');
+
+/** 주식: 국내 / 해외 / 연금저축 묶음으로 나눠 보여주기 */
+function stockSection(d, m) {
+  const all = d.stocks || [];
+  const groups = Object.fromEntries(MARKETS.map(([k]) => [k, all.filter((s) => stockMarket(s) === k)]));
+  if (!state.stockTab) state.stockTab = MARKETS.find(([k]) => groups[k].length)?.[0] || 'us';
+  const tab = state.stockTab;
+  const list = groups[tab];
+  const rowsData = list.map((s) => ({ s, x: stockDetail(s, m) }));
+  const sumKrw = rowsData.reduce((a, { x }) => a + x.valueKrw, 0);
+
+  const seg = `<div class="segment" role="tablist" aria-label="주식 구분">${MARKETS.map(([k, label]) => `<button role="tab" aria-selected="${k === tab}" data-action="stock-tab" data-key="${k}">${label}<small>${groups[k].length}</small></button>`).join('')}</div>`;
+
+  let summary;
+  if (tab === 'us') {
+    const withCost = rowsData.filter(({ x }) => x.costKrw);
+    const valUsd = rowsData.reduce((a, { x }) => a + (x.cur === 'USD' ? x.value : 0), 0);
+    const profit = withCost.reduce((a, { x }) => a + x.profitKrw, 0);
+    const cost = withCost.reduce((a, { x }) => a + x.costKrw, 0);
+    const fxEff = rowsData.reduce((a, { x }) => a + (x.fxEffect || 0), 0);
+    summary = `<section class="panel stats gap">
+      <div class="stat"><span class="eyebrow">평가금액</span><span class="stat-num">${won(sumKrw)}</span><span class="stat-sub">${usd(valUsd)}</span></div>
+      <div class="stat"><span class="eyebrow">원화 수익</span><span class="stat-num ${cost ? tone(profit) : ''}">${cost ? signed(profit) : '-'}</span><span class="stat-sub">${cost ? `${pct((profit / cost) * 100)} · 환율 효과 ${signed(fxEff)}` : '원화 매입금액을 넣으면 보여요'}</span></div>
+    </section>`;
+  } else {
+    const cost = rowsData.reduce((a, { x }) => a + (x.costKrw || 0), 0);
+    const profit = rowsData.reduce((a, { x }) => a + (x.costKrw ? x.profitKrw : 0), 0);
+    summary = `<section class="panel stats gap">
+      <div class="stat"><span class="eyebrow">평가금액</span><span class="stat-num">${won(sumKrw)}</span></div>
+      <div class="stat"><span class="eyebrow">수익</span><span class="stat-num ${cost ? tone(profit) : ''}">${cost ? signed(profit) : '-'}</span>${cost ? `<span class="stat-sub">${pct((profit / cost) * 100)}</span>` : ''}</div>
+    </section>`;
+  }
+
+  const rows = rowsData.map(({ s, x }) => {
+    const q = m.stocks?.[normTicker(s.ticker)];
+    const price = x.cur === 'USD' ? usd(x.price) : wonExact(x.price);
+    const meta = [esc(s.ticker || ''), `${Number(s.qty || 0).toLocaleString()}주`, `현재가 ${price}${q?.price ? '' : ' (수동)'}`, x.buyFx ? `매입 환율 ${wonExact(x.buyFx)}` : '', q?.error ? `<span class="warn">${esc(q.error)}</span>` : ''].filter(Boolean).join(' · ');
+    let sub = '';
+    if (x.cur === 'USD') {
+      const parts = [];
+      if (x.ret != null) parts.push(`<span class="${tone(x.ret)}">$ ${x.ret >= 0 ? '+' : ''}${pct(x.ret)}</span>`);
+      if (x.retKrw != null) parts.push(`<span class="${tone(x.retKrw)}">₩ ${x.retKrw >= 0 ? '+' : ''}${pct(x.retKrw)}</span>`);
+      sub = parts.join(' ');
+    } else if (x.retKrw != null) sub = `<span class="${tone(x.retKrw)}">${x.retKrw >= 0 ? '+' : ''}${pct(x.retKrw)}</span>`;
+    const fxNote = x.fxEffect != null ? `<span class="row-meta">주가 ${signed(x.priceEffect)} · 환율 ${signed(x.fxEffect)}</span>` : '';
+    return `<button class="row" data-action="edit" data-kind="stocks" data-id="${esc(s.id)}">
+      <span class="row-main"><span class="row-title">${esc(s.name)}</span><span class="row-meta">${meta}</span>${fxNote}</span>
+      <span class="row-side"><span class="row-value">${won(x.valueKrw)}</span>${sub ? `<span class="row-meta">${sub}</span>` : ''}</span>
+    </button>`;
+  }).join('');
+
+  const fxRow = tab === 'us' ? row({
+    kind: 'fx', id: 'usd', action: 'fx', cls: 'muted-row', title: '달러 환율',
+    value: m.fx?.USD ? wonExact(m.fx.USD) : '입력 필요', sub: m.fxAuto ? '매일 아침 자동' : '직접 입력',
+  }) : '';
+  const emptyText = { kr: '국내 주식 종목을 추가해 보세요.', us: '해외 주식은 평균 매수가를 달러로, 원화 매입금액을 함께 넣으면 환율 효과까지 계산해요.', pension: '연금저축 계좌에서 산 ETF·펀드를 추가해 보세요.' }[tab];
+  return `${seg}${list.length ? summary : ''}<div class="panel list gap">${fxRow}${rows || empty(emptyText)}</div>`;
+}
+
 // ───────────────────────── 부채 ─────────────────────────
+/** 상환스케줄을 불러온 대출: 잔액·다음 출금·남은 회차를 스케줄 그대로 */
+function scheduledLoanRow(l) {
+  const sch = l.schedule;
+  const t = today();
+  const bal = scheduleBalanceAt(sch, t);
+  const paid = paidRows(sch, t).length;
+  const next = nextScheduled(sch, t);
+  const orig = Number(l.original) || sch[0].balance + sch[0].principal;
+  const done = orig ? Math.min(100, Math.max(0, ((orig - bal) / orig) * 100)) : 0;
+  const toDate = (str) => { const [y, mo, dd] = str.split('-').map(Number); return new Date(y, mo - 1, dd); };
+  const ahead = sch.filter((r) => r.date >= t).slice(0, 12);
+  const last = sch.at(-1).date;
+  return `<div class="loan">
+    <button class="row stack" data-action="edit" data-kind="debts" data-id="${esc(l.id)}">
+      <span class="row-line"><span class="row-title">${esc(l.name)}</span><span class="row-value">${wonExact(bal)}</span></span>
+      <span class="row-meta">${[l.kind, '상환스케줄 적용', l.rate ? `연 ${pct(l.rate, 2)}` : '', `${sch.length}회 중 ${paid}회 납부`, `만기 ${last.slice(0, 4)}년 ${Number(last.slice(5, 7))}월`].filter(Boolean).join(' · ')}</span>
+      ${next ? `<span class="row-meta">다음 출금 ${mdw(toDate(next.date))} · ${wonExact(next.payment)} (원금 ${wonExact(next.principal)} · 이자 ${wonExact(next.interest)})</span>` : '<span class="row-meta">모두 갚았어요</span>'}
+      <span class="progress" role="progressbar" aria-valuenow="${done.toFixed(0)}" aria-valuemin="0" aria-valuemax="100" aria-label="상환 진행률"><span style="width:${done}%"></span></span>
+      <span class="row-meta">${won(orig)} 중 ${pct(done, 1)} 상환</span>
+    </button>
+    ${ahead.length ? details(`sch-${l.id}`, `앞으로 ${ahead.length}회차`, `<div class="table-scroll"><table>
+      <thead><tr><th>회차</th><th>출금일</th><th>원리금</th><th>원금</th><th>이자</th><th>남은 원금</th></tr></thead>
+      <tbody>${ahead.map((r) => `<tr><th>${r.n}</th><td>${r.date.slice(2).replaceAll('-', '.')}</td><td>${r.payment.toLocaleString()}</td><td>${r.principal.toLocaleString()}</td><td>${r.interest.toLocaleString()}</td><td>${r.balance.toLocaleString()}</td></tr>`).join('')}</tbody>
+    </table></div>`) : ''}
+  </div>`;
+}
+
 function viewDebts() {
   const d = state.data;
   const t = currentTotals(d, state.market);
   const pay = (d.debts || []).reduce((a, l) => a + currentPayment(l), 0);
   const list = (d.debts || []).map((l) => {
+    if (l.schedule?.length) return scheduledLoanRow(l);
     const orig = Number(l.original) || 0;
     const done = orig ? Math.min(100, Math.max(0, ((orig - l.balance) / orig) * 100)) : null;
     const g = l.method === 'graduated' ? graduatedInfo(l) : null;
@@ -324,7 +420,7 @@ function viewDebts() {
       l.method === 'graduated' ? (g ? `매달 약 ${Math.round(g.step).toLocaleString()}원씩 늘어 마지막 회차 약 ${won(g.last)}` : '<span class="warn">이번 달 원리금을 넣어야 체증식으로 계산해요</span>') : '',
     ].filter(Boolean).map((x) => `<span class="row-meta">${x}</span>`).join('');
     return `<button class="row stack" data-action="edit" data-kind="debts" data-id="${esc(l.id)}">
-      <span class="row-line"><span class="row-title">${esc(l.name)}</span><span class="row-value">${won(l.balance)}</span></span>
+      <span class="row-line"><span class="row-title">${esc(l.name)}</span><span class="row-value">${wonExact(l.balance)}</span></span>
       <span class="row-meta">${meta}</span>${lines}
       ${done != null ? `<span class="progress" role="progressbar" aria-valuenow="${done.toFixed(0)}" aria-valuemin="0" aria-valuemax="100" aria-label="상환 진행률"><span style="width:${done}%"></span></span><span class="row-meta">${won(orig)} 중 ${pct(done, 0)} 상환</span>` : ''}
     </button>`;
@@ -342,7 +438,7 @@ function viewFixed() {
   const d = state.data;
   const t0 = now();
   const s = fixedSummary(d.fixed, t0);
-  const loanPay = (d.debts || []).filter((l) => l.balance > 0).reduce((a, l) => a + currentPayment(l), 0);
+  const loanPay = (d.debts || []).filter((l) => loanBalance(l) > 0).reduce((a, l) => a + currentPayment(l), 0);
   const nextOne = upcoming({ fixed: d.fixed }, t0, 31)[0];
 
   // 이번 달 달력 순서: 고정지출 + 상환일이 있는 대출
@@ -351,7 +447,14 @@ function viewFixed() {
   const last = new Date(y, mo + 1, 0).getDate();
   const items = [
     ...(d.fixed || []).map((f) => ({ kind: 'fixed', id: f.id, name: f.name, day: Number(f.day) || 1, amount: Number(f.amount) || 0, meta: [f.category, f.account].filter(Boolean).join(' · '), off: f.active === false })),
-    ...(d.debts || []).filter((l) => l.payDay && l.balance > 0).map((l) => ({ kind: 'debts', id: l.id, name: l.name, day: Number(l.payDay), amount: currentPayment(l), meta: '대출 상환', loan: true })),
+    ...(d.debts || []).map((l) => {
+      if (l.schedule?.length) {
+        // 이번 달 스케줄 회차 (이미 나갔어도 보여줘요)
+        const r = l.schedule.find((x) => x.date.slice(0, 7) === `${y}-${String(mo + 1).padStart(2, '0')}`);
+        return r ? { kind: 'debts', id: l.id, name: l.name, day: Number(r.date.slice(8)), amount: r.payment, meta: `대출 상환 · ${r.n}회차`, loan: true } : null;
+      }
+      return l.payDay && loanBalance(l) > 0 ? { kind: 'debts', id: l.id, name: l.name, day: Number(l.payDay), amount: currentPayment(l), meta: '대출 상환', loan: true } : null;
+    }).filter(Boolean),
   ].map((x) => ({ ...x, eff: Math.min(x.day, last) })).sort((a, b) => a.eff - b.eff || (a.loan ? -1 : 1));
 
   const todayNum = t0.getDate();
@@ -361,7 +464,7 @@ function viewFixed() {
     return `<button class="row cal ${passed || x.off ? 'dim' : ''}" data-action="edit" data-kind="${x.kind}" data-id="${esc(x.id)}">
       <span class="cal-day">${x.eff}<small>일</small></span>
       <span class="row-main"><span class="row-title">${esc(x.name)}</span><span class="row-meta">${esc(x.meta)}${x.off ? ' · 멈춤' : ''}</span></span>
-      <span class="row-side"><span class="row-value">${x.loan ? won(x.amount) : wonExact(x.amount)}</span><span class="row-meta">${x.off ? '' : passed ? '출금됨' : left === 0 ? '오늘' : `D-${left}`}</span></span>
+      <span class="row-side"><span class="row-value">${wonExact(x.amount)}</span><span class="row-meta">${x.off ? '' : passed ? '출금됨' : left === 0 ? '오늘' : `D-${left}`}</span></span>
     </button>`;
   }).join('');
 
@@ -387,7 +490,7 @@ function viewFixed() {
 // ───────────────────────── 기록 ─────────────────────────
 function viewRecords() {
   const d = state.data;
-  const recs = d.records || [];
+  const recs = [...(d.records || []), ...scheduleRecords(d, today())];
   const nameOf = (r) => (d[r.type === 'saving' ? 'savings' : 'debts'] || []).find((x) => x.id === r.targetId)?.name || '(삭제된 항목)';
   const yearsAll = yearlySummary(recs);
   const years = [...new Set([String(now().getFullYear()), ...yearsAll.map((y) => y.year)])].sort().reverse();
@@ -430,9 +533,9 @@ function viewRecords() {
       return `<details class="panel month" data-key="${key}" ${isOpen ? 'open' : ''}>
         <summary><b>${Number(ym.slice(5))}월</b><span>저축 ${won(sumOf(rs, 'saving'))} · 상환 ${won(sumOf(rs, 'repayment'))}</span></summary>
         <div class="list">${rs.map((r) => row({
-          kind: 'record', id: r.id, action: 'edit-rec',
+          kind: r.auto ? 'debts' : 'record', id: r.auto ? r.targetId : r.id, action: r.auto ? 'edit' : 'edit-rec',
           title: `<span class="date">${Number(r.date.slice(8))}일</span>${esc(nameOf(r))}`,
-          meta: [r.kind, r.applied === false ? '잔액 미반영' : '', esc(r.memo || '')].filter(Boolean).join(' · '),
+          meta: [r.kind, r.auto ? '상환스케줄 자동' : '', r.applied === false ? '잔액 미반영' : '', esc(r.memo || '')].filter(Boolean).join(' · '),
           value: `${r.type === 'saving' ? '저축' : '상환'} ${won(r.amount)}`,
           sub: r.interest ? `이자 ${won(r.interest)}` : '',
         })).join('')}</div>
@@ -534,12 +637,19 @@ function openForm(kind, item) {
   const spec = FORMS[kind];
   editing = { kind, id: item?.id };
   let v = item || {};
+  editing.schedule = item?.schedule || null;
+  if (kind === 'stocks' && !item) {
+    const mk = state.stockTab || 'us';
+    v = { market: mk, avgCur: mk === 'us' ? 'USD' : 'KRW', manualCur: mk === 'us' ? 'USD' : 'KRW' };
+  }
+  if (kind === 'stocks' && item) v = { avgCur: 'KRW', manualCur: 'KRW', market: stockMarket(item), ...item };
+  if (kind === 'fx') v = { usdKrw: state.data.settings?.usdKrw || '' };
   if (isRecord(kind) && !item) {
-    const first = state.data[kind === 'saving' ? 'savings' : 'debts']?.[0];
-    if (!first) return toast(kind === 'saving' ? '먼저 자산에서 저축 계좌를 추가해 주세요.' : '먼저 부채에서 대출을 추가해 주세요.');
+    const first = (state.data[kind === 'saving' ? 'savings' : 'debts'] || []).filter((x) => !x.schedule?.length)[0];
+    if (!first) return toast(kind === 'saving' ? '먼저 자산에서 저축 계좌를 추가해 주세요.' : '직접 기록할 대출이 없어요. 상환스케줄을 불러온 대출은 자동으로 기록돼요.');
     v = { targetId: first.id, date: today(), ...recordDefaults(kind, first.id) };
   }
-  $('#editor-title').textContent = kind === 'stockPlan' ? spec.title : `${spec.title} ${item ? '수정' : '추가'}`;
+  $('#editor-title').textContent = kind === 'stockPlan' || kind === 'fx' ? spec.title : `${spec.title} ${item ? '수정' : '추가'}`;
   $('#editor-fields').innerHTML = spec.fields.map((f) => {
     const val = v[f.key] ?? f.def ?? '';
     const id = `f-${f.key}`;
@@ -553,12 +663,22 @@ function openForm(kind, item) {
       input = `<div class="unit"><input id="${id}" name="${f.key}" type="text" inputmode="decimal" value="${moneyText(val)}" data-money="man" placeholder="0"><span>만원</span></div><output class="preview"></output>`;
     } else if (f.type === 'won') {
       input = `<div class="unit"><input id="${id}" name="${f.key}" type="text" inputmode="numeric" value="${val === '' ? '' : Number(val).toLocaleString('ko-KR')}" data-money="won" placeholder="0"><span>원</span></div><output class="preview"></output>`;
+    } else if (f.type === 'cmoney') {
+      const cur = v[f.curKey] || 'KRW';
+      const txt = val === '' || val == null ? '' : Number(val).toLocaleString(cur === 'USD' ? 'en-US' : 'ko-KR', { maximumFractionDigits: cur === 'USD' ? 4 : 0 });
+      input = `<div class="unit cm"><input id="${id}" name="${f.key}" type="text" inputmode="decimal" value="${txt}" data-cmoney="${f.curKey}" placeholder="0">
+        <div class="cur" role="group" aria-label="통화">${[['USD', '$'], ['KRW', '₩']].map(([c, sym]) => `<button type="button" data-cur="${c}" data-for="${f.curKey}" aria-pressed="${c === cur}">${sym}</button>`).join('')}</div></div>
+        <input type="hidden" id="f-${f.curKey}" value="${cur}"><output class="preview"></output>`;
+    } else if (f.type === 'schedule') {
+      input = `<div class="schedule-box" id="${id}">${scheduleStatus(editing.schedule)}</div>
+        <label class="btn file">${editing.schedule ? '다른 파일로 바꾸기' : '상환스케줄 파일 불러오기'}<input type="file" id="schedule-file" accept=".xls,.xlsx,.html,.htm,.csv,.txt" hidden></label>
+        ${editing.schedule ? '<button type="button" class="link-btn" id="schedule-clear">스케줄 해제</button>' : ''}`;
     } else if (f.type === 'pct') {
       input = `<div class="unit"><input id="${id}" name="${f.key}" type="number" step="0.01" inputmode="decimal" value="${val}"><span>%</span></div>`;
     } else if (f.type === 'day') {
       input = `<select id="${id}" name="${f.key}"><option value="">선택 안 함</option>${Array.from({ length: 31 }, (_, i) => i + 1).map((n) => `<option value="${n}" ${Number(val) === n ? 'selected' : ''}>${n}일</option>`).join('')}</select>`;
     } else if (f.type === 'ref') {
-      input = `<select id="${id}" name="${f.key}" required>${(state.data[f.source] || []).map((o) => `<option value="${esc(o.id)}" ${o.id === val ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>`;
+      input = `<select id="${id}" name="${f.key}" required>${(state.data[f.source] || []).filter((o) => !f.filter || f.filter(o) || o.id === val).map((o) => `<option value="${esc(o.id)}" ${o.id === val ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>`;
     } else if (f.type === 'date') {
       input = `<input id="${id}" name="${f.key}" type="date" value="${esc(val)}" required>`;
     } else if (f.type === 'month') {
@@ -570,13 +690,13 @@ function openForm(kind, item) {
     } else {
       input = `<input id="${id}" name="${f.key}" type="text" value="${esc(val)}" placeholder="${esc(f.placeholder || '')}" ${f.required ? 'required' : ''}>`;
     }
-    const show = f.showIf ? ` data-show-key="${Object.keys(f.showIf)[0]}" data-show-val="${Object.values(f.showIf)[0]}"` : '';
+    const show = (f.showIf ? ` data-show-key="${Object.keys(f.showIf)[0]}" data-show-val="${Object.values(f.showIf)[0]}"` : '') + (f.noSchedule ? ' data-no-schedule' : '');
     return `<div class="field"${show}><label for="${id}">${f.label}</label>${input}${hint}</div>`;
   }).join('');
   $('#editor-delete').hidden = !item || kind === 'stockPlan';
   $('#editor').showModal();
   syncShowIf();
-  $('#editor-fields').querySelectorAll('[data-money]').forEach(previewMoney);
+  $('#editor-fields').querySelectorAll('[data-money], [data-cmoney]').forEach(previewMoney);
   if (matchMedia('(hover: hover)').matches) $('#editor-fields input')?.focus();
 }
 
@@ -584,6 +704,27 @@ function syncShowIf() {
   $('#editor-fields').querySelectorAll('[data-show-key]').forEach((el) => {
     el.hidden = $(`#f-${el.dataset.showKey}`)?.value !== el.dataset.showVal;
   });
+  if (editing?.schedule) $('#editor-fields').querySelectorAll('[data-no-schedule]').forEach((el) => (el.hidden = true));
+}
+
+function scheduleStatus(sch) {
+  if (!sch?.length) return '<small>은행·주택금융공사에서 받은 상환스케줄(엑셀) 파일을 불러오면 잔액, 매달 출금일과 금액, 상환 기록이 스케줄대로 자동으로 맞춰져요. 파일은 덕준님 계정에만 저장돼요.</small>';
+  const t = today();
+  const next = nextScheduled(sch, t);
+  return `<div class="schedule-info"><b>${sch.length}회차 스케줄 적용 중</b>
+    <small>${sch[0].date} ~ ${sch.at(-1).date} · 지금 남은 원금 ${wonExact(scheduleBalanceAt(sch, t))}${next ? ` · 다음 ${next.date} ${wonExact(next.payment)}` : ''}</small></div>`;
+}
+
+function rerenderScheduleField() {
+  const box = $('#f-schedule');
+  if (!box) return;
+  const field = box.closest('.field');
+  field.querySelector('.btn.file').firstChild.textContent = editing.schedule ? '다른 파일로 바꾸기' : '상환스케줄 파일 불러오기';
+  box.innerHTML = scheduleStatus(editing.schedule);
+  field.querySelector('#schedule-clear')?.remove();
+  if (editing.schedule) field.querySelector('.btn.file').insertAdjacentHTML('afterend', '<button type="button" class="link-btn" id="schedule-clear">스케줄 해제</button>');
+  $('#editor-fields').querySelectorAll('[data-no-schedule]').forEach((el) => (el.hidden = !!editing.schedule));
+  syncShowIf();
 }
 
 const parseNum = (s) => Number(String(s).replace(/[^\d.\-]/g, '')) || 0;
@@ -591,6 +732,13 @@ const readMoney = (el) => Math.round(parseNum(el.value) * (el.dataset.money === 
 
 function previewMoney(input) {
   const out = input.closest('.field').querySelector('.preview');
+  if (input.dataset.cmoney) {
+    const n = parseNum(input.value);
+    const cur = $(`#f-${input.dataset.cmoney}`).value;
+    const fx = state.market.fx?.USD;
+    out.textContent = !n ? '' : cur === 'USD' ? `${usd(n, 2)}${fx ? ` · 지금 환율로 약 ${wonExact(n * fx)}` : ''}` : wonExact(n);
+    return;
+  }
   const n = readMoney(input);
   out.textContent = n ? (input.dataset.money === 'won' ? wonExact(n) : won(n)) : '';
 }
@@ -601,6 +749,8 @@ function readForm() {
     const el = $(`#f-${f.key}`);
     if (f.type === 'check') out[f.key] = el.checked;
     else if (f.type === 'money' || f.type === 'won') out[f.key] = readMoney(el);
+    else if (f.type === 'cmoney') { out[f.key] = el.value === '' ? '' : parseNum(el.value); out[f.curKey] = $(`#f-${f.curKey}`).value; }
+    else if (f.type === 'schedule') out.schedule = editing.schedule || null;
     else if (f.type === 'pct' || f.type === 'number') out[f.key] = el.value === '' ? (f.def ?? 0) : Number(el.value);
     else if (f.type === 'day') out[f.key] = el.value ? Number(el.value) : '';
     else out[f.key] = el.value.trim();
@@ -612,6 +762,7 @@ function saveForm() {
   const vals = readForm();
   const d = state.data;
   if (editing.kind === 'stockPlan') d.stockPlan = vals;
+  else if (editing.kind === 'fx') d.settings = { ...(d.settings || {}), usdKrw: vals.usdKrw };
   else if (isRecord(editing.kind)) {
     upsertRecord(d, { id: editing.id || crypto.randomUUID().slice(0, 8), type: editing.kind, ...vals });
     state.recYear = vals.date.slice(0, 4);
@@ -622,6 +773,13 @@ function saveForm() {
     if (editing.kind === 'debts' && vals.method === 'graduated') {
       const prev = list[i];
       if (!prev || prev.payment !== vals.payment || prev.method !== 'graduated' || !prev.paymentAsOf) vals.paymentAsOf = today().slice(0, 7);
+    }
+    // 상환스케줄이 있으면 잔액·만기·처음 빌린 금액을 스케줄에서 채워요
+    if (editing.kind === 'debts' && vals.schedule?.length) {
+      const sch = vals.schedule;
+      vals.balance = scheduleBalanceAt(sch, today());
+      vals.maturity = sch.at(-1).date.slice(0, 7);
+      vals.original = sch[0].balance + sch[0].principal; // 스케줄이 기준
     }
     if (i >= 0) list[i] = { ...list[i], ...vals };
     else list.push({ id: crypto.randomUUID().slice(0, 8), ...vals });
@@ -702,6 +860,8 @@ function bind() {
     if (a === 'add') openForm(kind);
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
     if (a === 'plan') openForm('stockPlan', state.data.stockPlan || {});
+    if (a === 'fx') openForm('fx', {});
+    if (a === 'stock-tab') { state.stockTab = b.dataset.key; render(); }
     if (a === 'add-rec') openForm(b.dataset.type);
     if (a === 'edit-rec') { const r = state.data.records.find((x) => x.id === id); if (r) openForm(r.type, r); }
     if (a === 'year') { state.recYear = b.dataset.year; render(); }
@@ -776,7 +936,34 @@ function bind() {
   $('#editor-cancel').addEventListener('click', () => dlg.close());
   $('#editor-delete').addEventListener('click', () => deleteItem() && dlg.close());
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); }); // 바깥 누르면 닫기
+  $('#editor-fields').addEventListener('click', (e) => {
+    const c = e.target.closest('[data-cur]');
+    if (c) {
+      $(`#f-${c.dataset.for}`).value = c.dataset.cur;
+      c.parentElement.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === c)));
+      previewMoney(c.closest('.field').querySelector('[data-cmoney]'));
+    }
+    if (e.target.id === 'schedule-clear') { editing.schedule = null; rerenderScheduleField(); }
+  });
+  $('#editor-fields').addEventListener('change', async (e) => {
+    if (e.target.id !== 'schedule-file' || !e.target.files[0]) return;
+    try {
+      const { rows, total } = parseSchedule(await e.target.files[0].text());
+      editing.schedule = rows;
+      rerenderScheduleField();
+      toast(`${rows.length}회차를 읽었어요. 원금 합계 ${wonExact(total.principal)}`);
+    } catch (err) {
+      toast(`파일을 읽지 못했어요: ${err.message}`);
+    }
+    e.target.value = '';
+  });
   $('#editor-fields').addEventListener('input', (e) => {
+    // 새 종목에서 구분을 바꾸면 통화도 그에 맞게 (해외 → $)
+    if (e.target.name === 'market' && !editing.id) {
+      const cur = e.target.value === 'us' ? 'USD' : 'KRW';
+      $('#editor-fields').querySelectorAll('[data-cur]').forEach((x) => { if (x.dataset.cur === cur) x.click(); });
+    }
+    if (e.target.matches('[data-cmoney]')) previewMoney(e.target);
     if (e.target.matches('[data-money]')) previewMoney(e.target);
     if (e.target.name === 'targetId' && !editing.id) {
       const v = recordDefaults(editing.kind, e.target.value);
@@ -807,8 +994,8 @@ async function main() {
   bind();
   store = await connect({
     onAuth: (u) => { state.user = u; state.push.loaded = false; render(); },
-    onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; render(); recordSnapshot(); },
-    onMarket: (m) => { state.market = m || {}; render(); recordSnapshot(); },
+    onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); },
+    onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
   });
   $('#boot').hidden = true;

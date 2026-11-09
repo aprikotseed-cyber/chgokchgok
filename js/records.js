@@ -70,3 +70,15 @@ export function today() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+/** 상환스케줄이 있는 대출의 '이미 낸 회차'를 상환 기록처럼 보여주기 (저장하지 않는 자동 기록) */
+export function scheduleRecords(data, todayStr) {
+  const out = [];
+  for (const l of data.debts || []) {
+    for (const r of l.schedule || []) {
+      if (r.date > todayStr) break;
+      out.push({ id: `sch-${l.id}-${r.n}`, type: 'repayment', targetId: l.id, date: r.date, amount: r.principal, interest: r.interest, kind: `${r.n}회차`, auto: true });
+    }
+  }
+  return out;
+}
