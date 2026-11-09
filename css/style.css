@@ -232,14 +232,13 @@ a.stat:hover { background: var(--surface-2); }
 .stat-op { display: flex; align-items: center; color: var(--text-muted); font-size: 15px; padding: 0 2px; }
 .stat-op + .stat { border-left: 0; }
 @media (max-width: 600px) {
-  .stats:not(.three) { flex-direction: column; }
-  .stats:not(.three) .stat { display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: 12px; padding: 14px 18px; }
-  .stats:not(.three) .stat + .stat, .stats:not(.three) .stat-op + .stat { border-left: 0; border-top: 1px solid var(--border); }
-  .stats:not(.three) .stat-num { font-size: 17px; text-align: right; }
-  .stats:not(.three) .stat-sub { grid-column: 1 / -1; text-align: right; }
+  /* 휴대폰: 1원 단위 금액이 길어서 요약 칸은 모두 한 줄씩 */
+  .stats { flex-direction: column; }
+  .stats .stat { display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: 12px; padding: 14px 18px; }
+  .stats .stat + .stat, .stats .stat-op + .stat { border-left: 0; border-top: 1px solid var(--border); }
+  .stats .stat-num { font-size: 17px; text-align: right; }
+  .stats .stat-sub { grid-column: 1 / -1; text-align: right; }
   .stat-op { display: none; }
-  .stats.three .stat { padding: 14px 12px; }
-  .stats.three .stat-num { font-size: 15px; }
 }
 
 .block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 4px 10px; }

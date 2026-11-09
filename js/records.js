@@ -1,16 +1,17 @@
 // 저축·상환 기록. 기록을 추가/수정/삭제하면 연결된 계좌·대출 잔액도 함께 맞춰 줍니다.
-// record: { id, type: 'saving'|'repayment', targetId, date: 'YYYY-MM-DD', amount, interest, kind, memo, applied }
+// record: { id, type: 'saving'|'withdraw'|'repayment', targetId, date: 'YYYY-MM-DD', amount, interest, kind, memo, applied }
 //  - saving:    amount = 저축한 금액 → 저축 잔액 +amount
+//  - withdraw:  amount = 뺀 금액(출금·해지) → 저축 잔액 -amount
 //  - repayment: amount = 갚은 원금 → 대출 잔액 -amount, interest = 함께 낸 이자(잔액엔 영향 없음)
 
-const listOf = (type) => (type === 'saving' ? 'savings' : 'debts');
+const listOf = (type) => (type === 'repayment' ? 'debts' : 'savings');
 
 /** 기록 하나를 잔액에 반영(sign=1) 또는 되돌리기(sign=-1) */
 function applyOne(data, r, sign) {
   if (!r?.applied) return;
   const target = (data[listOf(r.type)] || []).find((x) => x.id === r.targetId);
   if (!target) return;
-  const delta = (Number(r.amount) || 0) * sign * (r.type === 'saving' ? 1 : -1);
+  const delta = (Number(r.amount) || 0) * sign * (r.type === 'saving' ? 1 : -1); // 출금·상환은 잔액을 줄여요
   target.balance = Math.round((Number(target.balance) || 0) + delta);
 }
 
@@ -32,9 +33,10 @@ export function deleteRecord(data, id) {
   data.records = data.records.filter((x) => x.id !== id);
 }
 
-const blank = () => ({ saving: 0, principal: 0, interest: 0, count: 0 });
+const blank = () => ({ saving: 0, withdraw: 0, principal: 0, interest: 0, count: 0 });
 function add(acc, r) {
   if (r.type === 'saving') acc.saving += Number(r.amount) || 0;
+  else if (r.type === 'withdraw') { acc.saving -= Number(r.amount) || 0; acc.withdraw += Number(r.amount) || 0; } // 저축은 '넣은 돈 − 뺀 돈'
   else {
     acc.principal += Number(r.amount) || 0;
     acc.interest += Number(r.interest) || 0;
@@ -61,7 +63,8 @@ export function byTarget(records, year) {
   const by = {};
   for (const r of records || []) {
     if (!r.date.startsWith(`${year}-`)) continue;
-    add((by[`${r.type}:${r.targetId}`] ||= { type: r.type, targetId: r.targetId, ...blank() }), r);
+    const type = r.type === 'repayment' ? 'repayment' : 'saving'; // 입금·출금은 같은 계좌로 묶어요
+    add((by[`${type}:${r.targetId}`] ||= { type, targetId: r.targetId, ...blank() }), r);
   }
   return Object.values(by);
 }
