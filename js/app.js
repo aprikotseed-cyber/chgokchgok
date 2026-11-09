@@ -1,14 +1,14 @@
-import { connect, isDemo } from './store.js?v=20261109o';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109o';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109o';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109o';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109o';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109o';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109o';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109o';
-import { ask, SUGGEST } from './assistant.js?v=20261109o';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109o';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109o';
+import { connect, isDemo } from './store.js?v=20261109r';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109r';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109r';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109r';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109r';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109r';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109r';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109r';
+import { ask, SUGGEST } from './assistant.js?v=20261109r';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109r';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109r';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -214,11 +214,12 @@ const $ = (s, el = document) => el.querySelector(s);
 const now = () => new Date();
 
 /** 한 줄 항목: 왼쪽 이름·설명, 오른쪽 금액 */
-function row({ kind, id, title, meta = '', value = '', sub = '', cls = '', action = 'edit' }) {
-  return `<button class="row ${cls}" data-action="${action}" data-kind="${kind}" data-id="${esc(id)}">
-    <span class="row-main"><span class="row-title">${title}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</span>
-    <span class="row-side"><span class="row-value">${value}</span>${sub ? `<span class="row-meta">${sub}</span>` : ''}</span>
-  </button>`;
+function row({ kind, id, title, meta = '', value = '', sub = '', cls = '', action = 'edit', readOnly = false }) {
+  const inner = `<span class="row-main"><span class="row-title">${title}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</span>
+    <span class="row-side"><span class="row-value">${value}</span>${sub ? `<span class="row-meta">${sub}</span>` : ''}</span>`;
+  // 읽기 전용 줄은 눌러도 아무 일도 없어요 (홈 화면 등)
+  if (readOnly) return `<div class="row static ${cls}">${inner}</div>`;
+  return `<button class="row ${cls}" data-action="${action}" data-kind="${kind}" data-id="${esc(id)}">${inner}</button>`;
 }
 
 function section(title, body, { sum = '', action = '' } = {}) {
@@ -271,7 +272,8 @@ function viewHome() {
   </div>
 
   <div class="cols"><div class="col-side">
-  ${section('다가오는 2주', `<div class="panel list">${soon.length ? soon.map(scheduleRow).join('') : empty('2주 안에 나갈 대출 상환이나 고정지출이 없어요.')}</div>
+  ${section('고정지출·상환 일정', `<div class="panel list">${soon.length ? soon.map(scheduleRow).join('') : empty('2주 안에 나갈 대출 상환이나 고정지출이 없어요.')}</div>
+    <p class="hint">앞으로 2주 일정이에요. 수정은 부채·고정지출 탭에서 할 수 있어요.</p>
     ${noPayDay ? '<p class="hint">상환일이 없는 대출이 있어요. 부채에서 매달 상환일을 넣으면 일정과 알림에 나와요.</p>' : ''}`,
     { action: '<a class="link-btn" href="#fixed">고정지출 전체</a>' })}
 
@@ -315,6 +317,7 @@ function scheduleRow(u) {
     title: `<span class="badge ${hot ? 'hot' : ''}">${dday(u.dday)}</span>${esc(u.name)}`,
     meta: [mdw(u.date), u.type === 'loan' ? '대출 상환' : '고정지출', esc(u.account || '')].filter(Boolean).join(' · '),
     value: u.type === 'loan' ? won(u.amount) : wonExact(u.amount),
+    readOnly: true, // 홈은 보기만, 수정은 부채·고정지출 탭에서
   });
 }
 
@@ -384,7 +387,7 @@ function viewAssets() {
   </div><div class="col-side">
   ${section('주택', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
   </div></div>
-  ${m.updatedAt || m.quotesAt ? `<p class="hint center">주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트</p>` : ''}`;
+  ${m.updatedAt || m.quotesAt ? `<p class="hint update-time">주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트</p>` : ''}`;
 }
 
 const MARKETS = [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']];
@@ -741,7 +744,7 @@ function viewSettings() {
   return `
   <div class="cols"><div class="col-main">
   ${section('비서 알림', `<div class="panel">
-      <p class="pad">매일 오전 8시에 확인해서 <b>대출 상환일 5·3·1일 전</b>, <b>고정지출 출금 하루 전</b>에 휴대폰으로 알려드려요. 앱을 열면 대시보드의 '다가오는 2주'에서도 볼 수 있어요.</p>
+      <p class="pad">매일 오전 8시에 확인해서 <b>대출 상환일 5·3·1일 전</b>, <b>고정지출 출금 하루 전</b>에 휴대폰으로 알려드려요. 앱을 열면 홈의 '고정지출·상환 일정'에서도 볼 수 있어요.</p>
       ${pushBody}
     </div>`)}
   ${section('비서 개선 목록', `<div class="panel list">${(state.data.assistantMisses || []).length

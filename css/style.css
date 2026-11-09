@@ -498,3 +498,12 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .alert-head .icon-btn { width: 30px; height: 30px; border: 0; background: none; cursor: pointer; }
 .alert-card p { margin: 6px 0 4px; font-size: 14px; color: var(--text-secondary); }
 .alert-card .link-btn { font-size: 13px; }
+
+/* 시세 업데이트 시각: 왼쪽 정렬 */
+.hint.update-time { text-align: left; padding: 12px 4px 0; }
+
+/* 종목·계좌 줄과 그 아래 매수·매도(입금·출금) 버튼 칸을 한 덩어리로: 마우스를 올리면 함께 색이 바뀌어요 */
+.stock > .row:hover { background: none; }
+.stock:has(> .row:hover) > .row, .stock:has(> .row:hover) > .trade-bar,
+.stock:has(> .trade-bar:hover) > .row, .stock:has(> .trade-bar:hover) > .trade-bar { background: var(--surface-2); }
+.stock > .trade-bar .pill { background: var(--surface-1); }
