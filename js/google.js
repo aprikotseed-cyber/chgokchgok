@@ -35,6 +35,17 @@ function cachedToken() {
   } catch { return null; }
 }
 
+/** 읽기용 목록 주소들. all(url, interactive)은 여러 쪽을 모두 받아 items를 돌려줘요 (앱·GitHub 자동 동기화 공통) */
+export function listApi(all) {
+  return {
+    calendars: (i = true) => all(`${CAL}/users/me/calendarList?minAccessRole=reader`, i),
+    events: (calId, timeMin, timeMax, i = true) => all(`${CAL}/calendars/${encodeURIComponent(calId)}/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`, i),
+    taskLists: (i = true) => all(`${TASKS}/users/@me/lists?maxResults=100`, i),
+    // 완료한 일도 함께 받아요 (오래된 완료 항목은 걸러요)
+    tasks: (listId, i = true) => all(`${TASKS}/lists/${encodeURIComponent(listId)}/tasks?showCompleted=true&showHidden=true&maxResults=100`, i),
+  };
+}
+
 /** 구글 연결 도우미. clientId는 구글 클라우드 콘솔에서 만든 'OAuth 클라이언트 ID'(공개값) */
 export function createGoogle(clientId) {
   let client = null;
@@ -101,11 +112,20 @@ export function createGoogle(clientId) {
       localStorage.removeItem('chgok-gconsented');
       if (t && window.google?.accounts?.oauth2) window.google.accounts.oauth2.revoke(t, () => {});
     },
-    calendars: (i = true) => all(`${CAL}/users/me/calendarList?minAccessRole=reader`, i),
-    events: (calId, timeMin, timeMax, i = true) => all(`${CAL}/calendars/${encodeURIComponent(calId)}/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`, i),
-    taskLists: (i = true) => all(`${TASKS}/users/@me/lists?maxResults=100`, i),
-    // 완료한 일도 함께 받아요 (오래된 완료 항목은 앱에서 걸러요)
-    tasks: (listId, i = true) => all(`${TASKS}/lists/${encodeURIComponent(listId)}/tasks?showCompleted=true&showHidden=true&maxResults=100`, i),
+    ...listApi(all),
+    /** 자동 동기화용: 구글 허용 창을 띄워 '인증 코드'를 받아요 (GitHub에서 비밀번호와 함께 오래 쓰는 연결로 바꿔요) */
+    async requestCode() {
+      if (!clientId) throw new Error('먼저 설정에서 구글 클라이언트 ID를 넣어 주세요');
+      await loadGis();
+      return new Promise((resolve, reject) => {
+        const c = window.google.accounts.oauth2.initCodeClient({
+          client_id: clientId, scope: SCOPES, ux_mode: 'popup',
+          callback: (r) => (r.error ? reject(new Error(r.error === 'access_denied' ? '구글 연결을 허용하지 않았어요' : `구글 연결 오류 (${r.error})`)) : resolve(r.code)),
+          error_callback: (e) => reject(new Error(e?.type === 'popup_closed' ? '구글 연결 창이 닫혔어요' : '구글 연결 창을 열지 못했어요 (팝업 차단 확인)')),
+        });
+        c.requestCode();
+      });
+    },
     addEvent: (calId, body) => api(`${CAL}/calendars/${encodeURIComponent(calId)}/events`, { method: 'POST', body: JSON.stringify(body) }),
     patchEvent: (calId, id, body) => api(`${CAL}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }),
     deleteEvent: (calId, id) => api(`${CAL}/calendars/${encodeURIComponent(calId)}/events/${encodeURIComponent(id)}`, { method: 'DELETE' }),

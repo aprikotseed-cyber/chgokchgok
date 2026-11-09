@@ -15,6 +15,13 @@ jobs:
         with:
           node-version: 20
       - run: npm install --no-save firebase-admin@12
+      # 브리핑 직전에 일정·할일을 새로 받아요 (자동 동기화를 켠 경우만, 실패해도 브리핑은 보내요)
+      - run: node scripts/agenda-sync.mjs
+        continue-on-error: true
+        env:
+          TZ: Asia/Seoul
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       - run: node scripts/notify.mjs
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

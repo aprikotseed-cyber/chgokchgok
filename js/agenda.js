@@ -232,3 +232,40 @@ export function eventLine(e) {
   const base = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEK[d.getDay()]})`;
   return `${base} ${e.allDay ? '종일' : `${e.time}~${e.endTime}`} ${e.title}`;
 }
+
+// ───── 구글에서 일정·할일 받아 오기 (앱과 GitHub 자동 동기화가 같이 써요) ─────
+const DEFAULT_CALS = ['exercise', 'cherish', 'birthday', 'work', 'life', ...PARTNER_NAMES];
+
+/**
+ * g: {calendars, events, taskLists, tasks} (google.js의 목록 함수들), gs: settings.google
+ * 어제 ~ 32일 뒤 일정, 고른 목록의 할일(완료는 최근 30일)
+ */
+export async function fetchAgenda(g, gs = {}, now = new Date(), interactive = false) {
+  const t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const from = addDays(t, -1);
+  const to = addDays(t, 32);
+  const raw = await g.calendars(interactive);
+  const nameOf = (c) => c.summaryOverride || c.summary || '';
+  const named = raw.some((c) => DEFAULT_CALS.includes(nameOf(c).toLowerCase()));
+  const calendars = raw.map((c) => {
+    const name = nameOf(c);
+    return { id: c.id, name, color: c.backgroundColor || '', primary: !!c.primary, write: ['owner', 'writer'].includes(c.accessRole),
+      show: named ? DEFAULT_CALS.includes(name.toLowerCase()) : c.accessRole === 'owner' || !!c.primary,
+      partner: PARTNER_NAMES.includes(name) };
+  });
+  const shown = calendars.filter((c) => calPref(c, gs).show);
+  const lists = await g.taskLists(interactive);
+  const listId = lists.some((l) => l.id === gs.taskList) ? gs.taskList : lists[0]?.id || '';
+  const [evs, tasks] = await Promise.all([
+    Promise.all(shown.map((c) => g.events(c.id, from.toISOString(), to.toISOString(), interactive)
+      .then((items) => items.filter((e) => e.status !== 'cancelled').map((e) => normEvent(e, { id: c.id, summary: c.name, backgroundColor: c.color, partner: calPref(c, gs).partner }))))),
+    listId ? g.tasks(listId, interactive) : [],
+  ]);
+  const old = dayKey(addDays(t, -30));
+  return {
+    calendars, lists: lists.map((l) => ({ id: l.id, title: l.title || '' })), listId,
+    events: evs.flat(),
+    tasks: tasks.filter((x) => !x.deleted && (x.title || '').trim()).map((x) => normTask(x, listId)).filter((x) => !x.done || !x.completedAt || x.completedAt >= old),
+    syncedAt: Date.now(),
+  };
+}
