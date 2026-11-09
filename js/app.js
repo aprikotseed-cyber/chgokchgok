@@ -1,8 +1,10 @@
-import { connect, isDemo } from './store.js';
-import { project, currentTotals, currentPayment, stockValue, homeValue, milestones, normTicker, loanThisMonth, graduatedInfo } from './projection.js';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today } from './records.js';
-import { won, pct, esc, ymLabel, dateTime } from './format.js';
-import { projectionChart, homeChart, redrawAll } from './charts.js';
+import { connect, isDemo } from './store.js?v=20261109b';
+import { project, currentTotals, currentPayment, stockValue, homeValue, milestones, normTicker, loanThisMonth, graduatedInfo } from './projection.js?v=20261109b';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today } from './records.js?v=20261109b';
+import { won, pct, esc, ymLabel, dateTime } from './format.js?v=20261109b';
+import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109b';
+
+const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || '개발용';
 
 const EMPTY = () => ({
   savings: [], stocks: [], stockPlan: { monthly: 0 }, homes: [], debts: [],
@@ -383,6 +385,11 @@ function viewSettings() {
     <h2>시세 자동 업데이트</h2>
     <p>매일 오전 6시에 GitHub Actions가 실거래가와 주가를 가져와요. 바로 업데이트하려면 GitHub 저장소의 <b>Actions → 시세 자동 업데이트 → Run workflow</b>를 누르세요.</p>
     <p class="fine">마지막 업데이트: ${dateTime(state.market?.updatedAt)}</p>
+  </section>
+  <section class="card">
+    <h2>앱 버전</h2>
+    <p><b>${esc(APP_VERSION)}</b></p>
+    <p class="fine">새 기능이 안 보이면 이 숫자가 바뀌었는지 확인하고, 앱을 완전히 껐다가 다시 열어 주세요.</p>
   </section>
   <section class="card">
     <h2>백업</h2>
