@@ -1,15 +1,15 @@
-import { connect, isDemo } from './store.js?v=20261109w';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109w';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109w';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109w';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109w';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109w';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109w';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109w';
-import { ask, SUGGEST } from './assistant.js?v=20261109w';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109w';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109w';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261109w';
+import { connect, isDemo } from './store.js?v=20261109x';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109x';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109x';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109x';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109x';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109x';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109x';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109x';
+import { ask, SUGGEST } from './assistant.js?v=20261109x';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109x';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109x';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261109x';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -46,7 +46,7 @@ const SIGUNGU = [
   ['11590', '서울 동작구'], ['11560', '서울 영등포구'], ['11470', '서울 양천구'], ['11350', '서울 노원구'],
 ];
 
-const FIXED_CATS = ['주거', '통신', '보험', '구독', '교통', '공과금', '교육', '기부·후원', '기타'];
+const FIXED_CATS = ['주거', '통신', '보험', '구독', '교통', '공과금', '교육', '기부·후원', '모임·데이트', '기타'];
 
 const FORMS = {
   savings: {
