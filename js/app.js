@@ -1,10 +1,10 @@
-import { connect, isDemo } from './store.js?v=20261109e';
-import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109e';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109e';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109e';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109e';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109e';
-import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109e';
+import { connect, isDemo } from './store.js?v=20261109f';
+import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109f';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109f';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109f';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109f';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109f';
+import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109f';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -222,6 +222,7 @@ function viewHome() {
 
   return `
   ${isEmpty ? `<p class="notice">아직 입력된 자산이 없어요. <a href="#assets">자산</a>과 <a href="#debts">부채</a>에서 하나씩 추가해 보세요.</p>` : ''}
+  <div class="summary">
   <section class="hero">
     <div class="eyebrow">총자산</div>
     <div class="hero-num">${won(t.net)}</div>
@@ -235,11 +236,14 @@ function viewHome() {
     <span class="stat-op">−</span>
     <a class="stat" href="#debts"><span class="eyebrow">대출잔액</span><span class="stat-num">${won(t.debts)}</span><span class="stat-sub">이번 달 상환 ${won(pay)}</span></a>
   </section>
+  </div>
 
+  <div class="cols"><div class="col-side">
   ${section('다가오는 2주', `<div class="panel list">${soon.length ? soon.map(scheduleRow).join('') : empty('2주 안에 나갈 대출 상환이나 고정지출이 없어요.')}</div>
     ${noPayDay ? '<p class="hint">상환일이 없는 대출이 있어요. 부채에서 매달 상환일을 넣으면 일정과 알림에 나와요.</p>' : ''}`,
     { action: '<a class="link-btn" href="#fixed">고정지출 전체</a>' })}
 
+  </div><div class="col-main">
   ${section('연도별 예상', `<div class="panel chart-panel">
       <div class="chart-top">
         <ul class="legend">
@@ -256,7 +260,8 @@ function viewHome() {
         <tbody>${points.map((p) => `<tr><th>${p.label === '현재' ? '지금' : `${p.year}년 말`}</th><td>${won(p.savings + p.stocks)}</td><td>${won(p.homes)}</td><td>${won(p.debts)}</td><td>${won(p.net)}</td></tr>`).join('')}</tbody>
       </table></div>`)}
     </div>
-    <p class="hint">저축은 매달 적립과 이자, 대출은 상환 방식대로 계산해요. 아파트·주식은 지금 시세 그대로 둬요.</p>`)}`;
+    <p class="hint">저축은 매달 적립과 이자, 대출은 상환 방식대로 계산해요. 아파트·주식은 지금 시세 그대로 둬요.</p>`)}
+  </div></div>`;
 }
 
 function scheduleRow(u) {
@@ -302,11 +307,14 @@ function viewAssets() {
 
   const plan = d.stockPlan || {};
   return `
+  <div class="cols"><div class="col-main">
   ${section('저축·현금', `<div class="panel list">${sav || empty('예금, 적금, 연금, 보증금 등을 추가해 보세요.')}</div>`, { sum: won(t.savings), action: addBtn('savings') })}
   ${section('주식', `${stk}
     <div class="panel list gap">${row({ kind: 'stockPlan', id: 'plan', action: 'plan', title: '매달 추가 투자', value: won(plan.monthly || 0), cls: 'muted-row' })}</div>`,
     { sum: won(t.stocks), action: addBtn('stocks', '종목') })}
+  </div><div class="col-side">
   ${section('아파트', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
+  </div></div>
   ${m.updatedAt ? `<p class="hint center">시세 업데이트 ${dateTime(m.updatedAt)}</p>` : ''}`;
 }
 
@@ -401,6 +409,31 @@ function scheduledLoanRow(l) {
   </div>`;
 }
 
+/** 부채 탭 오른쪽: 올해 갚은 돈과 앞으로 나갈 상환 */
+function debtSide(d) {
+  const y = String(now().getFullYear());
+  const recs = [...(d.records || []), ...scheduleRecords(d, today())].filter((r) => r.type === 'repayment' && r.date.startsWith(`${y}-`));
+  const principal = recs.reduce((a, r) => a + (Number(r.amount) || 0), 0);
+  const interest = recs.reduce((a, r) => a + (Number(r.interest) || 0), 0);
+  const t = today();
+  const toDate = (str) => { const [yy, mm, dd] = str.split('-').map(Number); return new Date(yy, mm - 1, dd); };
+  const next = [];
+  for (const l of d.debts || []) {
+    if (l.schedule?.length) l.schedule.filter((r) => r.date >= t).slice(0, 4).forEach((r) => next.push({ l, date: toDate(r.date), amount: r.payment, n: r.n }));
+    else for (const u of upcoming({ debts: [l] }, now(), 62)) next.push({ l, date: u.date, amount: u.amount });
+  }
+  next.sort((a, b) => a.date - b.date);
+  return `${section(`${y}년 상환`, `<section class="panel stats">
+      <div class="stat"><span class="eyebrow">갚은 원금</span><span class="stat-num">${won(principal)}</span></div>
+      <div class="stat"><span class="eyebrow">낸 이자</span><span class="stat-num">${won(interest)}</span></div>
+    </section>`)}
+  ${section('앞으로 나갈 상환', `<div class="panel list">${next.slice(0, 6).map((x) => row({
+      kind: 'debts', id: x.l.id, title: esc(x.l.name),
+      meta: `${mdw(x.date)}${x.n ? ` · ${x.n}회차` : ''}`, value: wonExact(x.amount),
+      sub: dday(daysBetween(now(), x.date)),
+    })).join('') || empty('상환일이나 상환스케줄을 넣으면 여기에 나와요.')}</div>`)}`;
+}
+
 function viewDebts() {
   const d = state.data;
   const t = currentTotals(d, state.market);
@@ -430,7 +463,9 @@ function viewDebts() {
     <div class="stat"><span class="eyebrow">대출잔액</span><span class="stat-num">${won(t.debts)}</span></div>
     <div class="stat"><span class="eyebrow">이번 달 상환 (원금+이자)</span><span class="stat-num">${won(pay)}</span></div>
   </section>
-  ${section('대출', `<div class="panel list">${list || empty('대출을 추가하면 상환 방식대로 연도별 잔액을 계산하고, 상환일 전에 알려드려요.')}</div>`, { action: addBtn('debts') })}`;
+  <div class="cols"><div class="col-main">
+  ${section('대출', `<div class="panel list">${list || empty('대출을 추가하면 상환 방식대로 연도별 잔액을 계산하고, 상환일 전에 알려드려요.')}</div>`, { action: addBtn('debts') })}
+  </div><div class="col-side">${debtSide(d)}</div></div>`;
 }
 
 // ───────────────────────── 고정지출 ─────────────────────────
@@ -470,6 +505,7 @@ function viewFixed() {
 
   const maxCat = Math.max(1, ...s.categories.map((c) => c.amount));
   return `
+  <div class="summary">
   <section class="hero">
     <div class="eyebrow">매달 고정지출</div>
     <div class="hero-num">${wonExact(s.total)}</div>
@@ -479,12 +515,16 @@ function viewFixed() {
     <div class="stat"><span class="eyebrow">${mo + 1}월에 남은 출금</span><span class="stat-num">${wonExact(s.remaining)}</span></div>
     <div class="stat"><span class="eyebrow">다음 출금</span><span class="stat-num">${nextOne ? `${esc(nextOne.name)}` : '-'}</span>${nextOne ? `<span class="stat-sub">${mdw(nextOne.date)} · ${dday(nextOne.dday)}</span>` : ''}</div>
   </section>
+  </div>
+  <div class="cols"><div class="col-main">
   ${section(`${mo + 1}월 출금 일정`, `<div class="panel list">${rows || empty('휴대폰 요금, 관리비, 보험료처럼 매달 나가는 돈을 추가해 보세요. 출금 하루 전에 알려드려요.')}</div>`, { action: addBtn('fixed') })}
+  </div><div class="col-side">
   ${s.categories.length ? section('분류별', `<div class="panel list">${s.categories.map((c) => `<div class="row static bar-row">
       <span class="row-title">${esc(c.name)}</span>
       <span class="bar"><span style="width:${(c.amount / maxCat) * 100}%"></span></span>
       <span class="row-value">${wonExact(c.amount)}<small>${pct((c.amount / s.total) * 100, 0)}</small></span>
-    </div>`).join('')}</div>`) : ''}`;
+    </div>`).join('')}</div>`) : ''}
+  </div></div>`;
 }
 
 // ───────────────────────── 기록 ─────────────────────────
@@ -516,6 +556,7 @@ function viewRecords() {
     <div class="stat"><span class="eyebrow">낸 이자</span><span class="stat-num">${won(ys.interest)}</span></div>
   </section>
 
+  <div class="cols"><div class="col-side">
   ${section(`${year}년 월별`, `<div class="panel"><div class="table-scroll"><table>
       <thead><tr><th>월</th><th>저축</th><th>상환 원금</th><th>이자</th></tr></thead>
       <tbody>${months.map((m) => `<tr class="${m.count ? '' : 'dim'}"><th>${m.month}월</th><td>${cell(m.saving)}</td><td>${cell(m.principal)}</td><td>${cell(m.interest)}</td></tr>`).join('')}</tbody>
@@ -527,6 +568,11 @@ function viewRecords() {
       <span class="row-side"><span class="row-value">${won(x.type === 'saving' ? x.saving : x.principal)}</span>${x.interest ? `<span class="row-meta">이자 ${won(x.interest)}</span>` : ''}</span>
     </div>`).join('')}</div>`) : ''}
 
+  ${yearsAll.length ? section('연도별 합계', `<div class="panel"><div class="table-scroll"><table>
+      <thead><tr><th>연도</th><th>저축</th><th>상환 원금</th><th>이자</th></tr></thead>
+      <tbody>${yearsAll.map((y) => `<tr><th>${y.year}년</th><td>${won(y.saving)}</td><td>${won(y.principal)}</td><td>${won(y.interest)}</td></tr>`).join('')}</tbody>
+    </table></div></div>`) : ''}
+  </div><div class="col-main">
   ${section(`${year}년 기록`, list.length ? Object.entries(groups).map(([ym, rs], gi) => {
       const key = `rec-${ym}`;
       const isOpen = state.open.has(key) || (gi < 2 && !state.open.has(`${key}-closed`));
@@ -542,10 +588,8 @@ function viewRecords() {
       </details>`;
     }).join('') : `<div class="panel">${empty('아직 기록이 없어요. 위 버튼으로 저축이나 상환을 기록해 보세요.')}</div>`, { sum: `${list.length}건` })}
 
-  ${yearsAll.length ? section('연도별 합계', `<div class="panel"><div class="table-scroll"><table>
-      <thead><tr><th>연도</th><th>저축</th><th>상환 원금</th><th>이자</th></tr></thead>
-      <tbody>${yearsAll.map((y) => `<tr><th>${y.year}년</th><td>${won(y.saving)}</td><td>${won(y.principal)}</td><td>${won(y.interest)}</td></tr>`).join('')}</tbody>
-    </table></div></div>`) : ''}`;
+
+  </div></div>`;
 }
 
 // ───────────────────────── 설정 ─────────────────────────
@@ -567,18 +611,21 @@ function viewSettings() {
     </div>`)}`;
 
   return `
+  <div class="cols"><div class="col-main">
   ${section('비서 알림', `<div class="panel">
       <p class="pad">매일 오전 8시에 확인해서 <b>대출 상환일 5·3·1일 전</b>, <b>고정지출 출금 하루 전</b>에 휴대폰으로 알려드려요. 앱을 열면 대시보드의 '다가오는 2주'에서도 볼 수 있어요.</p>
       ${pushBody}
     </div>`)}
   ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">매일 오전 6시에 실거래가와 주가를 가져와요. 지금 바로 받으려면 GitHub 저장소의 Actions → 시세 자동 업데이트 → Run workflow를 누르세요.</p><p class="hint pad">마지막 업데이트 ${dateTime(state.market?.updatedAt)}</p></div>`)}
+  </div><div class="col-side">
   ${section('백업', `<div class="panel"><div class="pad actions">
       <button class="btn" data-action="export">백업 파일 받기</button>
       <label class="btn">백업 불러오기<input type="file" accept="application/json" id="import" hidden></label>
     </div></div>`)}
   ${section('계정', `<div class="panel list">
       <div class="row static"><span class="row-main"><span class="row-title">${esc(state.user?.email || '')}</span><span class="row-meta">앱 버전 ${esc(APP_VERSION)}</span></span><button class="link-btn" data-action="logout">${isDemo() ? '체험 끝내기' : '로그아웃'}</button></div>
-    </div>`)}`;
+    </div>`)}
+  </div></div>`;
 }
 
 async function loadPush() {
@@ -592,6 +639,7 @@ async function loadPush() {
 
 // ───────────────────────── 그리기 ─────────────────────────
 const VIEWS = { home: viewHome, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
+const TITLES = { home: '홈', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
 const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라인', demo: '체험 모드' };
 
 function render() {
@@ -601,14 +649,15 @@ function render() {
   if (!VIEWS[state.tab]) state.tab = 'home';
   document.querySelectorAll('[data-tab]').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === state.tab ? 'page' : 'false'));
   renderSync();
-  $('#view').innerHTML = VIEWS[state.tab]();
+  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}</h1>${VIEWS[state.tab]()}`;
   afterRender();
 }
 
 function renderSync() {
-  const el = $('#sync');
-  el.textContent = SYNC[state.sync] || '';
-  el.dataset.state = state.sync;
+  document.querySelectorAll('.sync').forEach((el) => {
+    el.textContent = SYNC[state.sync] || '';
+    el.dataset.state = state.sync;
+  });
 }
 
 function afterRender() {

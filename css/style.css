@@ -153,19 +153,58 @@ button { font: inherit; color: inherit; }
 .view > .block { margin-top: 32px; }
 .view > .hero:first-child { margin-top: 12px; }
 
+/* 휴대폰: 사이드바는 탭바만 남기고 풀어 둠 */
+.side { display: contents; }
+.side-brand, .side-foot, .page-title { display: none; }
+
+/* 여러 칸 묶음: 휴대폰에선 위아래로 */
+.summary { display: flex; flex-direction: column; gap: 12px; }
+.cols { display: flex; flex-direction: column; gap: 32px; }
+.view > .cols { margin-top: 32px; }
+.col-main, .col-side { min-width: 0; }
+.col-main > * + *, .col-side > * + * { margin-top: 32px; }
+
+/* ───── PC: 왼쪽 사이드바 하나 + 넓은 본문 ───── */
 @media (min-width: 900px) {
-  .app { display: grid; grid-template-columns: 208px 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
-  .top { grid-column: 1 / -1; padding: 18px 28px; }
+  .app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+  .top { display: none; }
+  .side {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 28px 14px 20px; border-right: 1px solid var(--border);
+  }
+  .side-brand { display: block; font-size: 20px; padding: 0 12px 28px; }
   .tabs {
-    position: sticky; top: 72px; inset: auto; align-self: start;
-    display: flex; flex-direction: column; gap: 2px; padding: 4px 12px;
+    position: static; inset: auto; display: flex; flex-direction: column; gap: 2px; padding: 0;
     background: none; backdrop-filter: none; border: 0;
   }
-  .tabs a { flex-direction: row; justify-content: flex-start; gap: 12px; height: 40px; padding: 0 12px; border-radius: 10px; font-size: 15px; font-weight: 500; color: var(--text-secondary); }
-  .tabs a:hover { background: var(--surface-2); }
-  .tabs a[aria-current="page"] { background: var(--surface-1); color: var(--text-primary); font-weight: 600; }
-  .tabs svg { width: 18px; height: 18px; }
-  .view { margin: 0; padding: 4px 32px 64px; }
+  .tabs a, .side-link {
+    display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px;
+    height: 42px; padding: 0 12px; border-radius: 10px; text-decoration: none;
+    font-size: 15px; font-weight: 500; color: var(--text-secondary);
+  }
+  .tabs a:hover, .side-link:hover { background: var(--surface-2); color: var(--text-primary); }
+  .tabs a[aria-current="page"], .side-link[aria-current="page"] { background: var(--surface-1); color: var(--text-primary); font-weight: 600; }
+  .tabs svg, .side-link svg { width: 18px; height: 18px; }
+  .side-foot { display: flex; flex-direction: column; gap: 6px; margin-top: auto; padding-top: 16px; }
+  .side-foot .sync { padding: 0 12px; }
+
+  .view { max-width: 1240px; margin: 0; padding: 40px 48px 72px; }
+  .page-title { display: block; font-size: 26px; letter-spacing: -0.03em; margin-bottom: 24px; }
+  .view > .page-title + * { margin-top: 0; }
+
+  .summary .stats { flex-direction: row; }
+}
+
+/* 넓은 화면: 큰 숫자와 요약을 한 줄에, 본문은 두 칸 (왼쪽 넓게, 오른쪽 좁게) */
+@media (min-width: 1180px) {
+  .summary { display: grid; grid-template-columns: minmax(280px, 0.8fr) minmax(0, 2fr); align-items: center; gap: 32px; }
+  .summary .hero { padding: 0; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); gap: 28px; align-items: start; }
+  .col-main { grid-column: 1; grid-row: 1; }
+  .col-side { grid-column: 2; grid-row: 1; }
+  .view > .cols { margin-top: 36px; }
+}
 }
 
 /* ───── 큰 숫자 ───── */
@@ -363,5 +402,5 @@ dialog h2 { font-size: 19px; margin-bottom: 18px; }
 .schedule-info b { display: block; font-size: 14px; }
 .btn.file { align-self: flex-start; margin-top: 4px; }
 #schedule-clear { align-self: flex-start; }
-.loan + .loan { border-top: 1px solid var(--border); }
+.loan + .loan, .list > .loan + .row, .list > .row + .loan { border-top: 1px solid var(--border); }
 .loan > details { border-top: 1px solid var(--border); }
