@@ -7,7 +7,7 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue, FieldPath } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
-import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, eventLine, repeatLabel, dueLabel, dayKey } from '../js/agenda.js';
+import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, eventLine, repeatLabel, dueLabel, dayKey, inboxKind } from '../js/agenda.js';
 import { fetchCalDav } from '../js/caldav.js';
 import { listApi } from '../js/google.js';
 
@@ -49,7 +49,6 @@ function serverApi(accessToken) {
 
 // ───── 단축어 받은편지함 ─────
 const APP_URL = process.env.APP_URL || 'https://aprikotseed-cyber.github.io/chgokchgok/';
-const KIND = { 일정: 'event', 할일: 'task', 메모: 'memo', event: 'event', task: 'task', memo: 'memo' };
 
 async function notify(userRef, title, body) {
   const devices = (await userRef.collection('data').doc('push').get()).data()?.devices || [];
@@ -69,7 +68,7 @@ async function googleFetch(at, url, body) {
 
 /** 받은편지함 하나 처리 → 알림에 쓸 한 줄 */
 async function handleInbox(userRef, item, ctx) {
-  const kind = KIND[String(item.kind || '').trim()] || 'memo';
+  const kind = inboxKind(item.kind);
   const text = String(item.text || '').trim();
   if (!text) return null;
   if (kind === 'memo') {

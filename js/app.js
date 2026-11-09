@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110w';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110w';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110w';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110w';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110w';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110w';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110w';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110w';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110w';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110w';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110w';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110w';
-import { createGoogle } from './google.js?v=20261110w';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110w';
-import { createDemoGoogle } from './google-demo.js?v=20261110w';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110w';
+import { connect, isDemo } from './store.js?v=20261110x';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110x';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110x';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110x';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110x';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110x';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110x';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110x';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110x';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110x';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110x';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110x';
+import { createGoogle } from './google.js?v=20261110x';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110x';
+import { createDemoGoogle } from './google-demo.js?v=20261110x';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110x';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1331,7 +1331,7 @@ function shortcutPanel() {
       <p class="hint">말한 내용은 덕준님만 읽을 수 있는 Firestore 받은편지함에 먼저 넣고, GitHub에는 ‘처리해 줘’ 신호만 보내요. 저장소가 공개라서 내용이 공개 기록에 남지 않게 하려는 거예요.</p>
       <ol class="steps">
         <li>단축어 앱 → <b>+</b> → 이름을 <b>차곡차곡에 추가</b>로 해요. (시리에게 이 이름으로 부를 수 있어요)</li>
-        <li><b>목록</b> 동작을 넣고 항목을 <b>일정</b>, <b>할일</b>, <b>메모</b> 세 개로 적어요. 이어서 <b>목록에서 선택</b>을 넣어요.</li>
+        <li><b>목록</b> 동작을 넣고 항목을 <b>일정</b>, <b>할일</b>, <b>메모</b> 세 개로 적어요. 🗓️ ☑️ 📝 이모지로만 적어도 알아들어요. 이어서 <b>목록에서 선택</b>을 넣어요.</li>
         <li><b>입력 요청</b> (텍스트) → 질문: ‘무엇을 넣을까요?’</li>
         <li><b>URL의 콘텐츠 가져오기</b> → URL은 아래 ①, 방법 <b>POST</b>, 요청 본문 <b>양식</b>: <code>grant_type</code> = <code>refresh_token</code>, <code>refresh_token</code> = 아래 ②(단축어 키)</li>
         <li><b>사전 값 가져오기</b> 두 번: 위 결과에서 <code>id_token</code>, <code>user_id</code></li>
