@@ -1,12 +1,12 @@
-import { connect, isDemo } from './store.js?v=20261109j';
-import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109j';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109j';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109j';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109j';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109j';
-import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109j';
-import { ask, SUGGEST } from './assistant.js?v=20261109j';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109j';
+import { connect, isDemo } from './store.js?v=20261109k';
+import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109k';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109k';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109k';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109k';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109k';
+import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109k';
+import { ask, SUGGEST } from './assistant.js?v=20261109k';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109k';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -68,7 +68,7 @@ const FORMS = {
     fields: [{ key: 'usdKrw', label: '1달러', type: 'won', hint: '자동 환율을 아직 못 받았을 때만 써요. 자동 환율이 들어오면 그걸 우선해요' }],
   },
   homes: {
-    title: '집',
+    title: '주택',
     fields: [
       { key: 'name', label: '이름', type: 'text', placeholder: '우리 집', required: true },
       { key: 'lawdCd', label: '시군구', type: 'sigungu', hint: '목록에 없으면 법정동코드 앞 5자리를 입력하세요' },
@@ -235,7 +235,7 @@ function viewHome() {
   <section class="panel stats">
     <a class="stat" href="#assets"><span class="eyebrow">저축액${t.stocks ? ' · 주식 포함' : ''}</span><span class="stat-num">${won(saved)}</span></a>
     <span class="stat-op">+</span>
-    <a class="stat" href="#assets"><span class="eyebrow">아파트</span><span class="stat-num">${won(t.homes)}</span></a>
+    <a class="stat" href="#assets"><span class="eyebrow">주택</span><span class="stat-num">${won(t.homes)}</span></a>
     <span class="stat-op">−</span>
     <a class="stat" href="#debts"><span class="eyebrow">대출잔액</span><span class="stat-num">${won(t.debts)}</span><span class="stat-sub">이번 달 상환 ${won(pay)}</span></a>
   </section>
@@ -259,11 +259,11 @@ function viewHome() {
       <div class="chart-box"><canvas id="chart-projection" role="img" aria-label="연도별 저축액, 대출잔액, 총자산 예측"></canvas></div>
       ${mText.length ? `<p class="caption">${mText.join(' · ')}</p>` : ''}
       ${details('home-table', '표로 보기', `<div class="table-scroll"><table>
-        <thead><tr><th>연도</th><th>저축액</th><th>아파트</th><th>대출잔액</th><th>총자산</th></tr></thead>
+        <thead><tr><th>연도</th><th>저축액</th><th>주택</th><th>대출잔액</th><th>총자산</th></tr></thead>
         <tbody>${points.map((p) => `<tr><th>${p.label === '현재' ? '지금' : `${p.year}년 말`}</th><td>${won(p.savings + p.stocks)}</td><td>${won(p.homes)}</td><td>${won(p.debts)}</td><td>${won(p.net)}</td></tr>`).join('')}</tbody>
       </table></div>`)}
     </div>
-    <p class="hint">저축은 매달 적립과 이자, 대출은 상환 방식대로 계산해요. 아파트·주식은 지금 시세 그대로 둬요.</p>`)}
+    <p class="hint">저축은 매달 적립과 이자, 대출은 상환 방식대로 계산해요. 주택·주식은 지금 시세 그대로 둬요.</p>`)}
   </div></div>`;
 }
 
@@ -312,20 +312,51 @@ function viewAssets() {
     }) + extra;
   }).join('');
 
+  const A = assetsSummary(d, m);
   return `
+  <section class="hero m-only">
+    <div class="eyebrow">자산 합계 · 저축·현금 + 주식 + 주택</div>
+    <div class="hero-num">${won(A.value)}</div>
+    <div class="delta ${A.gain >= 0 ? 'up' : 'down'}">${A.gain >= 0 ? '+' : '−'}${won(Math.abs(A.gain))} (${A.gain >= 0 ? '+' : ''}${pct(A.rate, 2)})<span>산 가격 대비</span></div>
+  </section>
   <div class="cols"><div class="col-main">
   ${section('저축·현금', `<div class="panel list">${sav || empty('예금, 적금, 연금, 보증금 등을 추가해 보세요.')}</div>`, { sum: won(t.savings), action: addBtn('savings') })}
   ${section('주식', stk, { action: addBtn('stocks', '새 종목') })}
   </div><div class="col-side">
-  ${section('아파트', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
+  ${section('주택', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
   </div></div>
-  ${m.updatedAt || m.quotesAt ? `<p class="hint center">주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 아파트 실거래가 ${dateTime(m.updatedAt)} 업데이트</p>` : ''}`;
+  ${m.updatedAt || m.quotesAt ? `<p class="hint center">주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트</p>` : ''}`;
 }
 
 const MARKETS = [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']];
 const usd = (n, digits = 2) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
 const signed = (n, f = won) => `${n >= 0 ? '+' : '−'}${f(Math.abs(n))}`;
 const tone = (n) => (n >= 0 ? 'up' : 'down');
+
+/** 자산 탭 합계: 저축·현금 + 주식 + 주택, 수익은 산 가격(원화 매입금액·구매가) 대비 */
+function assetsSummary(d, m) {
+  const savings = (d.savings || []).reduce((a, s) => a + (Number(s.balance) || 0), 0);
+  let value = savings;
+  let cost = savings; // 저축은 원금 그대로로 봐요
+  for (const s of d.stocks || []) {
+    if (!(Number(s.qty) > 0)) continue;
+    const x = stockDetail(s, m);
+    value += x.valueKrw;
+    cost += x.costKrw || x.valueKrw;
+  }
+  for (const h of d.homes || []) {
+    const v = homeValue(h, m);
+    value += v;
+    cost += (Number(h.purchasePrice) || 0) * ((h.share ?? 100) / 100) || v;
+  }
+  const gain = value - cost;
+  return { value, gain, rate: cost ? (gain / cost) * 100 : 0 };
+}
+
+function assetsTitleSum() {
+  const a = assetsSummary(state.data, state.market);
+  return `<span class="title-sum"><b>${won(a.value)}</b><span class="${a.gain >= 0 ? 'up' : 'down'}">${a.gain >= 0 ? '+' : '−'}${won(Math.abs(a.gain))} (${a.gain >= 0 ? '+' : ''}${pct(a.rate, 2)})</span></span>`;
+}
 
 /** 원화 수익 요약: 평가금액, 원화 매입금액이 있는 종목만으로 수익·수익률 */
 function profitOf(rows) {
@@ -341,9 +372,14 @@ const signedPct = (n, d = 2) => `${n >= 0 ? '+' : ''}${pct(n, d)}`;
 function stockSection(d, m) {
   const all = (d.stocks || []).map((s) => ({ s, x: stockDetail(s, m) }));
   const groups = Object.fromEntries(MARKETS.map(([k]) => [k, all.filter(({ s }) => stockMarket(s) === k)]));
-  if (!state.stockTab) state.stockTab = MARKETS.find(([k]) => groups[k].length)?.[0] || 'us';
-  const tab = state.stockTab;
-  const rowsData = groups[tab];
+  const pin = d.settings?.stockPin;
+  // 직접 고른 탭 > 고정한 탭 > 종목이 있는 첫 탭 (데이터가 늦게 들어와도 매번 다시 정해요)
+  const tab = state.stockTab || pin || MARKETS.find(([k]) => groups[k].length)?.[0] || 'us';
+  state.stockTabShown = tab;
+  const sort = d.settings?.stockSort || 'value';
+  // 보유 중인 종목 먼저, 그 안에서 보유금액순(큰 것부터) 또는 이름순
+  const rowsData = groups[tab].slice().sort((a, b) => (Number(b.s.qty) > 0) - (Number(a.s.qty) > 0)
+    || (sort === 'name' ? a.s.name.localeCompare(b.s.name, 'ko') : b.x.valueKrw - a.x.valueKrw));
 
   // 전체 (세 묶음 합산)
   const T = profitOf(all.filter(({ s }) => Number(s.qty) > 0));
@@ -354,7 +390,14 @@ function stockSection(d, m) {
       <div class="stat"><span class="eyebrow">실현 손익</span><span class="stat-num ${realizedAll ? tone(realizedAll) : ''}">${realizedAll ? signed(realizedAll) : '0원'}</span><span class="stat-sub">팔아서 확정된 손익</span></div>
     </section>${T.missing ? `<p class="hint gap-b">원화 매입금액이 없는 종목 ${T.missing}개는 손익 계산에서 빠져 있어요.</p>` : ''}` : '';
 
-  const seg = `<div class="segment" role="tablist" aria-label="주식 구분">${MARKETS.map(([k, label]) => `<button role="tab" aria-selected="${k === tab}" data-action="stock-tab" data-key="${k}">${label}<small>${groups[k].length}</small></button>`).join('')}</div>`;
+  const PIN = '<svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3-1-6ZM12 13v7"/></svg>';
+  const seg = `<div class="stock-tools">
+    <div class="segment" role="tablist" aria-label="주식 구분">${MARKETS.map(([k, label]) => `<button role="tab" aria-selected="${k === tab}" data-action="stock-tab" data-key="${k}">${k === pin ? PIN : ''}${label}<small>${groups[k].length}</small></button>`).join('')}</div>
+    <div class="tool-row">
+      <button class="tool" data-action="stock-pin" aria-pressed="${tab === pin}">${PIN}${tab === pin ? '기본 탭으로 고정됨' : '이 탭을 기본으로'}</button>
+      <span class="sort" role="group" aria-label="정렬">${[['value', '보유금액순'], ['name', '이름순']].map(([k, l]) => `<button class="tool" data-action="stock-sort" data-key="${k}" aria-pressed="${sort === k}">${l}</button>`).join('<i>·</i>')}</span>
+    </div>
+  </div>`;
 
   const G = profitOf(rowsData.filter(({ s }) => Number(s.qty) > 0));
   const realizedTab = realizedKrw(rowsData.map(({ s }) => s));
@@ -644,7 +687,7 @@ function viewSettings() {
   ${section('비서가 못 알아들은 질문', `<div class="panel list">${(state.data.assistantMisses || []).length
       ? `${state.data.assistantMisses.slice().reverse().map((m) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(m.q)}</span><span class="row-meta">${dateTime(m.at)}</span></span></div>`).join('')}<div class="pad"><button class="link-btn" data-action="misses-clear">목록 비우기</button></div>`
       : empty('아직 없어요. 비서가 모르는 질문을 받으면 여기에 모아 둘게요. 이 목록을 알려주시면 알아듣는 말을 늘릴 수 있어요.')}</div>`)}
-  ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">주가와 환율은 장이 열린 평일에 1시간마다 (국내장 오전 9시~오후 3시 반, 미국장 밤 10시 반~새벽 5시 반), 아파트 실거래가는 매일 오전 6시에 가져와요. 지금 바로 받으려면 GitHub 저장소의 Actions → 주가·환율 장중 업데이트(또는 시세 자동 업데이트) → Run workflow를 누르세요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 아파트 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
+  ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">주가와 환율은 장이 열린 평일에 1시간마다 (국내장 오전 9시~오후 3시 반, 미국장 밤 10시 반~새벽 5시 반), 주택 실거래가는 매일 오전 6시에 가져와요. 지금 바로 받으려면 GitHub 저장소의 Actions → 주가·환율 장중 업데이트(또는 시세 자동 업데이트) → Run workflow를 누르세요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 주택 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
   </div><div class="col-side">
   ${section('백업', `<div class="panel"><div class="pad actions">
       <button class="btn" data-action="export">백업 파일 받기</button>
@@ -677,7 +720,7 @@ function render() {
   if (!VIEWS[state.tab]) state.tab = 'home';
   document.querySelectorAll('[data-tab]').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === state.tab ? 'page' : 'false'));
   renderSync();
-  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}</h1>${VIEWS[state.tab]()}`;
+  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : ''}</h1>${VIEWS[state.tab]()}`;
   afterRender();
 }
 
@@ -716,7 +759,7 @@ function openForm(kind, item) {
   let v = item || {};
   editing.schedule = item?.schedule || null;
   if (kind === 'stocks' && !item) {
-    const mk = state.stockTab || 'us';
+    const mk = state.stockTabShown || 'us';
     v = { market: mk, avgCur: mk === 'us' ? 'USD' : 'KRW', manualCur: mk === 'us' ? 'USD' : 'KRW' };
   }
   if (kind === 'stocks' && item) v = { avgCur: 'KRW', manualCur: 'KRW', market: stockMarket(item), ...item };
@@ -1061,6 +1104,13 @@ function bind() {
     }
     if (a === 'fx') openForm('fx', {});
     if (a === 'stock-tab') { state.stockTab = b.dataset.key; render(); }
+    if (a === 'stock-pin') {
+      const cur = state.data.settings?.stockPin;
+      state.data.settings = { ...(state.data.settings || {}), stockPin: cur === state.stockTabShown ? '' : state.stockTabShown };
+      commit();
+      toast(state.data.settings.stockPin ? '자산 탭을 열면 이 묶음이 먼저 보여요.' : '기본 탭 고정을 풀었어요.');
+    }
+    if (a === 'stock-sort') { state.data.settings = { ...(state.data.settings || {}), stockSort: b.dataset.key }; commit(); }
     if (a === 'add-rec') openForm(b.dataset.type);
     if (a === 'edit-rec') { const r = state.data.records.find((x) => x.id === id); if (r) openForm(r.type, r); }
     if (a === 'year') { state.recYear = b.dataset.year; render(); }
