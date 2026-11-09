@@ -1,15 +1,15 @@
-import { connect, isDemo } from './store.js?v=20261110a';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110a';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110a';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110a';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110a';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110a';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110a';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110a';
-import { ask, SUGGEST } from './assistant.js?v=20261110a';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110a';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110a';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110a';
+import { connect, isDemo } from './store.js?v=20261110b';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110b';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110b';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110b';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110b';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110b';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110b';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110b';
+import { ask, SUGGEST } from './assistant.js?v=20261110b';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110b';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110b';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110b';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
