@@ -1,0 +1,21 @@
+name: 시세 자동 업데이트
+
+on:
+  schedule:
+    - cron: '0 21 * * *' # 매일 오전 6시 (한국 시간)
+  workflow_dispatch: {}   # Actions 탭에서 'Run workflow'로 바로 실행 가능
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save firebase-admin@12
+      - run: node scripts/update-market.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
