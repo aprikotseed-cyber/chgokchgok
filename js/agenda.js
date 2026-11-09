@@ -465,7 +465,12 @@ export function parseEventInput(text, now, calendars = [], keywords = []) {
 /** 단축어가 보낸 종류 → 'event' | 'task' | 'memo'. 글자('일정')나 이모지(🗓️ ☑️ 📝) 모두 알아들어요 */
 export function inboxKind(raw) {
   const s = String(raw || '').replace(/️/g, '').trim().toLowerCase();
-  if (/일정|약속|event|calendar|[📅📆🗓⏰]/u.test(s)) return 'event';
-  if (/할일|할 일|투두|todo|task|[✅☑✔📋]/u.test(s)) return 'task';
+  const ev = /일정|약속|event|calendar|[📅📆🗓⏰]/u.test(s);
+  const tk = /할일|할 일|투두|todo|task|[✅☑✔📋]/u.test(s);
+  const mm = /메모|memo|[📝🗒]/u.test(s);
+  // 여러 종류가 한꺼번에 오면 단축어가 '선택한 항목' 대신 목록 전체를 보낸 거예요
+  if (ev + tk + mm > 1) return 'mixed';
+  if (ev) return 'event';
+  if (tk) return 'task';
   return 'memo'; // 메모·📝·🗒 또는 알 수 없으면 메모로 (내용을 잃지 않게)
 }
