@@ -89,6 +89,7 @@ function sampleData() {
       { id: 'd2', name: '신용대출', kind: '신용대출', original: 30_000_000, balance: 18_000_000, rate: 5.2, method: 'equal', maturity: '2029-06', graceEnd: '' },
     ],
     settings: { horizon: 20 },
+    records: sampleRecords(),
     snapshots: { '2026-10': { assets: 1_140_000_000, debts: 373_000_000, net: 767_000_000 } },
   };
 }
@@ -117,4 +118,20 @@ function sampleMarket() {
       },
     },
   };
+}
+
+function sampleRecords() {
+  // 예시 기록은 잔액에 반영하지 않은 상태(applied: false)로 둡니다.
+  const out = [];
+  let n = 0;
+  for (let i = 22; i >= 0; i--) {
+    const d = new Date(2026, 10 - i, 1);
+    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (i > 0 || new Date().getDate() >= 5) out.push({ id: `rs${n++}`, type: 'saving', targetId: 's1', date: `${ym}-05`, amount: 1_000_000, kind: '정기 납입', memo: '', applied: false });
+    out.push({ id: `rs${n++}`, type: 'saving', targetId: 's3', date: `${ym}-10`, amount: 300_000, kind: '정기 납입', memo: '', applied: false });
+    if (i < 22) out.push({ id: `rr${n++}`, type: 'repayment', targetId: 'd1', date: `${ym}-${i === 0 ? '09' : '25'}`, amount: 520_000 + (22 - i) * 1700, interest: 1_160_000 - (22 - i) * 1700, kind: '정기 상환', memo: '', applied: false });
+    if (i === 7) out.push({ id: `rx${n++}`, type: 'saving', targetId: 's2', date: `${ym}-28`, amount: 2_000_000, kind: '추가 납입', memo: '성과급 일부', applied: false });
+    if (i === 3) out.push({ id: `rx${n++}`, type: 'repayment', targetId: 'd2', date: `${ym}-15`, amount: 5_000_000, interest: 0, kind: '중도 상환', memo: '신용대출 일부 상환', applied: false });
+  }
+  return out;
 }

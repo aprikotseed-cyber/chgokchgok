@@ -1,14 +1,15 @@
 import { connect, isDemo } from './store.js';
-import { project, currentTotals, currentPayment, stockValue, homeValue, milestones, normTicker } from './projection.js';
+import { project, currentTotals, currentPayment, stockValue, homeValue, milestones, normTicker, loanMonth } from './projection.js';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today } from './records.js';
 import { won, pct, esc, ymLabel, dateTime } from './format.js';
 import { projectionChart, homeChart, redrawAll } from './charts.js';
 
 const EMPTY = () => ({
   savings: [], stocks: [], stockPlan: { monthly: 0, rate: 5 }, homes: [], debts: [],
-  settings: { horizon: 20 }, snapshots: {},
+  settings: { horizon: 20 }, snapshots: {}, records: [],
 });
 
-const state = { user: null, data: EMPTY(), market: {}, sync: '', tab: location.hash.slice(1) || 'home' };
+const state = { user: null, data: EMPTY(), market: {}, sync: '', tab: location.hash.slice(1) || 'home', recYear: String(new Date().getFullYear()) };
 let store;
 
 // ───────────────────────── 입력 항목 정의 ─────────────────────────
@@ -78,6 +79,44 @@ const FORMS = {
   },
 };
 
+// 저축·상환 기록 입력 폼
+FORMS.saving = {
+  title: '저축 기록',
+  fields: [
+    { key: 'targetId', label: '계좌', type: 'ref', source: 'savings' },
+    { key: 'date', label: '날짜', type: 'date', hint: '오늘 날짜가 자동으로 들어가요. 빠뜨린 예전 기록은 날짜만 바꿔서 넣으세요' },
+    { key: 'amount', label: '저축한 금액', type: 'money', hint: '계좌의 \'매달 넣는 돈\'이 미리 채워져요' },
+    { key: 'kind', label: '구분', type: 'select', options: ['정기 납입', '추가 납입'] },
+    { key: 'memo', label: '메모', type: 'text', placeholder: '선택' },
+    { key: 'applied', label: '계좌 잔액에도 더하기', type: 'check', def: true, hint: '잔액에 이미 포함된 예전 기록이면 끄세요' },
+  ],
+};
+FORMS.repayment = {
+  title: '상환 기록',
+  fields: [
+    { key: 'targetId', label: '대출', type: 'ref', source: 'debts' },
+    { key: 'date', label: '날짜', type: 'date', hint: '오늘 날짜가 자동으로 들어가요. 빠뜨린 예전 기록은 날짜만 바꿔서 넣으세요' },
+    { key: 'amount', label: '갚은 원금', type: 'money', hint: '이번 달 예상 원금이 미리 채워져요. 은행 내역대로 고치면 돼요' },
+    { key: 'interest', label: '함께 낸 이자', type: 'money' },
+    { key: 'kind', label: '구분', type: 'select', options: ['정기 상환', '중도 상환'] },
+    { key: 'memo', label: '메모', type: 'text', placeholder: '선택' },
+    { key: 'applied', label: '대출 잔액에서 빼기', type: 'check', def: true, hint: '잔액에 이미 반영된 예전 기록이면 끄세요' },
+  ],
+};
+const isRecord = (kind) => kind === 'saving' || kind === 'repayment';
+
+/** 계좌·대출을 고르면 금액을 미리 채워 줄 값 */
+function recordDefaults(type, targetId) {
+  if (type === 'saving') {
+    const s = (state.data.savings || []).find((x) => x.id === targetId);
+    return { amount: Number(s?.monthly) || '', kind: '정기 납입' };
+  }
+  const l = (state.data.debts || []).find((x) => x.id === targetId);
+  if (!l) return {};
+  const m = loanMonth(Number(l.balance) || 0, { ...l, _now: new Date() }, 1);
+  return { amount: Math.round(m.principal / 100) * 100, interest: Math.round(m.interest / 100) * 100, kind: '정기 상환' };
+}
+
 const METHOD = { annuity: '원리금균등', equal: '원금균등', bullet: '만기일시' };
 
 // ───────────────────────── 저장 ─────────────────────────
@@ -113,7 +152,7 @@ function render() {
   $('#sync').dataset.state = state.sync;
 
   const view = $('#view');
-  const views = { home: viewHome, assets: viewAssets, debts: viewDebts, settings: viewSettings };
+  const views = { home: viewHome, assets: viewAssets, debts: viewDebts, records: viewRecords, settings: viewSettings };
   view.innerHTML = (views[state.tab] || viewHome)();
   afterRender();
 }
@@ -275,6 +314,71 @@ function viewDebts() {
   </section>`;
 }
 
+function viewRecords() {
+  const d = state.data;
+  const recs = d.records || [];
+  const nameOf = (r) => (d[r.type === 'saving' ? 'savings' : 'debts'] || []).find((x) => x.id === r.targetId)?.name || '(삭제된 항목)';
+  const years = [...new Set([String(new Date().getFullYear()), ...yearlySummary(recs).map((y) => y.year)])].sort().reverse();
+  const year = state.recYear;
+  const ys = yearlySummary(recs).find((y) => y.year === year) || { saving: 0, principal: 0, interest: 0 };
+  const months = monthlySummary(recs, year);
+  const targets = byTarget(recs, year);
+  const list = recs.filter((r) => r.date.startsWith(`${year}-`)).sort((a, b) => b.date.localeCompare(a.date) || 0);
+  const groups = {};
+  for (const r of list) (groups[r.date.slice(0, 7)] ||= []).push(r);
+  const cell = (n) => (n ? won(n) : '<span class="muted">-</span>');
+
+  return `
+  <div class="row rec-actions">
+    <button class="btn primary" data-action="add-rec" data-type="saving">+ 저축 기록</button>
+    <button class="btn primary alt" data-action="add-rec" data-type="repayment">+ 상환 기록</button>
+  </div>
+  <div class="years" role="tablist" aria-label="연도">${years.map((y) => `<button class="year" role="tab" aria-selected="${y === year}" data-action="year" data-year="${y}">${y}년</button>`).join('')}</div>
+  <div class="tiles">
+    <div class="card tile"><div class="label">${year}년 저축</div><div class="num">${won(ys.saving)}</div></div>
+    <div class="card tile"><div class="label">${year}년 상환 원금</div><div class="num">${won(ys.principal)}</div></div>
+    <div class="card tile"><div class="label">${year}년 낸 이자</div><div class="num">${won(ys.interest)}</div></div>
+  </div>
+
+  <section class="card">
+    <h2>${year}년 월별</h2>
+    <div class="table-scroll"><table class="months">
+      <thead><tr><th>월</th><th>저축</th><th>상환 원금</th><th>이자</th></tr></thead>
+      <tbody>${months.map((m) => `<tr class="${m.count ? '' : 'dim'}"><th>${m.month}월</th><td>${cell(m.saving)}</td><td>${cell(m.principal)}</td><td>${cell(m.interest)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><th>합계</th><td>${won(ys.saving)}</td><td>${won(ys.principal)}</td><td>${won(ys.interest)}</td></tr></tfoot>
+    </table></div>
+  </section>
+
+  ${targets.length ? `<section class="card">
+    <h2>${year}년 항목별</h2>
+    <div class="table-scroll"><table>
+      <thead><tr><th>항목</th><th>횟수</th><th>금액</th></tr></thead>
+      <tbody>${targets.map((t) => `<tr><th>${esc(nameOf(t))} <span class="chip">${t.type === 'saving' ? '저축' : '상환'}</span></th><td>${t.count}회</td><td>${won(t.type === 'saving' ? t.saving : t.principal)}${t.interest ? `<small class="muted sub">+ 이자 ${won(t.interest)}</small>` : ''}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </section>` : ''}
+
+  <section class="section">
+    <div class="section-head"><h2>${year}년 기록 <span class="sum">${list.length}건</span></h2></div>
+    ${list.length ? Object.entries(groups).map(([ym, rs], gi) => `
+      <details class="rec-group" ${gi < 2 ? 'open' : ''}>
+        <summary class="rec-month">${Number(ym.slice(5))}월 <span>${rs.length}건 · 저축 ${won(rs.filter((r) => r.type === 'saving').reduce((a, r) => a + (Number(r.amount) || 0), 0))} · 상환 ${won(rs.filter((r) => r.type === 'repayment').reduce((a, r) => a + (Number(r.amount) || 0), 0))}</span></summary>
+        ${rs.map((r) => `<button class="rec" data-action="edit-rec" data-id="${esc(r.id)}">
+          <span class="rec-date">${Number(r.date.slice(8))}일</span>
+          <span class="rec-body"><b>${esc(nameOf(r))}</b> <span class="chip">${esc(r.kind || '')}</span>${r.applied === false ? ' <span class="chip">잔액 미반영</span>' : ''}${r.memo ? `<small>${esc(r.memo)}</small>` : ''}</span>
+          <span class="rec-amt ${r.type}">${r.type === 'saving' ? '저축 ' : '상환 '}${won(r.amount)}${r.interest ? `<small>이자 ${won(r.interest)}</small>` : ''}</span>
+        </button>`).join('')}
+      </details>`).join('') : '<p class="empty">아직 기록이 없어요. 위의 버튼으로 저축이나 상환을 기록해 보세요.</p>'}
+  </section>
+
+  ${yearlySummary(recs).length ? `<section class="card">
+    <h2>연도별 합계</h2>
+    <div class="table-scroll"><table>
+      <thead><tr><th>연도</th><th>저축</th><th>상환 원금</th><th>이자</th></tr></thead>
+      <tbody>${yearlySummary(recs).map((y) => `<tr><th>${y.year}년</th><td>${won(y.saving)}</td><td>${won(y.principal)}</td><td>${won(y.interest)}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </section>` : ''}`;
+}
+
 function viewSettings() {
   return `
   <section class="card">
@@ -317,7 +421,12 @@ let editing = null;
 function openForm(kind, item) {
   const spec = FORMS[kind];
   editing = { kind, id: item?.id };
-  const v = item || {};
+  let v = item || {};
+  if (isRecord(kind) && !item) {
+    const first = state.data[kind === 'saving' ? 'savings' : 'debts']?.[0];
+    if (!first) return toast(kind === 'saving' ? '먼저 자산 탭에서 저축 계좌를 추가해 주세요.' : '먼저 부채 탭에서 대출을 추가해 주세요.');
+    v = { targetId: first.id, date: today(), ...recordDefaults(kind, first.id) };
+  }
   $('#editor-title').textContent = `${spec.title} ${kind === 'stockPlan' ? '' : item ? '수정' : '추가'}`;
   $('#editor-fields').innerHTML = spec.fields.map((f) => {
     const val = v[f.key] ?? f.def ?? '';
@@ -328,9 +437,13 @@ function openForm(kind, item) {
     if (f.type === 'select') {
       input = `<select id="${id}" name="${f.key}">${f.options.map((o) => { const [k, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${k}" ${k === val ? 'selected' : ''}>${l}</option>`; }).join('')}</select>`;
     } else if (f.type === 'money') {
-      input = `<div class="unit"><input id="${id}" name="${f.key}" type="text" inputmode="numeric" value="${val === '' ? '' : (Number(val) / 1e4).toLocaleString()}" data-money placeholder="0"><span>만원</span></div><output class="money-preview" for="${id}"></output>`;
+      input = `<div class="unit"><input id="${id}" name="${f.key}" type="text" inputmode="numeric" value="${val === '' ? '' : (Number(val) / 1e4).toLocaleString(undefined, { maximumFractionDigits: 4 })}" data-money placeholder="0"><span>만원</span></div><output class="money-preview" for="${id}"></output>`;
     } else if (f.type === 'pct') {
       input = `<div class="unit"><input id="${id}" name="${f.key}" type="number" step="0.01" inputmode="decimal" value="${val}"><span>%</span></div>`;
+    } else if (f.type === 'ref') {
+      input = `<select id="${id}" name="${f.key}" required>${(state.data[f.source] || []).map((o) => `<option value="${esc(o.id)}" ${o.id === val ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>`;
+    } else if (f.type === 'date') {
+      input = `<input id="${id}" name="${f.key}" type="date" value="${esc(val)}" required>`;
     } else if (f.type === 'month') {
       input = `<input id="${id}" name="${f.key}" type="month" value="${esc(val)}">`;
     } else if (f.type === 'sigungu') {
@@ -372,7 +485,10 @@ function saveForm() {
   const vals = readForm();
   const d = state.data;
   if (editing.kind === 'stockPlan') d.stockPlan = vals;
-  else {
+  else if (isRecord(editing.kind)) {
+    upsertRecord(d, { id: editing.id || crypto.randomUUID().slice(0, 8), type: editing.kind, ...vals });
+    state.recYear = vals.date.slice(0, 4);
+  } else {
     const list = (d[editing.kind] ||= []);
     const i = list.findIndex((x) => x.id === editing.id);
     if (i >= 0) list[i] = { ...list[i], ...vals };
@@ -382,6 +498,12 @@ function saveForm() {
 }
 
 function deleteItem() {
+  if (isRecord(editing.kind)) {
+    if (!confirm('이 기록을 삭제할까요? 잔액에 반영했던 금액도 되돌려요.')) return false;
+    deleteRecord(state.data, editing.id);
+    commit();
+    return true;
+  }
   const item = state.data[editing.kind].find((x) => x.id === editing.id);
   if (!confirm(`'${item?.name}'을(를) 삭제할까요?`)) return false;
   state.data[editing.kind] = state.data[editing.kind].filter((x) => x.id !== editing.id);
@@ -425,6 +547,9 @@ function bind() {
     const a = b.dataset.action;
     const art = b.closest('.item');
     if (a === 'add') openForm(b.dataset.kind);
+    if (a === 'add-rec') openForm(b.dataset.type);
+    if (a === 'edit-rec') { const r = state.data.records.find((x) => x.id === b.dataset.id); openForm(r.type, r); }
+    if (a === 'year') { state.recYear = b.dataset.year; render(); }
     if (a === 'edit') openForm(art.dataset.kind, state.data[art.dataset.kind].find((x) => x.id === art.dataset.id));
     if (a === 'plan') openForm('stockPlan', state.data.stockPlan || {});
     if (a === 'cand') {
@@ -474,6 +599,14 @@ function bind() {
   $('#editor-delete').addEventListener('click', () => deleteItem() && dlg.close());
   $('#editor-fields').addEventListener('input', (e) => {
     if (e.target.matches('[data-money]')) previewMoney(e.target);
+    if (e.target.name === 'targetId' && !editing.id) {
+      // 새 기록에서 계좌·대출을 바꾸면 금액도 그 항목 기준으로 다시 채워요
+      const v = recordDefaults(editing.kind, e.target.value);
+      for (const k of ['amount', 'interest']) {
+        const el = $(`#f-${k}`);
+        if (el && v[k] !== undefined) { el.value = v[k] === '' ? '' : (v[k] / 1e4).toLocaleString(undefined, { maximumFractionDigits: 4 }); previewMoney(el); }
+      }
+    }
     if (e.target.name === 'lawdCd') e.target.closest('.field').querySelector('output').textContent = SIGUNGU.find(([c]) => c === e.target.value)?.[1] || '';
   });
 

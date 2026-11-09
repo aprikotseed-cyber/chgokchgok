@@ -116,7 +116,7 @@ svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round
 .sync[data-state="offline"] { color: var(--warn); }
 
 .tabs {
-  position: fixed; inset: auto 0 0 0; z-index: 10; display: grid; grid-template-columns: repeat(4, 1fr);
+  position: fixed; inset: auto 0 0 0; z-index: 10; display: grid; grid-template-columns: repeat(5, 1fr);
   background: var(--surface-1); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom);
 }
 .tabs a {
@@ -251,3 +251,26 @@ dialog h2 { margin-bottom: 8px; }
   position: fixed; left: 50%; bottom: calc(var(--nav-h) + 20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   background: var(--text-primary); color: var(--surface-1); padding: 10px 16px; border-radius: 12px; font-size: .9rem; z-index: 50; max-width: calc(100% - 32px);
 }
+
+/* ───── 기록 ───── */
+.muted { color: var(--text-muted); }
+.rec-actions .btn { flex: 1; min-height: 48px; font-size: 1rem; }
+.btn.primary.alt { background: var(--surface-1); color: var(--text-primary); border-color: var(--text-primary); }
+.years { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.year { font: inherit; font-size: .88rem; font-weight: 600; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-secondary); border-radius: 999px; padding: 6px 14px; cursor: pointer; white-space: nowrap; }
+.year[aria-selected="true"] { background: var(--text-primary); color: var(--surface-1); border-color: var(--text-primary); }
+table.months tr.dim td, table.months tr.dim th { color: var(--text-muted); }
+tfoot th, tfoot td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--border); }
+.rec-group { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+.rec-month { padding: 12px 16px; font-weight: 700; font-size: .95rem; cursor: pointer; list-style-position: inside; }
+.rec-month span { font-weight: 400; font-size: .8rem; color: var(--text-muted); margin-left: 6px; }
+thead th:first-child { text-align: left; }
+td small.sub { display: block; font-size: .75rem; }
+.rec {
+  display: grid; grid-template-columns: 3em 1fr auto; gap: 10px; align-items: center; width: 100%; text-align: left;
+  font: inherit; color: inherit; background: none; border: 0; border-top: 1px solid var(--grid); padding: 12px 16px; cursor: pointer;
+}
+.rec:hover { background: var(--surface-2); }
+.rec-date { color: var(--text-muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.rec-body small, .rec-amt small { display: block; color: var(--text-muted); font-size: .78rem; font-weight: 400; }
+.rec-amt { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
