@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110s';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110s';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261110s';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110s';
-import { won, wonExact, mdw, pct } from './format.js?v=20261110s';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel } from './agenda.js?v=20261110s';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261110u';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261110u';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261110u';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261110u';
+import { won, wonExact, mdw, pct } from './format.js?v=20261110u';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel } from './agenda.js?v=20261110u';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -180,11 +180,14 @@ const INTENTS = [
 ];
 
 /** 질문 하나에 대한 답. { text, chips: [{label, q}], unknown } */
-export function ask(question, data, market = {}, now = new Date(), agenda = null) {
+export function ask(question, data, market = {}, now = new Date(), agenda = null, memos = []) {
   const q = norm(question);
   if (!q) return { text: '궁금한 걸 적어 주세요.', chips: SUGGEST };
   const ctx = { q, raw: question, data, market, agenda, now: dateOnly(now), time: parseTime(q, now), ents: findEntities(q, data, agenda) };
 
+  // '와이파이 비번 바뀜 메모해줘', '메모: …': 메모 남기기 (바로 저장) / '와이파이 메모 찾아줘': 메모 찾기
+  if (MEMO_SAVE.test(q) || /^메모\s*[:：]/.test(question.trim())) return memoSave(question);
+  if (q.includes('메모')) return memoFind(q, memos);
   // '목요일 면담을 수요일 2시로 옮겨줘', '면담 일정 지워줘': 일정 옮기기·지우기 (확인 카드로)
   if (agenda && (MOVE_RE.test(q) || DEL_RE.test(q)) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) {
     const r = changeAnswer(ctx, now);
@@ -773,3 +776,25 @@ function changeAnswer(ctx, now) {
 }
 const toMin = (hm) => (hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : 0);
 const hmOf = (m) => `${String(Math.floor(Math.min(m, 1439) / 60)).padStart(2, '0')}:${String(Math.min(m, 1439) % 60).padStart(2, '0')}`;
+
+// ───── 메모 ─────
+const MEMO_SAVE = /(메모해|메모로남겨|메모남겨|메모해둬|적어둬|기억해둬|기억해줘)/;
+
+function memoSave(raw) {
+  const text = String(raw).trim()
+    .replace(/^메모\s*[:：]\s*/, '')
+    .replace(/\s*(?:이?라고|을|를)?\s*(?:좀\s*)?(?:메모|적어|기억)[\s\S]*$/, '')
+    .trim();
+  if (!text) return { text: '무엇을 메모할까요? 예: ‘와이파이 비밀번호 바뀜 메모해줘’' };
+  return { text: `메모해 둘게요.\n· ${text}`, action: { kind: 'memo', text } };
+}
+
+function memoFind(q, memos) {
+  const list = [...(memos || [])].sort((a, b) => (!!b.pinned - !!a.pinned) || (b.createdAt || 0) - (a.createdAt || 0));
+  if (!list.length) return { text: '아직 메모가 없어요. ‘…메모해줘’라고 하면 메모에 저장해 둘게요.' };
+  const word = q.replace(/메모|보여줘|보여|알려줘|알려|찾아줘|찾아|뭐있어|뭐야|뭐|있어|에서|좀|내|최근|목록|전부|다/g, '');
+  const hits = word.length >= 2 ? list.filter((m) => norm(m.text).includes(word)) : list;
+  const line = (m) => `· ${String(m.text).split('\n')[0]}${m.pinned ? ' (고정)' : ''}`;
+  if (word.length >= 2 && !hits.length) return { text: `‘${word}’ 들어간 메모는 없어요.` };
+  return { text: `${word.length >= 2 ? `‘${word}’ 들어간 메모예요.` : `메모 ${list.length}개 중 최근 것이에요.`}\n${hits.slice(0, 5).map(line).join('\n')}${hits.length > 5 ? `\n· 그 밖에 ${hits.length - 5}개` : ''}` };
+}

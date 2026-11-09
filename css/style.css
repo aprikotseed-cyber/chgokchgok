@@ -586,10 +586,10 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .row.task { gap: 12px; padding-top: 10px; padding-bottom: 10px; cursor: default; }
 .row.task:hover { background: none; }
 .row.task .row-main { background: none; border: 0; padding: 4px 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-.check { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; padding: 0; border: 2px solid var(--text-muted); border-radius: 50%; background: none; cursor: pointer; color: transparent; }
-.check svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.check:hover { border-color: var(--text-primary); }
-.row.task.done .check { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.tcheck { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; padding: 0; border: 2px solid var(--text-muted); border-radius: 50%; background: none; cursor: pointer; color: transparent; }
+.tcheck svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.tcheck:hover { border-color: var(--text-primary); }
+.row.task.done .tcheck { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
 .row.task.done .row-title { color: var(--text-muted); text-decoration: line-through; font-weight: 400; }
 .late { color: var(--danger); font-weight: 600; }
 .quick-add { display: flex; gap: 8px; padding: 8px; }
@@ -711,3 +711,39 @@ pre.debug { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-
   .pdots { top: 50%; transform: translateY(-50%); margin-left: 4px; }
   .pdots i { width: 7px; height: 7px; }
 }
+
+/* ───── 메모 ───── */
+.memo-capture-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pc-only { display: none; }
+@media (hover: hover) and (min-width: 900px) { .pc-only { display: inline; } }
+.memo-search {
+  width: 100%; height: 44px; padding: 0 14px; font: inherit; font-size: 16px; color: var(--text-primary);
+  background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+}
+.memo-search:focus { outline: none; border-color: var(--ink); }
+.view > .memo-group { margin-top: 28px; }
+.memo-group h3 { font-size: 13px; font-weight: 700; color: var(--text-muted); letter-spacing: .02em; padding: 0 4px 10px; }
+.memo-grid { display: grid; gap: 10px; }
+@media (min-width: 900px) { .memo-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-items: start; } }
+.memo {
+  display: flex; flex-direction: column; gap: 6px; width: 100%; min-width: 0; padding: 16px 18px 14px; text-align: left;
+  background: var(--surface-1); border: 1px solid transparent; border-radius: var(--r); font: inherit; color: inherit; cursor: pointer;
+  transition: border-color .15s ease;
+}
+.memo:hover { border-color: var(--border); }
+.memo.pinned { background: color-mix(in srgb, var(--hot-bg) 55%, var(--surface-1)); }
+.memo-title { font-size: 15px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
+.memo-body {
+  font-size: 14px; line-height: 1.55; color: var(--text-secondary); white-space: pre-line; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+.memo-meta { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: 12px; color: var(--text-muted); }
+.memo-meta svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.memo-empty, .memo-none { text-align: center; padding: 40px 18px; }
+.field textarea {
+  width: 100%; padding: 12px 14px; font: inherit; font-size: 16px; line-height: 1.55; resize: vertical; min-height: 160px;
+  color: var(--text-primary); background: var(--surface-2); border: 1px solid transparent; border-radius: 10px;
+}
+.field textarea:focus { outline: none; border-color: var(--ink); background: var(--surface-1); }
+.memo-stamp { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.memo-capture-foot .ask-send { margin-left: auto; }

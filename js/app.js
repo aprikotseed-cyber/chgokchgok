@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110s';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110s';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110s';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110s';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110s';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110s';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110s';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110s';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110s';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110s';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110s';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110s';
-import { createGoogle } from './google.js?v=20261110s';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110s';
-import { createDemoGoogle } from './google-demo.js?v=20261110s';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110s';
+import { connect, isDemo } from './store.js?v=20261110u';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110u';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110u';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110u';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110u';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110u';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110u';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110u';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110u';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110u';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110u';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110u';
+import { createGoogle } from './google.js?v=20261110u';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110u';
+import { createDemoGoogle } from './google-demo.js?v=20261110u';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110u';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -36,6 +36,7 @@ const state = {
   refresh: null,        // [지금 업데이트] 요청 상태 {at, kind, quotesAt}
   reorder: null,        // 순서 바꾸는 중인 목록 (예: 'savings')
   dragging: false,
+  memos: [],            // 메모 [{id, text, pinned, createdAt, updatedAt}]
   agenda: null,         // 구글에서 받아 둔 일정·할일 {calendars, lists, listId, events, tasks, syncedAt}
   gsync: '',            // '' | 'busy' | 'auth'(다시 연결 필요) | 오류 문구
   calDays: 14,
@@ -56,6 +57,13 @@ const SIGUNGU = [
 const FIXED_CATS = ['주거', '통신', '보험', '구독', '교통', '공과금', '교육', '기부·후원', '모임·데이트', '기타'];
 
 const FORMS = {
+  memo: {
+    title: '메모',
+    fields: [
+      { key: 'text', label: '메모', type: 'textarea', required: true },
+      { key: 'pinned', label: '맨 위에 고정', type: 'check' },
+    ],
+  },
   event: {
     title: '일정',
     fields: [
@@ -767,6 +775,80 @@ function monthsToggle(yms) {
   return `<button class="link-btn" data-action="months-all" data-open="${allOpen ? '0' : '1'}" data-yms="${yms.join(',')}">${allOpen ? '모두 접기' : '모두 펼치기'}</button>`;
 }
 
+// ───────────────────────── 메모 ─────────────────────────
+// 급하게 적어 둘 것들. 맨 위 칸에 쓰고 저장, 누르면 고치기·고정·지우기.
+const memoTime = (t) => {
+  const d = new Date(t);
+  const k = ymd(d);
+  const hm = d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
+  if (k === today()) return hm;
+  if (k === ymd(new Date(now().getFullYear(), now().getMonth(), now().getDate() - 1))) return `어제 ${hm}`;
+  return d.getFullYear() === now().getFullYear() ? `${d.getMonth() + 1}월 ${d.getDate()}일` : `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
+};
+const memoStamp = (m) => `${dateTime(m.createdAt)} 작성${m.updatedAt && m.updatedAt - m.createdAt > 60_000 ? ` · ${dateTime(m.updatedAt)} 고침` : ''}${m.source === 'shortcut' ? ' · 단축어' : ''}`;
+
+/** 언제 쓴 메모인지 묶기: 오늘 / 어제 / 이번 주 / 이번 달 / 2026년 10월 … */
+function memoGroup(t) {
+  const d = new Date(t);
+  const n = now();
+  const t0 = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  const days = Math.floor((t0 - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+  if (days <= 0) return '오늘';
+  if (days === 1) return '어제';
+  if (days < 7) return '지난 7일';
+  if (d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth()) return '이번 달';
+  return `${d.getFullYear() === n.getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월`;
+}
+
+function memoCard(m) {
+  const [first, ...rest] = String(m.text || '').split('\n');
+  const body = rest.join('\n').trim();
+  return `<button class="memo${m.pinned ? ' pinned' : ''}" data-action="memo-edit" data-id="${esc(m.id)}" data-text="${esc(String(m.text || '').toLowerCase())}">
+    <span class="memo-title">${esc(first)}</span>
+    ${body ? `<span class="memo-body">${esc(body)}</span>` : ''}
+    <span class="memo-meta">${m.pinned ? '<svg viewBox="0 0 24 24" aria-label="고정"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></svg>' : ''}${esc(memoTime(m.createdAt))}</span>
+  </button>`;
+}
+
+function viewMemo() {
+  const list = [...(state.memos || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  const pinned = list.filter((m) => m.pinned);
+  const groups = [];
+  for (const m of list.filter((x) => !x.pinned)) {
+    const g = memoGroup(m.createdAt);
+    if (groups.at(-1)?.name !== g) groups.push({ name: g, items: [] });
+    groups.at(-1).items.push(m);
+  }
+  const block = (name, items) => `<section class="memo-group" data-group><h3>${name}</h3><div class="memo-grid">${items.map(memoCard).join('')}</div></section>`;
+  return `
+  <form id="memo-add" class="ask-box memo-capture" autocomplete="off">
+    <label for="memo-input" class="ask-label">새 메모</label>
+    <textarea id="memo-input" rows="3" aria-label="새 메모"></textarea>
+    <div class="memo-capture-foot"><span class="hint pc-only">Ctrl+Enter로 저장</span><button class="ask-send" type="submit">저장</button></div>
+  </form>
+  ${list.length > 5 ? '<input id="memo-search" class="memo-search" type="search" placeholder="메모에서 찾기" aria-label="메모에서 찾기" autocomplete="off">' : ''}
+  ${list.length ? `${pinned.length ? block('고정', pinned) : ''}${groups.map((g) => block(g.name, g.items)).join('')}<p class="empty memo-none" hidden>찾는 메모가 없어요.</p>`
+    : '<p class="empty memo-empty">아직 메모가 없어요. 떠오른 것을 위 칸에 바로 적어 두세요.</p>'}`;
+}
+
+async function addMemo(text, source = 'app') {
+  const t = Date.now();
+  try {
+    await store.saveMemo({ id: `m${t.toString(36)}${Math.random().toString(36).slice(2, 5)}`, text, pinned: false, createdAt: t, updatedAt: t, source });
+    return true;
+  } catch (e) { toast(`메모를 저장하지 못했어요: ${e.message}`); return false; }
+}
+
+function saveMemo(vals) {
+  const text = vals.text.trim();
+  if (!text) { toast('내용을 적어 주세요.'); return false; }
+  const old = state.memos.find((m) => m.id === editing.id);
+  if (!old) { addMemo(text); return; }
+  if (old.text === text && !!old.pinned === !!vals.pinned) return;
+  store.saveMemo({ ...old, text, pinned: !!vals.pinned, updatedAt: old.text === text ? old.updatedAt : Date.now() })
+    .catch((e) => toast(`저장하지 못했어요: ${e.message}`));
+}
+
 function viewRecords() {
   const d = state.data;
   const recs = [...(d.records || []), ...scheduleRecords(d, today())];
@@ -1302,7 +1384,7 @@ function taskRow(t) {
   const rule = taskRule(t);
   const meta = [label ? `<span class="${late ? 'late' : ''}">${label}</span>` : '', rule ? esc(repeatLabel(rule, t.due)) : '', esc(list), esc(t.notes.split('\n')[0])].filter(Boolean).join(' · ');
   return `<div class="row task${t.done ? ' done' : ''}">
-    <button class="check" data-action="task-toggle" data-id="${esc(t.id)}" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title)} ${t.done ? '완료 취소' : '완료'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
+    <button class="tcheck" data-action="task-toggle" data-id="${esc(t.id)}" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title)} ${t.done ? '완료 취소' : '완료'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
     <button class="row-main" data-action="task-edit" data-id="${esc(t.id)}"><span class="row-title">${esc(t.title)}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</button>
   </div>`;
 }
@@ -1474,10 +1556,10 @@ function setGoogle(patch) {
 }
 
 // ───────────────────────── 그리기 ─────────────────────────
-const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
-const TITLES = { home: '오늘', money: '자산 홈', calendar: '일정', tasks: '할일', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
+const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, memo: viewMemo, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
+const TITLES = { home: '오늘', money: '자산 홈', calendar: '일정', tasks: '할일', memo: '메모', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
 // 자산 메뉴 안의 작은 탭: 자산 | 부채 | 고정지출
-const MONEY_TABS = [['money', '홈'], ['assets', '자산'], ['debts', '부채'], ['fixed', '고정지출']];
+const MONEY_TABS = [['money', '홈'], ['assets', '자산'], ['debts', '부채'], ['fixed', '고정지출'], ['records', '기록']];
 const navTab = (t) => (MONEY_TABS.some(([k]) => k === t) ? 'money' : t);
 const subNav = () => `<nav class="segment subnav" aria-label="자산 메뉴">${MONEY_TABS.map(([k, l]) => `<a href="#${k}" role="tab" aria-selected="${state.tab === k}">${l}</a>`).join('')}</nav>`;
 const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라인', demo: '체험 모드' };
@@ -1619,6 +1701,8 @@ function openForm(kind, item, preset = {}) {
       input = `<select id="${id}" name="${f.key}" required>${(state.data[f.source] || []).filter((o) => !f.filter || f.filter(o) || o.id === val).map((o) => `<option value="${esc(o.id)}" ${o.id === val ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>`;
     } else if (f.type === 'date') {
       input = `<input id="${id}" name="${f.key}" type="date" value="${esc(val)}" ${f.optional ? '' : 'required'}>`;
+    } else if (f.type === 'textarea') {
+      input = `<textarea id="${id}" name="${f.key}" rows="8" ${f.required ? 'required' : ''}>${esc(val)}</textarea>`;
     } else if (f.type === 'time') {
       input = `<input id="${id}" name="${f.key}" type="time" value="${esc(val)}" step="300">`;
     } else if (f.type === 'month') {
@@ -1635,6 +1719,9 @@ function openForm(kind, item, preset = {}) {
   }).join('');
   $('#editor-delete').hidden = !item || kind === 'trade';
   // 이미 있는 일정의 반복은 구글 캘린더에서 바꿔요 (여기서는 그 날 하나만 고쳐요)
+  if (kind === 'memo' && item) {
+    $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint memo-stamp">${memoStamp(item)} <button type="button" class="link-btn" id="memo-copy">복사</button></p>`);
+  }
   if (kind === 'event' && item) $('#f-repeat')?.closest('.field')?.setAttribute('hidden', '');
   if (kind === 'event' && item) {
     $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint">${item.recurring ? '반복 일정이라 이 날 하나만 바뀌어요. ' : ''}${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noopener">구글 캘린더에서 열기</a>` : ''}</p>`);
@@ -1710,6 +1797,7 @@ function saveForm() {
   if (editing.kind === 'trade') return saveTrade(vals);
   if (editing.kind === 'task') return saveTask(vals);
   if (editing.kind === 'event') return saveEvent(vals);
+  if (editing.kind === 'memo') return saveMemo(vals);
   if (editing.kind === 'fx') d.settings = { ...(d.settings || {}), usdKrw: vals.usdKrw };
   else if (isRecord(editing.kind)) {
     upsertRecord(d, { id: editing.id || crypto.randomUUID().slice(0, 8), type: editing.kind, ...vals });
@@ -1736,6 +1824,11 @@ function saveForm() {
 }
 
 function deleteItem() {
+  if (editing.kind === 'memo') {
+    if (!confirm('이 메모를 지울까요?')) return false;
+    store.deleteMemo(editing.id).catch((e) => toast(`지우지 못했어요: ${e.message}`));
+    return true;
+  }
   if (editing.kind === 'event') {
     if (!confirm(editing.recurring ? '반복 일정 중 이 날 하나만 지울까요? 구글 캘린더에서도 지워져요.' : '이 일정을 지울까요? 구글 캘린더에서도 지워져요.')) return false;
     removeEvent(editing.calId, editing.id);
@@ -1871,8 +1964,8 @@ function chatHtml(m, i) {
   // 일정·할일 넣기 확인 카드
   let act = '';
   if (m.action) {
-    const verb = { move: '옮기', delete: '지우' }[m.action.kind] || '넣';
-    const doneText = { move: '구글 캘린더에서 옮겼어요.', delete: '구글 캘린더에서 지웠어요.', task: '구글 태스크에 넣었어요.' }[m.action.kind] || '구글 캘린더에 넣었어요.';
+    const verb = { move: '옮기', delete: '지우', memo: '저장하' }[m.action.kind] || '넣';
+    const doneText = { move: '구글 캘린더에서 옮겼어요.', delete: '구글 캘린더에서 지웠어요.', task: '구글 태스크에 넣었어요.', memo: '메모에 저장했어요.' }[m.action.kind] || '구글 캘린더에 넣었어요.';
     if (m.done) act = `<p class="fb-done${after}">${{ ok: doneText, fail: `${verb}지 못했어요. 다시 해 볼까요?`, cancel: `${verb}지 않았어요.`, edit: '입력창에서 고쳐서 넣어 주세요.', busy: `${verb}는 중…` }[m.done]}</p>`;
     if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="pill primary" data-act="do" data-i="${i}">${verb}기</button>${m.action.kind === 'event' ? `<button type="button" class="pill" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="pill" data-act="cancel" data-i="${i}">취소</button></div>`;
     fb = '';
@@ -1904,7 +1997,7 @@ function askAssistant(q) {
   renderChat();
   // 일정·할일도 함께 (구글을 연결해 받아 둔 것)
   const ag = state.agenda ? { events: agendaEvents(), tasks: state.agenda.tasks || [], until: agendaUntil(state.agenda), calendars: writableCals() } : null;
-  const a = ask(q, state.data, state.market, new Date(), ag);
+  const a = ask(q, state.data, state.market, new Date(), ag, state.memos);
   // 모르는 질문은 저절로 개선 목록에
   if (a.unknown) saveFeedback({ q, kind: 'unknown' });
   replying = replying.then(async () => {
@@ -1916,8 +2009,10 @@ function askAssistant(q) {
       await wait(Math.min(1100, 450 + a.text.length * 6)); // 답이 길수록 조금 더 '쓰는' 시간
       chat.splice(chat.indexOf(typing), 1);
     }
-    chat.push({ text: a.text, chips: a.chips, q, unknown: !!a.unknown, action: a.action });
+    const msg = { text: a.text, chips: a.chips, q, unknown: !!a.unknown, action: a.action };
+    chat.push(msg);
     renderChat();
+    if (a.action?.kind === 'memo') doAction(msg, 'do'); // 메모는 확인 없이 바로 저장
   });
 }
 
@@ -1930,7 +2025,8 @@ async function doAction(m, what) {
   if (what === 'do') {
     m.done = 'busy';
     renderChat();
-    const ok = a.kind === 'task' ? await addTaskItem(a.title, a.due, a.repeat || null)
+    const ok = a.kind === 'memo' ? await addMemo(a.text)
+      : a.kind === 'task' ? await addTaskItem(a.title, a.due, a.repeat || null)
       : a.kind === 'move' ? await moveEvent(a)
       : a.kind === 'delete' ? await removeEvent(a.calId, a.id)
       : await createEvent({ ...a.ev, calId: writableCals().find((c) => c.name === a.ev.calName)?.id });
@@ -2076,6 +2172,7 @@ function bind() {
     }
     if (a === 'cal-add') openForm('event', null, { date: b.dataset.key, title: '' });
     if (a === 'task-toggle') toggleTask(id);
+    if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openForm('memo', m); }
     if (a === 'event-edit') { const ev = state.agenda?.events.find((x) => x.id === id && x.calId === b.dataset.cal); if (ev) openForm('event', ev); }
     if (a === 'task-edit') { const t = state.agenda?.tasks.find((x) => x.id === id); if (t && !t.id.startsWith('tmp-')) openForm('task', t); }
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
@@ -2181,6 +2278,14 @@ function bind() {
   }, true);
 
   $('#view').addEventListener('input', (e) => {
+    if (e.target.id === 'memo-search') {
+      // 다시 그리지 않고 보이기만 바꿔요 (입력 중 커서 유지)
+      const q = e.target.value.trim().toLowerCase();
+      document.querySelectorAll('.memo').forEach((c) => { c.hidden = !!q && !c.dataset.text.includes(q); });
+      document.querySelectorAll('[data-group]').forEach((g) => { g.hidden = ![...g.querySelectorAll('.memo')].some((c) => !c.hidden); });
+      const none = $('.memo-none');
+      if (none) none.hidden = !q || !!document.querySelector('.memo:not([hidden])');
+    }
     if (e.target.id === 'event-input') {
       const v = e.target.value.trim();
       $('#event-preview').textContent = v ? eventPreview(parseQuickEvent(v, now())) : EVENT_HINT;
@@ -2194,6 +2299,8 @@ function bind() {
   // 비서 칸: Enter로 보내기, Shift+Enter는 줄바꿈 (한글 조합 중에는 보내지 않아요)
   $('#view').addEventListener('keydown', (e) => {
     if (e.target.id === 'home-ask-input' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
+    // 메모는 여러 줄이라 Enter는 줄바꿈, Ctrl(⌘)+Enter로 저장
+    if (e.target.id === 'memo-input' && e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
   });
   $('#view').addEventListener('submit', (e) => {
     if (e.target.id === 'home-ask') {
@@ -2205,6 +2312,15 @@ function bind() {
       input.blur();
       openAssistant();
       askAssistant(v);
+      return;
+    }
+    if (e.target.id === 'memo-add') {
+      e.preventDefault();
+      const input = $('#memo-input');
+      const text = input.value.trim();
+      if (!text) return input.focus();
+      input.value = '';
+      addMemo(text);
       return;
     }
     if (e.target.id === 'event-add') {
@@ -2261,6 +2377,9 @@ function bind() {
   $('#editor-delete').addEventListener('click', () => deleteItem() && dlg.close());
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); }); // 바깥 누르면 닫기
   $('#editor-fields').addEventListener('click', (e) => {
+    if (e.target.id === 'memo-copy') {
+      navigator.clipboard?.writeText($('#f-text').value).then(() => toast('복사했어요.'), () => toast('복사하지 못했어요. 글을 길게 눌러 복사해 주세요.'));
+    }
     const c = e.target.closest('[data-cur]');
     if (c) {
       $(`#f-${c.dataset.for}`).value = c.dataset.cur;
@@ -2393,6 +2512,7 @@ async function main() {
     onSecrets: (sc) => { state.secrets = sc || {}; if (['settings', 'home', 'calendar', 'tasks'].includes(state.tab)) render(); },
     onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'money') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
+    onMemos: (list) => { state.memos = list || []; if (state.tab === 'memo') render(); },
     onAgenda: (a) => {
       const first = !agendaLoaded;
       agendaLoaded = true;

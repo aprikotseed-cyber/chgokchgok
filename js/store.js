@@ -49,6 +49,8 @@ export async function connect(h) {
       F.onSnapshot(historyRef, (s) => h.onHistory?.(s.exists() ? s.data().days || {} : {})),
       // 구글 캘린더·태스크에서 받아 둔 일정·할일 (다음에 열 때 로그인 없이 바로 보이게)
       F.onSnapshot(F.doc(db, 'users', user.uid, 'data', 'agenda'), (s) => h.onAgenda?.(s.exists() ? s.data() : null)),
+      // 메모: 하나씩 따로 저장 (단축어로 GitHub이 넣어도 앱 저장과 겹치지 않게)
+      F.onSnapshot(F.collection(db, 'users', user.uid, 'memos'), (s) => h.onMemos?.(s.docs.map((d) => ({ id: d.id, ...d.data() })))),
       // 토큰 같은 비밀값: 백업 파일·개선 목록에 섞이지 않게 따로 저장
       F.onSnapshot(F.doc(db, 'users', user.uid, 'data', 'secrets'), (s) => h.onSecrets?.(s.exists() ? s.data() : {})),
     );
@@ -60,6 +62,8 @@ export async function connect(h) {
     save: (data) => F.setDoc(mainRef, data),
     /** 하루 자산 기록 한 줄 (같은 날이면 덮어써요) */
     saveHistory: (day, entry) => F.setDoc(historyRef, { days: { [day]: entry } }, { merge: true }),
+    saveMemo: ({ id, ...memo }) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'memos', id), memo),
+    deleteMemo: (id) => F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'memos', id)),
     saveAgenda: (agenda) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'agenda'), agenda),
     saveSecret: (key, value) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'secrets'), { [key]: value || F.deleteField() }, { merge: true }),
     pushSupported: async () => {
@@ -106,7 +110,11 @@ function demoStore(h) {
   const market = sampleMarket();
   const HKEY = 'chgok-demo-history';
   const history = JSON.parse(localStorage.getItem(HKEY) || 'null') || sampleHistory();
+  const MKEY = 'chgok-demo-memos';
+  let memos = JSON.parse(localStorage.getItem(MKEY) || 'null') || sampleMemos();
+  const putMemos = () => { localStorage.setItem(MKEY, JSON.stringify(memos)); h.onMemos?.(memos); };
   setTimeout(() => {
+    h.onMemos?.(memos);
     h.onAuth({ email: '체험 모드' });
     h.onData(data);
     h.onMarket(market);
@@ -124,8 +132,21 @@ function demoStore(h) {
     pushDevices: async () => [],
     saveSecret: async () => { throw new Error('체험 모드에서는 저장하지 않아요'); },
     saveAgenda: async () => {},
+    saveMemo: async (m) => { memos = [m, ...memos.filter((x) => x.id !== m.id)]; putMemos(); },
+    deleteMemo: async (id) => { memos = memos.filter((x) => x.id !== id); putMemos(); },
     removePushDevice: async () => {},
   };
+}
+
+function sampleMemos() {
+  const t = Date.now();
+  const h = 3600_000;
+  return [
+    { id: 'm1', text: '학부모 상담 때 물어볼 것\n- 방과후 신청 여부\n- 알레르기 확인', pinned: true, createdAt: t - 50 * h, updatedAt: t - 50 * h },
+    { id: 'm2', text: '와이파이 비밀번호 바뀜: 공유기 뒷면 확인', pinned: false, createdAt: t - 2 * h, updatedAt: t - 2 * h },
+    { id: 'm3', text: '다음 학기 연수 후보: 디지털 리터러시, 회복적 생활교육', pinned: false, createdAt: t - 26 * h, updatedAt: t - 26 * h },
+    { id: 'm4', text: '읽을 책: 『도둑맞은 집중력』', pinned: false, createdAt: t - 9 * 24 * h, updatedAt: t - 9 * 24 * h },
+  ];
 }
 
 function sampleData() {
