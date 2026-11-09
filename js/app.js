@@ -1,14 +1,14 @@
-import { connect, isDemo } from './store.js?v=20261109n';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109n';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109n';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109n';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109n';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109n';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109n';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109n';
-import { ask, SUGGEST } from './assistant.js?v=20261109n';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109n';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109n';
+import { connect, isDemo } from './store.js?v=20261109o';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109o';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109o';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109o';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109o';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109o';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109o';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109o';
+import { ask, SUGGEST } from './assistant.js?v=20261109o';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109o';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109o';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -782,8 +782,34 @@ function render() {
   if (!VIEWS[state.tab]) state.tab = 'home';
   document.querySelectorAll('[data-tab]').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === state.tab ? 'page' : 'false'));
   renderSync();
+  renderAlerts();
   $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : ''}</h1>${VIEWS[state.tab]()}`;
   afterRender();
+}
+
+// ───────────────────────── PC 알림 카드 ─────────────────────────
+// 상환 5·3·1일 전, 고정지출 하루 전인 날에 오른쪽 아래에 떠서 닫을 때까지 남아 있어요.
+// 닫은 알림은 이 기기에 기억해 두고, 다음 단계(예: 3일 전)가 되면 새로 떠요.
+const DISMISS_KEY = 'chgok-alerts-closed';
+const alertKey = (a) => `${a.type}:${a.id}:${ymd(a.date)}:${a.dday}`;
+function closedAlerts() {
+  try { return JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]'); } catch { return []; }
+}
+
+function renderAlerts() {
+  const box = $('#alerts');
+  if (!state.user) { box.innerHTML = ''; return; }
+  const closed = new Set(closedAlerts());
+  const list = alertsFor(state.data, now()).filter((a) => !closed.has(alertKey(a)));
+  box.innerHTML = list.map((a) => {
+    const loan = a.type === 'loan';
+    return `<div class="alert-card" role="alert">
+      <div class="alert-head"><span class="badge hot">${loan ? `D-${a.dday}` : '내일'}</span><b>${loan ? `${esc(a.name)} 상환 ${a.dday}일 전` : `${esc(a.name)} 출금`}</b>
+        <button class="icon-btn" data-close-alert="${esc(alertKey(a))}" aria-label="닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <p>${mdw(a.date)} · ${a.exact ? '' : '약 '}${wonExact(a.amount)}${a.account ? ` · ${esc(a.account)}` : ''}</p>
+      <a class="link-btn" href="#${loan ? 'debts' : 'fixed'}" data-close-alert="${esc(alertKey(a))}">${loan ? '부채에서 보기' : '고정지출에서 보기'}</a>
+    </div>`;
+  }).join('');
 }
 
 function renderSync() {
@@ -1329,6 +1355,13 @@ function bind() {
   });
 
   $('#update-apply').addEventListener('click', () => location.reload());
+  $('#alerts').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-close-alert]');
+    if (!b) return;
+    const keep = closedAlerts().filter((k) => k.split(':')[2] >= ymd(new Date(Date.now() - 40 * 86400000))); // 오래된 건 정리
+    localStorage.setItem(DISMISS_KEY, JSON.stringify([...keep, b.dataset.closeAlert]));
+    renderAlerts();
+  });
 
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { redrawAll(); render(); });
   let rt;
