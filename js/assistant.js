@@ -1,11 +1,11 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261109o';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261109o';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261109o';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261109o';
-import { won, wonExact, mdw, pct } from './format.js?v=20261109o';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261109p';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261109p';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261109p';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261109p';
+import { won, wonExact, mdw, pct } from './format.js?v=20261109p';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -132,6 +132,9 @@ export function ask(question, data, market = {}, now = new Date()) {
   if (!q) return { text: '궁금한 걸 적어 주세요.', chips: SUGGEST };
   const ctx = { q, raw: question, data, market, now: dateOnly(now), time: parseTime(q, now), ents: findEntities(q, data) };
 
+  // '가장 빠른 / 제일 먼저 / 다음에' 빠져나가는 것: 순서를 묻는 질문은 합계보다 먼저 봐요
+  if (asksNext(q) && !ctx.ents.some((e) => e.type === 'loan' || e.type === 'fixed')) return H.nextOut(ctx);
+
   const scored = INTENTS.map((it) => {
     let score = it.words.reduce((a, w) => a + (q.includes(w) ? w.length : 0), 0);
     if (score && it.types && ctx.ents.some((e) => it.types.includes(e.type))) score += 2;
@@ -161,9 +164,17 @@ export const SUGGEST = [
   { label: '다음 대출 상환', q: '다음 대출 상환 언제야?' },
   { label: '총자산', q: '총자산 얼마야?' },
   { label: '고정지출 합계', q: '고정지출 얼마야?' },
+  { label: '다음에 빠져나갈 돈', q: '가장 먼저 빠져나가는 고정지출 뭐야?' },
   { label: '해외주식 수익', q: '해외주식 수익 얼마야?' },
   { label: '올해 낸 이자', q: '올해 낸 이자 얼마야?' },
 ];
+
+/** 가장 빠른·제일 먼저·바로 다음 … 빠져나가는/나가는/출금되는 것을 묻는지 */
+export function asksNext(q) {
+  const soon = /(가장|제일|젤|젤루)(빠른|빨리|먼저|가까운|임박)|다음(에|으로)?(빠져|나가|출금|결제|지출|고정지출|고정비)|곧(빠져|나가|출금|결제)|임박한|코앞/.test(q);
+  const out = /빠져|나가|출금|결제|지출|고정|내야|낼/.test(q);
+  return soon && out;
+}
 
 // ───── 답 만들기 ─────
 const loansOf = (ctx) => {
@@ -194,11 +205,46 @@ function fixedIn(data, start, end) {
   return out;
 }
 
+/** 'N일 후 11월 19일(목)' */
+function whenText(now, d) {
+  const n = daysBetween(now, d);
+  const head = n === 0 ? '오늘' : n === 1 ? '내일' : `${n}일 후`;
+  return `${head} ${d.getMonth() + 1}월 ${d.getDate()}일(${'일월화수목금토'[d.getDay()]})`;
+}
+
+/** '초등교사노동조합'으로 / '휴대폰'으로 / '음악'로 (받침 ㄹ이거나 없으면 '로') */
+function euro(name) {
+  const code = String(name).trim().slice(-1).charCodeAt(0) - 0xac00;
+  const jong = code >= 0 && code <= 11171 ? code % 28 : 0;
+  return `'${name}'${jong && jong !== 8 ? '으로' : '로'}`;
+}
+
 const H = {
+  /** 가장 빨리 빠져나가는 고정지출(질문에 대출·상환이 없으면 고정지출만, '나갈 돈'처럼 넓게 물으면 대출 포함) */
+  nextOut(ctx) {
+    const onlyFixed = /고정|구독|요금|공과금|관리비/.test(ctx.q) || !/대출|상환|돈|모든|전체|아무/.test(ctx.q);
+    const list = upcoming(onlyFixed ? { fixed: ctx.data.fixed } : ctx.data, ctx.now, 62);
+    if (!list.length) return { text: onlyFixed ? '앞으로 두 달 안에 빠져나갈 고정지출이 없어요. 고정지출 탭에서 출금일을 확인해 주세요.' : '앞으로 두 달 안에 빠져나갈 돈이 없어요.' };
+    const first = list.filter((u) => u.dday === list[0].dday);
+    const d = first[0].date;
+    const acct = (u) => (u.account ? ` (${u.account})` : '');
+    const kind = (u) => (u.type === 'loan' ? '상환' : '지출');
+    let text;
+    if (first.length === 1) {
+      const u = first[0];
+      text = `${whenText(ctx.now, d)} ${euro(u.name)} ${wonExact(u.amount)} ${kind(u)} 예정이에요.${acct(u)}`;
+    } else {
+      text = `${whenText(ctx.now, d)}에 ${first.length}건이 빠져나갈 예정이에요. 모두 ${wonExact(first.reduce((a, u) => a + u.amount, 0))}이에요.\n${first.map((u) => `· ${euro(u.name)} ${wonExact(u.amount)}${acct(u)}`).join('\n')}`;
+    }
+    const after = list.find((u) => u.dday > first[0].dday);
+    if (after) text += `\n그다음은 ${whenText(ctx.now, after.date)} ${euro(after.name)} ${wonExact(after.amount)}이에요.`;
+    return { text, chips: [ask1('이번 달 남은 출금 얼마야?')] };
+  },
+
   hello: () => ({ text: '네, 덕준님. 자산·대출·고정지출·주식에 대해 물어보시면 입력해 두신 내용으로 바로 알려드릴게요.', chips: SUGGEST }),
 
   help: () => ({
-    text: '입력해 두신 내용으로 이런 걸 알려드릴 수 있어요.\n· 총자산, 저축액, 주택 시세\n· 대출: 다음 상환일과 금액, 남은 원금, 회차, 낸 이자, 다 갚는 날\n· 고정지출: 합계, 항목별 출금일, 분류별 합계\n· 이번 달·이번 주·내일 나갈 돈\n· 주식: 묶음별·종목별 수익, 환율과 환율 효과\n· 연도별 저축·상환 기록',
+    text: '입력해 두신 내용으로 이런 걸 알려드릴 수 있어요.\n· 총자산, 저축액, 주택 시세\n· 대출: 다음 상환일과 금액, 남은 원금, 회차, 낸 이자, 다 갚는 날\n· 고정지출: 합계, 가장 먼저 빠져나가는 것, 항목별 출금일, 분류별 합계\n· 이번 달·이번 주·내일 나갈 돈\n· 주식: 묶음별·종목별 수익, 환율과 환율 효과\n· 연도별 저축·상환 기록',
     chips: SUGGEST,
   }),
 

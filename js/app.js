@@ -1,14 +1,14 @@
-import { connect, isDemo } from './store.js?v=20261109o';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109o';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109o';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109o';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109o';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109o';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109o';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109o';
-import { ask, SUGGEST } from './assistant.js?v=20261109o';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109o';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109o';
+import { connect, isDemo } from './store.js?v=20261109p';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109p';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109p';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109p';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109p';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109p';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109p';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109p';
+import { ask, SUGGEST } from './assistant.js?v=20261109p';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109p';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109p';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 

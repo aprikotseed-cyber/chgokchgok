@@ -104,3 +104,31 @@ test('줄임말과 조사', async () => {
   assert.match(ask('넷플 언제 결제돼', d2, market, now).text, /넷플릭스는 매달 12일에 17,000원/);
   assert.match(A('아파트 관리비 얼마였지').text, /아파트 관리비는 매달 25일/);
 });
+
+test('개선 요청 1: 가장 빠른 시일에 빠져나가는 고정지출', () => {
+  const d2 = {
+    ...data,
+    fixed: [
+      { id: 'f1', name: '휴대폰', category: '통신', amount: 52_000, day: 21 },
+      { id: 'f5', name: '초등교사노동조합', category: '기부·후원', amount: 10_000, day: 19 },
+      { id: 'f6', name: '음악 구독', category: '구독', amount: 11_990, day: 3 },
+    ],
+  };
+  const a = ask('가장 빠른 시일에 빠져나가는 고정지출이 뭐야?', d2, market, new Date(2026, 10, 9)).text;
+  assert.match(a, /^10일 후 11월 19일\(목\) '초등교사노동조합'으로 10,000원 지출 예정이에요\./);
+  assert.match(a, /그다음은 12일 후 11월 21일\(토\) '휴대폰'으로 52,000원/);
+  // 같은 뜻의 다른 말들
+  for (const q of ['제일 먼저 나가는 고정비 뭐야', '다음 고정지출 언제야', '곧 빠져나가는 거 뭐 있어?', '다음에 결제되는 거']) {
+    assert.match(ask(q, d2, market, new Date(2026, 10, 9)).text, /초등교사노동조합/, q);
+  }
+  // 합계를 묻는 질문은 그대로
+  assert.match(ask('고정지출 얼마야', d2, market, new Date(2026, 10, 9)).text, /매달 고정지출은/);
+});
+
+test('같은 날 두 건이면 함께', () => {
+  const d3 = { fixed: [{ id: 'a', name: '관리비', amount: 238_000, day: 25 }, { id: 'b', name: '적금 자동이체', amount: 300_000, day: 25, account: '급여 통장' }] };
+  const a = ask('가장 먼저 빠져나가는 고정지출', d3, {}, new Date(2026, 10, 9)).text;
+  assert.match(a, /16일 후 11월 25일\(수\)에 2건이 빠져나갈 예정이에요\. 모두 538,000원이에요\./);
+  assert.match(a, /'관리비'로 238,000원/);
+  assert.match(a, /'적금 자동이체'로 300,000원 \(급여 통장\)/);
+});
