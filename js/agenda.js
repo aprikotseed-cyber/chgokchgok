@@ -461,3 +461,11 @@ export function parseEventInput(text, now, calendars = [], keywords = []) {
   const cal = calendars.find((c) => c.name.toLowerCase() === want.toLowerCase());
   return { ...p, calName: cal?.name || want };
 }
+
+/** 단축어가 보낸 종류 → 'event' | 'task' | 'memo'. 글자('일정')나 이모지(🗓️ ☑️ 📝) 모두 알아들어요 */
+export function inboxKind(raw) {
+  const s = String(raw || '').replace(/️/g, '').trim().toLowerCase();
+  if (/일정|약속|event|calendar|[📅📆🗓⏰]/u.test(s)) return 'event';
+  if (/할일|할 일|투두|todo|task|[✅☑✔📋]/u.test(s)) return 'task';
+  return 'memo'; // 메모·📝·🗒 또는 알 수 없으면 메모로 (내용을 잃지 않게)
+}

@@ -20,3 +20,9 @@ test('캘린더: 나만의 낱말 → 기본 규칙', () => {
   const e = parseEventInput('라이프에 내일 오후 3시 학교 회의', now, cals, kw);
   assert.deepEqual([e.title, e.date, e.time, e.calName], ['학교 회의', '2026-11-10', '15:00', 'Life']);
 });
+
+test('단축어 종류: 글자·이모지 모두', async () => {
+  const { inboxKind } = await import('../js/agenda.js');
+  assert.deepEqual(['일정', '🗓️', '🗓', '📅 일정', '할일', '☑️', '✅', '📝', '메모', '🗒️', ''].map(inboxKind),
+    ['event', 'event', 'event', 'event', 'task', 'task', 'task', 'memo', 'memo', 'memo', 'memo']);
+});
