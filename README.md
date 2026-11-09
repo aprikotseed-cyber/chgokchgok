@@ -49,6 +49,7 @@ js/agenda.js            일정·할일 다듬기, 할일 빠른 입력('내일 �
 js/google.js            구글 캘린더(읽기)·구글 태스크(읽기·쓰기) 연결
 js/google-demo.js       체험 모드용 예시 일정·할일
 js/briefing.js          아침 브리핑 알림 내용 (순수 함수)
+js/lock.js              Face ID(생체 인증) 화면 잠금, 기기마다 설정에서 켜기
 scripts/update-market.mjs  GitHub Actions가 매일 실거래가·주가를 가져오는 스크립트
 .github/workflows/update-market.yml  매일 오전 6시 17분(미국장 마감 가격): 아파트 실거래가 + 주가·환율
 .github/workflows/quotes.yml         국내장 중 1시간마다(매시 13분): 주가·환율만
