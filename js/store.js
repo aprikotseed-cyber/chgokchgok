@@ -51,7 +51,42 @@ export async function connect(h) {
     login: (email, pw) => A.signInWithEmailAndPassword(auth, email, pw),
     logout: () => A.signOut(auth),
     save: (data) => F.setDoc(mainRef, data),
+    pushSupported: async () => {
+      const M = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-messaging.js`);
+      return M.isSupported();
+    },
+    /** 이 기기를 푸시 알림 받을 기기로 등록. vapidKey는 Firebase 콘솔의 웹 푸시 인증서 키(공개값) */
+    enablePush: async (vapidKey) => {
+      const M = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-messaging.js`);
+      if (!(await M.isSupported())) throw new Error('이 브라우저는 푸시 알림을 지원하지 않아요');
+      if ((await Notification.requestPermission()) !== 'granted') throw new Error('알림 권한이 허용되지 않았어요');
+      const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js');
+      const token = await M.getToken(M.getMessaging(app), { vapidKey, serviceWorkerRegistration: reg });
+      const ref = F.doc(db, 'users', auth.currentUser.uid, 'data', 'push');
+      const devices = ((await F.getDoc(ref)).data()?.devices || []).filter((x) => x.token !== token);
+      devices.push({ token, device: deviceName(), addedAt: new Date().toISOString() });
+      await F.setDoc(ref, { devices }, { merge: true });
+      localStorage.setItem('chgok-push-token', token);
+      return token;
+    },
+    pushDevices: async () => (await F.getDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'push'))).data()?.devices || [],
+    removePushDevice: async (token) => {
+      const ref = F.doc(db, 'users', auth.currentUser.uid, 'data', 'push');
+      const devices = ((await F.getDoc(ref)).data()?.devices || []).filter((x) => x.token !== token);
+      await F.setDoc(ref, { devices }, { merge: true });
+      if (localStorage.getItem('chgok-push-token') === token) localStorage.removeItem('chgok-push-token');
+    },
   };
+}
+
+function deviceName() {
+  const ua = navigator.userAgent;
+  if (/iPad|Macintosh.*Mobile|Macintosh.*Safari/.test(ua) && navigator.maxTouchPoints > 1) return 'iPad';
+  if (/iPhone/.test(ua)) return 'iPhone';
+  if (/Android/.test(ua)) return /Mobile/.test(ua) ? 'Android 휴대폰' : 'Android 태블릿';
+  if (/Windows/.test(ua)) return 'Windows PC';
+  if (/Macintosh/.test(ua)) return 'Mac';
+  return '기기';
 }
 
 function demoStore(h) {
@@ -68,6 +103,10 @@ function demoStore(h) {
     login: async () => {},
     logout: async () => { localStorage.removeItem(KEY); location.href = location.pathname; },
     save: async (d) => { data = d; localStorage.setItem(KEY, JSON.stringify(d)); },
+    pushSupported: async () => false,
+    enablePush: async () => { throw new Error('체험 모드에서는 알림을 켤 수 없어요'); },
+    pushDevices: async () => [],
+    removePushDevice: async () => {},
   };
 }
 
@@ -85,10 +124,19 @@ function sampleData() {
     stockPlan: { monthly: 500_000 },
     homes: [{ id: 'h1', name: '우리 집', lawdCd: '41135', aptName: '예시마을', area: 84, share: 100, useAuto: true, manualPrice: 950_000_000 }],
     debts: [
-      { id: 'd1', name: '아낌e보금자리론', kind: '주택담보대출', original: 400_000_000, balance: 352_000_000, rate: 3.9, method: 'graduated', payment: 1_250_000, paymentAsOf: new Date().toISOString().slice(0, 7), maturity: '2054-03', graceEnd: '' },
-      { id: 'd2', name: '신용대출', kind: '신용대출', original: 30_000_000, balance: 18_000_000, rate: 5.2, method: 'equal', maturity: '2029-06', graceEnd: '' },
+      { id: 'd1', name: '아낌e보금자리론', kind: '주택담보대출', original: 400_000_000, balance: 352_000_000, rate: 3.9, payDay: 25, method: 'graduated', payment: 1_250_000, paymentAsOf: new Date().toISOString().slice(0, 7), maturity: '2054-03', graceEnd: '' },
+      { id: 'd2', name: '신용대출', kind: '신용대출', original: 30_000_000, balance: 18_000_000, rate: 5.2, payDay: 14, method: 'equal', maturity: '2029-06', graceEnd: '' },
     ],
     settings: { horizon: 20 },
+    fixed: [
+      { id: 'f1', name: '아파트 관리비', category: '주거', amount: 238_000, day: 25, account: '주거래 통장' },
+      { id: 'f2', name: '휴대폰', category: '통신', amount: 52_000, day: 21, account: '신용카드' },
+      { id: 'f3', name: '인터넷·TV', category: '통신', amount: 33_000, day: 10, account: '신용카드' },
+      { id: 'f4', name: '실손보험', category: '보험', amount: 41_200, day: 15, account: '주거래 통장' },
+      { id: 'f5', name: '교직원공제회 장기저축', category: '기타', amount: 300_000, day: 10, account: '급여 통장' },
+      { id: 'f6', name: '음악 구독', category: '구독', amount: 11_990, day: 3, account: '신용카드' },
+      { id: 'f7', name: '대중교통', category: '교통', amount: 62_000, day: 1, account: '체크카드' },
+    ],
     records: sampleRecords(),
     snapshots: { '2026-10': { assets: 1_140_000_000, debts: 373_000_000, net: 767_000_000 } },
   };

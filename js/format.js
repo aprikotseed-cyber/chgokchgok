@@ -43,3 +43,14 @@ export function dateTime(d) {
   const t = d.toDate ? d.toDate() : new Date(d);
   return t.toLocaleString('ko-KR', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
+
+/** 원 단위 그대로: 55,000원 (고정지출처럼 금액이 작을 때) */
+export function wonExact(n) {
+  if (n == null || isNaN(n)) return '-';
+  return `${Math.round(n).toLocaleString('ko-KR')}원`;
+}
+
+/** 11월 25일 (수) */
+export function mdw(d) {
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`;
+}
