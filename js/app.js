@@ -169,61 +169,47 @@ function viewHome() {
   const pay = (d.debts || []).reduce((a, l) => a + currentPayment(l), 0);
   const empty = !t.assets && !t.debts;
 
+  const saved = t.savings + t.stocks; // 저축액 (주식을 넣었다면 주식 평가액도 포함)
   const mText = [];
-  if (ms.debtFreeYear !== undefined) mText.push(ms.debtFreeYear ? `<b>${ms.debtFreeYear}년</b>에 빚을 모두 갚아요` : `${horizon}년 안에는 빚이 남아요`);
-  if (ms.nextNet) mText.push(ms.nextNet.year ? `순자산 <b>${won(ms.nextNet.target)}</b> 돌파는 <b>${ms.nextNet.year}년</b> 예상` : '');
-
-  const comp = [['저축·현금', t.savings, 'savings'], ['주식', t.stocks, 'stocks'], ['집', t.homes, 'homes']];
-  const maxComp = Math.max(...comp.map((c) => c[1]), 1);
+  if (ms.debtFreeYear !== undefined) mText.push(ms.debtFreeYear ? `<b>${ms.debtFreeYear}년</b>에 대출을 모두 갚아요` : `${horizon}년 안에는 대출이 남아요`);
+  if (ms.nextNet?.year) mText.push(`총자산 <b>${won(ms.nextNet.target)}</b> 돌파는 <b>${ms.nextNet.year}년</b> 예상`);
 
   return `
   ${empty ? `<div class="card notice">아직 입력된 자산이 없어요. <a href="#assets">자산</a>과 <a href="#debts">부채</a> 탭에서 하나씩 추가해 보세요.</div>` : ''}
   <section class="hero card">
-    <div class="label">지금 순자산</div>
+    <div class="label">총자산</div>
     <div class="hero-num">${won(t.net)}</div>
+    <div class="formula">저축액 ${won(saved)} <i>+</i> 아파트 ${won(t.homes)} <i>−</i> 대출잔액 ${won(t.debts)}</div>
     ${diff != null ? `<div class="delta ${diff >= 0 ? 'up' : 'down'}">${diff >= 0 ? '▲' : '▼'} ${won(Math.abs(diff))} <span>지난 기록(${ymLabel(prevKey)}) 대비</span></div>` : '<div class="delta"><span>매달 자동으로 기록돼서 다음 달부터 변화가 보여요</span></div>'}
   </section>
-  <div class="tiles">
-    <div class="card tile"><div class="label">총자산</div><div class="num">${won(t.assets)}</div></div>
-    <div class="card tile"><div class="label">남은 빚</div><div class="num">${won(t.debts)}</div></div>
-    <div class="card tile"><div class="label">이번 달 상환액</div><div class="num">${won(pay)}</div></div>
+  <div class="tiles two">
+    <a class="card tile link" href="#assets"><div class="label">저축액${t.stocks ? ' (주식 포함)' : ''}</div><div class="num">${won(saved)}</div></a>
+    <a class="card tile link" href="#debts"><div class="label">대출잔액</div><div class="num">${won(t.debts)}</div><div class="fine">이번 달 상환 약 ${won(pay)}</div></a>
   </div>
 
   <section class="card">
     <div class="card-head">
-      <h2>연도별 예상 자산과 잔여 채무</h2>
+      <h2>연도별 예상</h2>
       <label class="range">
         <span><b id="horizon-val">${horizon}</b>년</span>
         <input type="range" id="horizon" min="5" max="40" step="1" value="${horizon}" aria-label="예측 기간(년)">
       </label>
     </div>
     <ul class="legend">
-      <li><i style="background:var(--series-1)"></i>총자산</li>
-      <li><i style="background:var(--series-2)"></i>잔여 채무</li>
-      <li><i style="background:var(--series-3)"></i>순자산</li>
+      <li><i style="background:var(--series-1)"></i>저축액</li>
+      <li><i style="background:var(--series-2)"></i>대출잔액</li>
+      <li><i style="background:var(--series-3)"></i>총자산</li>
     </ul>
-    <div class="chart-box"><canvas id="chart-projection" role="img" aria-label="연도별 총자산, 잔여 채무, 순자산 예측 꺾은선그래프"></canvas></div>
-    ${mText.filter(Boolean).length ? `<p class="milestones">${mText.filter(Boolean).join(' · ')}</p>` : ''}
+    <div class="chart-box"><canvas id="chart-projection" role="img" aria-label="연도별 저축액, 대출잔액, 총자산 예측 꺾은선그래프"></canvas></div>
+    ${mText.length ? `<p class="milestones">${mText.join(' · ')}</p>` : ''}
     <details class="table-view">
       <summary>표로 보기</summary>
       <div class="table-scroll"><table>
-        <thead><tr><th>연도</th><th>저축·현금</th><th>주식</th><th>집</th><th>총자산</th><th>잔여 채무</th><th>순자산</th></tr></thead>
-        <tbody>${points.map((p) => `<tr><th>${p.label === '현재' ? '지금' : `${p.year}년 말`}</th><td>${won(p.savings)}</td><td>${won(p.stocks)}</td><td>${won(p.homes)}</td><td><b>${won(p.assets)}</b></td><td>${won(p.debts)}</td><td><b>${won(p.net)}</b></td></tr>`).join('')}</tbody>
+        <thead><tr><th>연도</th><th>저축액</th><th>아파트</th><th>대출잔액</th><th>총자산</th></tr></thead>
+        <tbody>${points.map((p) => `<tr><th>${p.label === '현재' ? '지금' : `${p.year}년 말`}</th><td>${won(p.savings + p.stocks)}</td><td>${won(p.homes)}</td><td>${won(p.debts)}</td><td><b>${won(p.net)}</b></td></tr>`).join('')}</tbody>
       </table></div>
     </details>
-    <p class="fine">예측 가정: 저축은 매달 적립 + 연 이자, 주식은 기대수익률, 집은 예상 상승률, 대출은 상환 방식대로 갚는다고 계산해요. 대출 상환금이 저축에서 빠지는 것은 따로 반영하지 않아요.</p>
-  </section>
-
-  <section class="card">
-    <h2>자산 구성</h2>
-    <div class="bars">
-      ${comp.map(([name, v]) => `
-        <div class="bar-row">
-          <span class="bar-name">${name}</span>
-          <span class="bar-track"><span class="bar-fill" style="width:${(v / maxComp) * 100}%"></span></span>
-          <span class="bar-val">${won(v)}<small>${t.assets ? pct((v / t.assets) * 100, 0) : ''}</small></span>
-        </div>`).join('')}
-    </div>
+    <p class="fine">총자산 = 저축액 + 아파트 시세 − 대출잔액. 예측은 저축은 매달 적립 + 연 이자, 아파트는 예상 상승률, 대출은 상환 방식대로 갚는다고 계산해요.</p>
   </section>`;
 }
 
@@ -305,7 +291,7 @@ function viewDebts() {
   }).join('');
   return `
   <div class="tiles two">
-    <div class="card tile"><div class="label">남은 빚 합계</div><div class="num">${won(t.debts)}</div></div>
+    <div class="card tile"><div class="label">대출잔액</div><div class="num">${won(t.debts)}</div></div>
     <div class="card tile"><div class="label">이번 달 상환액 (원금+이자)</div><div class="num">${won(pay)}</div></div>
   </div>
   <section class="section">

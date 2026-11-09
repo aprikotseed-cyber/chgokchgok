@@ -59,16 +59,16 @@ function draw(canvas, config) {
 
 export function projectionChart(canvas, points) {
   const series = [
-    ['총자산', 'assets', '--series-1'],
-    ['잔여 채무', 'debts', '--series-2'],
-    ['순자산', 'net', '--series-3'],
+    ['저축액', (p) => p.savings + p.stocks, '--series-1'],
+    ['대출잔액', (p) => p.debts, '--series-2'],
+    ['총자산', (p) => p.net, '--series-3'],
   ];
   draw(canvas, {
     type: 'line',
     data: {
       labels: points.map((p) => (p.label === '현재' ? '현재' : `${p.year}`)),
-      datasets: series.map(([label, key, color]) => ({
-        label, data: points.map((p) => p[key]),
+      datasets: series.map(([label, get, color]) => ({
+        label, data: points.map(get),
         borderColor: css(color), backgroundColor: css(color), pointBackgroundColor: css(color),
       })),
     },
