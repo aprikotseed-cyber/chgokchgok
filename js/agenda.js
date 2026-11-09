@@ -149,8 +149,9 @@ export function visibleEvents(agenda, gs = {}) {
   return (agenda.events || []).filter((e) => prefs.get(e.calId)?.show !== false).map((e) => ({ ...e, partner: prefs.get(e.calId)?.partner ?? e.partner }));
 }
 
-/** 받아 둔 일정이 어느 날까지 있는지 (받은 날 + 31일) */
+/** 받아 둔 일정이 어느 날까지 있는지 (예전 저장분은 받은 날 + 31일) */
 export function agendaUntil(agenda) {
+  if (agenda?.until) return agenda.until;
   if (!agenda?.syncedAt) return '';
   const d = new Date(agenda.syncedAt);
   return dayKey(addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), 31));
@@ -242,8 +243,9 @@ const DEFAULT_CALS = ['exercise', 'cherish', 'birthday', 'work', 'life', ...PART
  */
 export async function fetchAgenda(g, gs = {}, now = new Date(), interactive = false) {
   const t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const from = addDays(t, -1);
-  const to = addDays(t, 32);
+  // 달력으로 넘겨 볼 수 있게: 지난달 1일 ~ 다다음 달 말일
+  const from = new Date(t.getFullYear(), t.getMonth() - 1, 1);
+  const to = new Date(t.getFullYear(), t.getMonth() + 3, 1);
   const raw = await g.calendars(interactive);
   const nameOf = (c) => c.summaryOverride || c.summary || '';
   const named = raw.some((c) => DEFAULT_CALS.includes(nameOf(c).toLowerCase()));
@@ -266,6 +268,7 @@ export async function fetchAgenda(g, gs = {}, now = new Date(), interactive = fa
     calendars, lists: lists.map((l) => ({ id: l.id, title: l.title || '' })), listId,
     events: evs.flat(),
     tasks: tasks.filter((x) => !x.deleted && (x.title || '').trim()).map((x) => normTask(x, listId)).filter((x) => !x.done || !x.completedAt || x.completedAt >= old),
+    from: dayKey(from), until: dayKey(addDays(to, -1)),
     syncedAt: Date.now(),
   };
 }
