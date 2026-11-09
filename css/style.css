@@ -529,3 +529,10 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .sort-row.dragging { position: relative; z-index: 2; box-shadow: 0 8px 24px rgb(0 0 0 / .16); border-radius: 12px; }
 .sort-row.dragging .handle { cursor: grabbing; }
 .link-btn:disabled { color: var(--text-muted); cursor: default; }
+
+/* ───── 로고 ───── */
+.brand { display: inline-flex; align-items: center; gap: 8px; }
+.brand img { display: block; object-fit: contain; }
+.side-brand { display: none; }
+@media (min-width: 900px) { .side-brand { display: flex; } }
+.login-logo { border-radius: 16px; box-shadow: 0 2px 12px rgb(0 0 0 / .08); margin-bottom: 4px; }
