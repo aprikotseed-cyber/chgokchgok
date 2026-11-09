@@ -236,7 +236,7 @@ a.stat:hover { background: var(--surface-2); }
   .stats:not(.three) .stat { display: grid; grid-template-columns: 1fr auto; align-items: baseline; column-gap: 12px; padding: 14px 18px; }
   .stats:not(.three) .stat + .stat, .stats:not(.three) .stat-op + .stat { border-left: 0; border-top: 1px solid var(--border); }
   .stats:not(.three) .stat-num { font-size: 17px; text-align: right; }
-  .stats:not(.three) .stat-sub { grid-column: 2; text-align: right; }
+  .stats:not(.three) .stat-sub { grid-column: 1 / -1; text-align: right; }
   .stat-op { display: none; }
   .stats.three .stat { padding: 14px 12px; }
   .stats.three .stat-num { font-size: 15px; }
@@ -433,3 +433,17 @@ dialog.assistant[open] { display: flex; }
 .as-form .btn { width: 46px; height: 46px; padding: 0; }
 .as-form .btn svg { width: 20px; height: 20px; }
 .as-log:focus { outline: none; }
+
+/* ───── 주식 매수·매도 ───── */
+.gap-b { margin-bottom: 10px; }
+.stock + .stock, .list > .row + .stock { border-top: 1px solid var(--border); }
+.stock > .row { padding-bottom: 8px; }
+.trade-bar { display: flex; justify-content: flex-end; gap: 6px; padding: 0 18px 12px; }
+.trade-bar .pill { min-width: 56px; font-weight: 600; }
+.trade-bar .pill.buy { color: var(--up); }
+.trade-bar .pill.sell { color: var(--down); }
+.trade-bar .pill:disabled { opacity: .4; cursor: default; }
+.stock.sold > .row { opacity: .55; }
+.stock > details { border-top: 1px solid var(--border); }
+td.up { color: var(--up); }
+td.down { color: var(--down); }

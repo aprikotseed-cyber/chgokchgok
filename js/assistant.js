@@ -1,11 +1,11 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261109h';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261109h';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261109h';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261109h';
-import { won, wonExact, mdw, pct } from './format.js?v=20261109h';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261109i';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261109i';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261109i';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261109i';
+import { won, wonExact, mdw, pct } from './format.js?v=20261109i';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -235,7 +235,10 @@ const H = {
       text: list.map((h) => {
         const mh = ctx.market.homes?.[h.id];
         const last = mh?.trades?.[0];
-        return `${h.name} 시세는 ${won(homeValue(h, ctx.market))}이에요.${mh?.basis && h.useAuto !== false ? ` (${mh.basis})` : ''}${last ? `\n가장 최근 실거래: ${last.date} ${won(last.price)}${last.floor ? ` · ${last.floor}층` : ''}` : ''}`;
+        const v = homeValue(h, ctx.market);
+        const bought = (Number(h.purchasePrice) || 0) * ((h.share ?? 100) / 100);
+        const gain = bought ? `\n구매가 ${won(bought)} 대비 ${v >= bought ? '+' : '−'}${won(Math.abs(v - bought))} (${v >= bought ? '+' : ''}${pct(((v - bought) / bought) * 100, 2)})` : '';
+        return `${h.name} 시세는 ${won(v)}이에요.${mh?.basis && h.useAuto !== false ? ` (${mh.basis})` : ''}${gain}${last ? `\n가장 최근 실거래: ${last.date} ${won(last.price)}${last.floor ? ` · ${last.floor}층` : ''}` : ''}`;
       }).join('\n\n'),
     };
   },
@@ -366,7 +369,14 @@ const H = {
       const fxEff = ds.reduce((a, x) => a + (x.fxEffect || 0), 0);
       lines.push(`${name}: 평가 ${won(val)}${cost ? ` · 수익 ${profit >= 0 ? '+' : '−'}${won(Math.abs(profit))} (${profit >= 0 ? '+' : ''}${pct((profit / cost) * 100)})` : ''}${k === 'us' && fxEff ? `\n  그중 환율 효과 ${fxEff >= 0 ? '+' : '−'}${won(Math.abs(fxEff))}` : ''}`);
     }
-    return { text: `${mk ? '' : `주식 평가금액은 모두 ${won(total)}이에요.\n`}${lines.join('\n')}` };
+    let head = '';
+    if (!mk) {
+      const ds = all.filter((s) => Number(s.qty) > 0).map((s) => stockDetail(s, ctx.market)).filter((x) => x.costKrw);
+      const cost = ds.reduce((a, x) => a + x.costKrw, 0);
+      const profit = ds.reduce((a, x) => a + x.valueKrw - x.costKrw, 0);
+      head = `주식 평가금액은 모두 ${won(total)}이에요.${cost ? ` 손익 ${profit >= 0 ? '+' : '−'}${won(Math.abs(profit))} (${profit >= 0 ? '+' : ''}${pct((profit / cost) * 100, 2)})` : ''}\n`;
+    }
+    return { text: `${head}${lines.join('\n')}` };
   },
 
   fx(ctx) {

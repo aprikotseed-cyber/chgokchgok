@@ -1,16 +1,17 @@
-import { connect, isDemo } from './store.js?v=20261109h';
-import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109h';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109h';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109h';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109h';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109h';
-import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109h';
-import { ask, SUGGEST } from './assistant.js?v=20261109h';
+import { connect, isDemo } from './store.js?v=20261109i';
+import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109i';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109i';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109i';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109i';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109i';
+import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109i';
+import { ask, SUGGEST } from './assistant.js?v=20261109i';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109i';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
 const EMPTY = () => ({
-  savings: [], stocks: [], stockPlan: { monthly: 0 }, homes: [], debts: [], fixed: [],
+  savings: [], stocks: [], homes: [], debts: [], fixed: [],
   settings: { horizon: 20 }, snapshots: {}, records: [],
 });
 
@@ -56,7 +57,7 @@ const FORMS = {
       { key: 'market', label: '구분', type: 'select', options: [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']] },
       { key: 'name', label: '종목 이름', type: 'text', placeholder: 'S&P500 ETF', required: true },
       { key: 'ticker', label: '종목코드', type: 'text', placeholder: '005930 또는 VOO', hint: '국내는 6자리 코드, 해외는 티커. 매일 아침 시세를 가져와요' },
-      { key: 'qty', label: '보유 수량', type: 'number', unit: '주' },
+      { key: 'qty', label: '보유 수량', type: 'number', unit: '주', hint: '처음 등록할 때의 보유 수량이에요. 이후로는 매수·매도 버튼으로 쌓아 가면 돼요' },
       { key: 'avgPrice', label: '평균 매수가', type: 'cmoney', curKey: 'avgCur' },
       { key: 'costKrw', label: '원화 매입금액 (총액)', type: 'won', showIf: { market: 'us' }, hint: '증권사 앱의 원화 매입금액. 평균 매수가($)와 비교해 매입 환율과 환율 효과를 계산해요' },
       { key: 'manualPrice', label: '수동 현재가', type: 'cmoney', curKey: 'manualCur', hint: '자동 시세가 없을 때만 써요' },
@@ -66,10 +67,6 @@ const FORMS = {
     title: '달러 환율',
     fields: [{ key: 'usdKrw', label: '1달러', type: 'won', hint: '자동 환율을 아직 못 받았을 때만 써요. 매일 아침 자동 환율이 들어오면 그걸 우선해요' }],
   },
-  stockPlan: {
-    title: '주식 투자 계획',
-    fields: [{ key: 'monthly', label: '매달 추가 투자', type: 'won' }],
-  },
   homes: {
     title: '집',
     fields: [
@@ -78,6 +75,8 @@ const FORMS = {
       { key: 'aptName', label: '단지명', type: 'text', placeholder: '한솔마을', hint: '실거래가 신고 이름의 일부만 써도 돼요' },
       { key: 'area', label: '전용면적', type: 'number', unit: '㎡', hint: '±2㎡ 안의 거래만 써요 (84타입이면 84)' },
       { key: 'share', label: '내 지분', type: 'pct', def: 100 },
+      { key: 'purchasePrice', label: '구매 가격', type: 'won', hint: '집 전체 매매가. 지금 시세와 비교해서 오른 금액과 수익률을 보여드려요 (지분만큼 계산)' },
+      { key: 'purchaseDate', label: '구매 시기 (선택)', type: 'month' },
       { key: 'useAuto', label: '실거래가로 시세 자동 반영', type: 'check', def: true },
       { key: 'manualPrice', label: '직접 입력 시세', type: 'won', hint: '자동 시세를 끄거나 아직 거래가 없을 때 사용' },
     ],
@@ -302,20 +301,21 @@ function viewAssets() {
       auto && mh?.monthly?.length > 1 ? `<div class="pad"><div class="eyebrow">실거래가 추이 · 월별 중앙값</div><div class="chart-box small"><canvas id="chart-home-${esc(h.id)}" role="img" aria-label="${esc(h.name)} 실거래가 추이"></canvas></div>
         ${details(`trades-${h.id}`, `최근 거래 ${mh.trades?.length || 0}건`, `<div class="table-scroll"><table><thead><tr><th>계약일</th><th>금액</th><th>층</th><th>면적</th></tr></thead><tbody>${(mh.trades || []).map((x) => `<tr><th>${x.date}</th><td>${won(x.price)}</td><td>${x.floor ?? '-'}</td><td>${x.area}㎡</td></tr>`).join('')}</tbody></table></div>`)}</div>` : '',
     ].join('');
+    const val = homeValue(h, m);
+    const bought = (Number(h.purchasePrice) || 0) * ((h.share ?? 100) / 100);
+    const gain = bought ? val - bought : null;
     return row({
       kind: 'homes', id: h.id, title: esc(h.name),
-      meta: [esc(h.aptName || ''), h.area ? `${h.area}㎡` : '', (h.share ?? 100) < 100 ? `지분 ${pct(h.share, 0)}` : '', status].filter(Boolean).join(' · '),
-      value: won(homeValue(h, m)),
+      meta: [esc(h.aptName || ''), h.area ? `${h.area}㎡` : '', (h.share ?? 100) < 100 ? `지분 ${pct(h.share, 0)}` : '', status, bought ? `구매가 ${won(bought)}${h.purchaseDate ? ` (${ymLabel(h.purchaseDate)})` : ''}` : ''].filter(Boolean).join(' · '),
+      value: won(val),
+      sub: gain != null ? `<span class="${gain >= 0 ? 'up' : 'down'}">${gain >= 0 ? '+' : '−'}${won(Math.abs(gain))} (${gain >= 0 ? '+' : ''}${pct((gain / bought) * 100, 2)})</span>` : '',
     }) + extra;
   }).join('');
 
-  const plan = d.stockPlan || {};
   return `
   <div class="cols"><div class="col-main">
   ${section('저축·현금', `<div class="panel list">${sav || empty('예금, 적금, 연금, 보증금 등을 추가해 보세요.')}</div>`, { sum: won(t.savings), action: addBtn('savings') })}
-  ${section('주식', `${stk}
-    <div class="panel list gap">${row({ kind: 'stockPlan', id: 'plan', action: 'plan', title: '매달 추가 투자', value: won(plan.monthly || 0), cls: 'muted-row' })}</div>`,
-    { sum: won(t.stocks), action: addBtn('stocks', '종목') })}
+  ${section('주식', stk, { action: addBtn('stocks', '새 종목') })}
   </div><div class="col-side">
   ${section('아파트', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
   </div></div>
@@ -327,54 +327,75 @@ const usd = (n, digits = 2) => `$${Number(n || 0).toLocaleString('en-US', { mini
 const signed = (n, f = won) => `${n >= 0 ? '+' : '−'}${f(Math.abs(n))}`;
 const tone = (n) => (n >= 0 ? 'up' : 'down');
 
-/** 주식: 국내 / 해외 / 연금저축 묶음으로 나눠 보여주기 */
+/** 원화 수익 요약: 평가금액, 원화 매입금액이 있는 종목만으로 수익·수익률 */
+function profitOf(rows) {
+  const value = rows.reduce((a, { x }) => a + x.valueKrw, 0);
+  const known = rows.filter(({ x }) => x.costKrw);
+  const cost = known.reduce((a, { x }) => a + x.costKrw, 0);
+  const profit = known.reduce((a, { x }) => a + x.valueKrw - x.costKrw, 0);
+  return { value, cost, profit, rate: cost ? (profit / cost) * 100 : null, missing: rows.length - known.length };
+}
+const signedPct = (n, d = 2) => `${n >= 0 ? '+' : ''}${pct(n, d)}`;
+
+/** 주식: 전체 합계 + 국내 / 해외 / 연금저축 묶음 */
 function stockSection(d, m) {
-  const all = d.stocks || [];
-  const groups = Object.fromEntries(MARKETS.map(([k]) => [k, all.filter((s) => stockMarket(s) === k)]));
+  const all = (d.stocks || []).map((s) => ({ s, x: stockDetail(s, m) }));
+  const groups = Object.fromEntries(MARKETS.map(([k]) => [k, all.filter(({ s }) => stockMarket(s) === k)]));
   if (!state.stockTab) state.stockTab = MARKETS.find(([k]) => groups[k].length)?.[0] || 'us';
   const tab = state.stockTab;
-  const list = groups[tab];
-  const rowsData = list.map((s) => ({ s, x: stockDetail(s, m) }));
-  const sumKrw = rowsData.reduce((a, { x }) => a + x.valueKrw, 0);
+  const rowsData = groups[tab];
+
+  // 전체 (세 묶음 합산)
+  const T = profitOf(all.filter(({ s }) => Number(s.qty) > 0));
+  const realizedAll = realizedKrw(d.stocks);
+  const total = all.length ? `<section class="panel stats gap-b">
+      <div class="stat"><span class="eyebrow">전체 평가금액</span><span class="stat-num">${won(T.value)}</span></div>
+      <div class="stat"><span class="eyebrow">평가 손익</span><span class="stat-num ${T.cost ? tone(T.profit) : ''}">${T.cost ? signed(T.profit) : '-'}</span>${T.rate != null ? `<span class="stat-sub ${tone(T.profit)}">${signedPct(T.rate)}</span>` : ''}</div>
+      <div class="stat"><span class="eyebrow">실현 손익</span><span class="stat-num ${realizedAll ? tone(realizedAll) : ''}">${realizedAll ? signed(realizedAll) : '0원'}</span><span class="stat-sub">팔아서 확정된 손익</span></div>
+    </section>${T.missing ? `<p class="hint gap-b">원화 매입금액이 없는 종목 ${T.missing}개는 손익 계산에서 빠져 있어요.</p>` : ''}` : '';
 
   const seg = `<div class="segment" role="tablist" aria-label="주식 구분">${MARKETS.map(([k, label]) => `<button role="tab" aria-selected="${k === tab}" data-action="stock-tab" data-key="${k}">${label}<small>${groups[k].length}</small></button>`).join('')}</div>`;
 
-  let summary;
-  if (tab === 'us') {
-    const withCost = rowsData.filter(({ x }) => x.costKrw);
-    const valUsd = rowsData.reduce((a, { x }) => a + (x.cur === 'USD' ? x.value : 0), 0);
-    const profit = withCost.reduce((a, { x }) => a + x.profitKrw, 0);
-    const cost = withCost.reduce((a, { x }) => a + x.costKrw, 0);
-    const fxEff = rowsData.reduce((a, { x }) => a + (x.fxEffect || 0), 0);
-    summary = `<section class="panel stats gap">
-      <div class="stat"><span class="eyebrow">평가금액</span><span class="stat-num">${won(sumKrw)}</span><span class="stat-sub">${usd(valUsd)}${rowsData.some(({ x }) => x.fxEstimated) ? ' · 환율 받기 전 (매입 환율로 임시 계산)' : ''}</span></div>
-      <div class="stat"><span class="eyebrow">원화 수익</span><span class="stat-num ${cost ? tone(profit) : ''}">${cost ? signed(profit) : '-'}</span><span class="stat-sub">${cost ? `${pct((profit / cost) * 100)} · 환율 효과 ${signed(fxEff)}` : '원화 매입금액을 넣으면 보여요'}</span></div>
-    </section>`;
-  } else {
-    const cost = rowsData.reduce((a, { x }) => a + (x.costKrw || 0), 0);
-    const profit = rowsData.reduce((a, { x }) => a + (x.costKrw ? x.profitKrw : 0), 0);
-    summary = `<section class="panel stats gap">
-      <div class="stat"><span class="eyebrow">평가금액</span><span class="stat-num">${won(sumKrw)}</span></div>
-      <div class="stat"><span class="eyebrow">수익</span><span class="stat-num ${cost ? tone(profit) : ''}">${cost ? signed(profit) : '-'}</span>${cost ? `<span class="stat-sub">${pct((profit / cost) * 100)}</span>` : ''}</div>
-    </section>`;
-  }
+  const G = profitOf(rowsData.filter(({ s }) => Number(s.qty) > 0));
+  const realizedTab = realizedKrw(rowsData.map(({ s }) => s));
+  const valUsd = rowsData.reduce((a, { x }) => a + (x.cur === 'USD' ? x.value : 0), 0);
+  const fxEff = rowsData.reduce((a, { x }) => a + (x.fxEffect || 0), 0);
+  const summary = rowsData.length ? `<section class="panel stats gap">
+      <div class="stat"><span class="eyebrow">평가금액</span><span class="stat-num">${won(G.value)}</span>${tab === 'us' ? `<span class="stat-sub">${usd(valUsd)}${rowsData.some(({ x }) => x.fxEstimated) ? ' · 환율 받기 전 (매입 환율로 임시 계산)' : ''}</span>` : ''}</div>
+      <div class="stat"><span class="eyebrow">${tab === 'us' ? '원화 손익' : '평가 손익'}</span><span class="stat-num ${G.cost ? tone(G.profit) : ''}">${G.cost ? signed(G.profit) : '-'}</span><span class="stat-sub">${G.cost ? `${signedPct(G.rate)}${tab === 'us' ? ` · 환율 효과 ${signed(fxEff)}` : ''}` : '원화 매입금액을 넣으면 보여요'}${realizedTab ? ` · 실현 ${signed(realizedTab)}` : ''}</span></div>
+    </section>` : '';
 
   const rows = rowsData.map(({ s, x }) => {
     const q = m.stocks?.[normTicker(s.ticker)];
+    const held = Number(s.qty) > 0;
     const price = x.cur === 'USD' ? usd(x.price) : wonExact(x.price);
-    const meta = [esc(s.ticker || ''), `${Number(s.qty || 0).toLocaleString()}주`, `현재가 ${price}${q?.price ? '' : ' (수동)'}`, x.buyFx && !x.fxEstimated ? `매입 환율 ${wonExact(x.buyFx)}` : '', x.fxEstimated ? '<span class="warn">환율을 받기 전이라 매입 환율로 계산 중</span>' : '', q?.error ? `<span class="warn">${esc(q.error)}</span>` : ''].filter(Boolean).join(' · ');
+    const avgTxt = s.avgPrice ? `평균 ${s.avgCur === 'USD' ? usd(s.avgPrice) : wonExact(s.avgPrice)}` : '';
+    const meta = [esc(s.ticker || ''), `${Number(s.qty || 0).toLocaleString('ko-KR', { maximumFractionDigits: 6 })}주`, avgTxt, `현재 ${price}${q?.price ? '' : ' (수동)'}`, x.buyFx && !x.fxEstimated ? `매입 환율 ${wonExact(x.buyFx)}` : '', x.fxEstimated ? '<span class="warn">환율을 받기 전이라 매입 환율로 계산 중</span>' : '', q?.error ? `<span class="warn">${esc(q.error)}</span>` : ''].filter(Boolean).join(' · ');
     let sub = '';
-    if (x.cur === 'USD') {
+    if (held && x.cur === 'USD') {
       const parts = [];
-      if (x.ret != null) parts.push(`<span class="${tone(x.ret)}">$ ${x.ret >= 0 ? '+' : ''}${pct(x.ret)}</span>`);
-      if (x.retKrw != null) parts.push(`<span class="${tone(x.retKrw)}">₩ ${x.retKrw >= 0 ? '+' : ''}${pct(x.retKrw)}</span>`);
+      if (x.ret != null) parts.push(`<span class="${tone(x.ret)}">$ ${signedPct(x.ret)}</span>`);
+      if (x.retKrw != null) parts.push(`<span class="${tone(x.retKrw)}">₩ ${signedPct(x.retKrw)}</span>`);
       sub = parts.join(' ');
-    } else if (x.retKrw != null) sub = `<span class="${tone(x.retKrw)}">${x.retKrw >= 0 ? '+' : ''}${pct(x.retKrw)}</span>`;
-    const fxNote = x.fxEffect != null ? `<span class="row-meta">주가 ${signed(x.priceEffect)} · 환율 ${signed(x.fxEffect)}</span>` : '';
-    return `<button class="row" data-action="edit" data-kind="stocks" data-id="${esc(s.id)}">
-      <span class="row-main"><span class="row-title">${esc(s.name)}</span><span class="row-meta">${meta}</span>${fxNote}</span>
-      <span class="row-side"><span class="row-value">${won(x.valueKrw)}</span>${sub ? `<span class="row-meta">${sub}</span>` : ''}</span>
-    </button>`;
+    } else if (held && x.retKrw != null) sub = `<span class="${tone(x.profitKrw)}">${signed(x.profitKrw)} (${signedPct(x.retKrw)})</span>`;
+    const fxNote = held && x.fxEffect != null ? `<span class="row-meta">원화 손익 ${signed(x.profitKrw)} = 주가 ${signed(x.priceEffect)} + 환율 ${signed(x.fxEffect)}</span>` : '';
+    const trades = s.trades || [];
+    const realized = trades.reduce((a, t) => a + (t.realizedKrw || 0), 0);
+    const history = trades.length ? details(`tr-${s.id}`, `거래 내역 ${trades.length}건${realized ? ` · 실현 ${signed(realized)}` : ''}`, `<div class="table-scroll"><table>
+        <thead><tr><th>날짜</th><th>구분</th><th>수량</th><th>단가</th><th>원화</th><th>실현 손익</th></tr></thead>
+        <tbody>${trades.slice().reverse().map((t) => `<tr><th>${t.date.slice(2).replaceAll('-', '.')}</th><td class="${t.type === 'buy' ? 'up' : 'down'}">${t.type === 'buy' ? '매수' : '매도'}</td><td>${Number(t.qty).toLocaleString('ko-KR', { maximumFractionDigits: 6 })}</td><td>${t.cur === 'USD' ? usd(t.price) : wonExact(t.price)}</td><td>${t.krw ? wonExact(t.krw) : '-'}${t.fx ? `<small class="muted sub">환율 ${wonExact(t.fx)}</small>` : ''}</td><td>${t.realizedKrw != null ? `<span class="${tone(t.realizedKrw)}">${signed(t.realizedKrw)}</span>` : '-'}</td></tr>`).join('')}</tbody>
+      </table></div><div class="pad"><button class="link-btn" data-action="trade-undo" data-id="${esc(s.id)}">마지막 거래 취소</button></div>`) : '';
+    return `<div class="stock ${held ? '' : 'sold'}">
+      <button class="row" data-action="edit" data-kind="stocks" data-id="${esc(s.id)}">
+        <span class="row-main"><span class="row-title">${esc(s.name)}${held ? '' : ' <span class="badge">전량 매도</span>'}</span><span class="row-meta">${meta}</span>${fxNote}</span>
+        <span class="row-side"><span class="row-value">${won(x.valueKrw)}</span>${sub ? `<span class="row-meta">${sub}</span>` : ''}</span>
+      </button>
+      <div class="trade-bar">
+        <button class="pill buy" data-action="trade" data-type="buy" data-id="${esc(s.id)}">매수</button>
+        <button class="pill sell" data-action="trade" data-type="sell" data-id="${esc(s.id)}" ${held ? '' : 'disabled'}>매도</button>
+      </div>
+      ${history}
+    </div>`;
   }).join('');
 
   const fxRow = tab === 'us' ? row({
@@ -382,7 +403,7 @@ function stockSection(d, m) {
     value: m.fx?.USD ? wonExact(m.fx.USD) : '입력 필요', sub: m.fxAuto ? '매일 아침 자동' : '직접 입력',
   }) : '';
   const emptyText = { kr: '국내 주식 종목을 추가해 보세요.', us: '해외 주식은 평균 매수가를 달러로, 원화 매입금액을 함께 넣으면 환율 효과까지 계산해요.', pension: '연금저축 계좌에서 산 ETF·펀드를 추가해 보세요.' }[tab];
-  return `${seg}${list.length ? summary : ''}<div class="panel list gap">${fxRow}${rows || empty(emptyText)}</div>`;
+  return `${total}${seg}${summary}<div class="panel list gap">${fxRow}${rows || empty(emptyText)}</div>`;
 }
 
 // ───────────────────────── 부채 ─────────────────────────
@@ -705,7 +726,7 @@ function openForm(kind, item) {
     if (!first) return toast(kind === 'saving' ? '먼저 자산에서 저축 계좌를 추가해 주세요.' : '직접 기록할 대출이 없어요. 상환스케줄을 불러온 대출은 자동으로 기록돼요.');
     v = { targetId: first.id, date: today(), ...recordDefaults(kind, first.id) };
   }
-  $('#editor-title').textContent = kind === 'stockPlan' || kind === 'fx' ? spec.title : `${spec.title} ${item ? '수정' : '추가'}`;
+  $('#editor-title').textContent = kind === 'fx' || kind === 'trade' ? spec.title : `${spec.title} ${item ? '수정' : '추가'}`;
   $('#editor-fields').innerHTML = spec.fields.map((f) => {
     const val = v[f.key] ?? f.def ?? '';
     const id = `f-${f.key}`;
@@ -751,7 +772,7 @@ function openForm(kind, item) {
     const show = (f.showIf ? ` data-show-key="${Object.keys(f.showIf)[0]}" data-show-val="${[].concat(Object.values(f.showIf)[0]).join('|')}"` : '') + (f.noSchedule ? ' data-no-schedule' : '');
     return `<div class="field"${show}><label for="${id}">${f.label}</label>${input}${hint}</div>`;
   }).join('');
-  $('#editor-delete').hidden = !item || kind === 'stockPlan';
+  $('#editor-delete').hidden = !item || kind === 'trade';
   $('#editor').showModal();
   syncShowIf();
   $('#editor-fields').querySelectorAll('[data-money], [data-cmoney]').forEach(previewMoney);
@@ -820,8 +841,8 @@ function readForm() {
 function saveForm() {
   const vals = readForm();
   const d = state.data;
-  if (editing.kind === 'stockPlan') d.stockPlan = vals;
-  else if (editing.kind === 'fx') d.settings = { ...(d.settings || {}), usdKrw: vals.usdKrw };
+  if (editing.kind === 'trade') return saveTrade(vals);
+  if (editing.kind === 'fx') d.settings = { ...(d.settings || {}), usdKrw: vals.usdKrw };
   else if (isRecord(editing.kind)) {
     upsertRecord(d, { id: editing.id || crypto.randomUUID().slice(0, 8), type: editing.kind, ...vals });
     state.recYear = vals.date.slice(0, 4);
@@ -889,6 +910,65 @@ async function checkVersion() {
       else $('#update').hidden = false;
     }
   } catch { /* 오프라인 */ }
+}
+
+// ───────────────────────── 매수·매도 ─────────────────────────
+function openTrade(stockId, type) {
+  const s = state.data.stocks.find((x) => x.id === stockId);
+  if (!s) return;
+  const x = stockDetail(s, state.market);
+  const cur = stockMarket(s) === 'us' ? 'USD' : s.avgCur || 'KRW';
+  const buy = type === 'buy';
+  FORMS.trade = {
+    title: `${s.name} ${buy ? '매수' : '매도'}`,
+    fields: [
+      { key: 'date', label: buy ? '산 날' : '판 날', type: 'date' },
+      { key: 'qty', label: buy ? '산 수량' : '판 수량', type: 'number', unit: '주', hint: buy ? `지금 ${Number(s.qty || 0)}주 보유 중` : `지금 ${Number(s.qty || 0)}주 보유 중 · 평균 ${s.avgCur === 'USD' ? usd(s.avgPrice) : wonExact(s.avgPrice)}` },
+      { key: 'price', label: buy ? '산 단가 (1주)' : '판 단가 (1주)', type: 'cmoney', curKey: 'tcur' },
+      ...(cur === 'USD' ? [{ key: 'krw', label: buy ? '원화 결제금액 (총액)' : '원화로 받은 금액 (총액)', type: 'won', hint: '증권사 앱의 원화 금액을 넣으면 그날 환율이 그대로 반영돼요. 비워 두면 지금 환율로 계산해요' }] : []),
+      { key: 'memo', label: '메모', type: 'text', placeholder: '선택' },
+    ],
+  };
+  editing = null;
+  openForm('trade', null);
+  editing.trade = { stockId, type, cur };
+  // 기본값: 오늘, 현재가, 통화
+  $('#f-date').value = today();
+  $('#f-tcur').value = cur;
+  $('#editor-fields').querySelectorAll('[data-for="tcur"]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cur === cur)));
+  if (x.price) $('#f-price').value = cur === 'USD' ? x.price : Math.round(x.price);
+  previewMoney($('#f-price'));
+}
+
+/** 수량·단가가 바뀌면 원화 금액을 지금 환율로 미리 채워요 (직접 고친 뒤엔 그대로) */
+function syncTradeKrw(e) {
+  if (editing?.kind !== 'trade' || editing.trade.cur !== 'USD') return;
+  const krwEl = $('#f-krw');
+  if (e.target === krwEl) { krwEl.dataset.dirty = '1'; return; }
+  if (krwEl.dataset.dirty) return;
+  const n = (Number($('#f-qty').value) || 0) * parseNum($('#f-price').value) * (state.market.fx?.USD || 0);
+  krwEl.value = n ? Math.round(n).toLocaleString('ko-KR') : '';
+  previewMoney(krwEl);
+}
+
+function saveTrade(vals) {
+  const { stockId, type, cur } = editing.trade;
+  const i = state.data.stocks.findIndex((x) => x.id === stockId);
+  const s = state.data.stocks[i];
+  const tcur = vals.tcur || cur;
+  let krw = vals.krw;
+  if (tcur === 'KRW') krw = Math.round(vals.qty * vals.price);
+  else if (!krw) krw = Math.round(vals.qty * vals.price * (state.market.fx?.USD || 0));
+  try {
+    const { stock, trade } = applyTrade(s, { type, qty: vals.qty, price: vals.price, cur: tcur, krw, date: vals.date, memo: vals.memo });
+    state.data.stocks[i] = { ...stock, trades: [...(s.trades || []), trade] };
+  } catch (err) {
+    toast(err.message);
+    return false;
+  }
+  commit();
+  toast(`${s.name} ${type === 'buy' ? '매수' : '매도'}를 반영했어요.`);
+  return true;
 }
 
 // ───────────────────────── 비서 ─────────────────────────
@@ -969,7 +1049,16 @@ function bind() {
     const { action: a, kind, id } = b.dataset;
     if (a === 'add') openForm(kind);
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
-    if (a === 'plan') openForm('stockPlan', state.data.stockPlan || {});
+    if (a === 'trade') openTrade(id, b.dataset.type);
+    if (a === 'trade-undo') {
+      const s = state.data.stocks.find((x) => x.id === id);
+      const last = s?.trades?.at(-1);
+      if (last && confirm(`${last.date} ${last.type === 'buy' ? '매수' : '매도'} ${last.qty}주를 취소할까요? 그 전 보유 상태로 돌아가요.`)) {
+        Object.assign(s, undoLastTrade(s));
+        if (!s.trades.length) delete s.trades;
+        commit();
+      }
+    }
     if (a === 'fx') openForm('fx', {});
     if (a === 'stock-tab') { state.stockTab = b.dataset.key; render(); }
     if (a === 'add-rec') openForm(b.dataset.type);
@@ -1043,7 +1132,7 @@ function bind() {
   });
 
   const dlg = $('#editor');
-  $('#editor-form').addEventListener('submit', (e) => { e.preventDefault(); saveForm(); dlg.close(); });
+  $('#editor-form').addEventListener('submit', (e) => { e.preventDefault(); if (saveForm() !== false) dlg.close(); });
   $('#editor-cancel').addEventListener('click', () => dlg.close());
   $('#editor-delete').addEventListener('click', () => deleteItem() && dlg.close());
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); }); // 바깥 누르면 닫기
@@ -1080,6 +1169,7 @@ function bind() {
       $('#editor-fields').querySelectorAll('[data-cur]').forEach((x) => { if (x.dataset.cur === cur) x.click(); });
     }
     if (e.target.matches('[data-cmoney]')) previewMoney(e.target);
+    syncTradeKrw(e);
     if (e.target.matches('[data-money]')) previewMoney(e.target);
     if (e.target.name === 'targetId' && !editing.id) {
       const v = recordDefaults(editing.kind, e.target.value);

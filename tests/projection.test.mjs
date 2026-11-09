@@ -116,8 +116,7 @@ test('예측에 집값·주가 상승률을 쓰지 않는다 (예전 데이터�
   const { points } = project(data, market, { years: 3, now });
   const last = points.at(-1);
   assert.equal(last.homes, 1e9);
-  const months = (2028 - 2026) * 12 + 1; // 2026년 12월 ~ 2028년 12월
-  assert.equal(last.stocks, 7_000_000 + 100_000 * months);
+  assert.equal(last.stocks, 7_000_000); // 매달 추가 투자 없이 지금 평가금액 그대로
 });
 
 test('해외주식: 주가 효과와 환율 효과로 원화 수익을 나눈다', async () => {

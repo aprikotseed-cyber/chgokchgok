@@ -124,8 +124,7 @@ function sampleData() {
       { id: 't4', name: 'Apple', ticker: 'AAPL', market: 'us', qty: 12, avgPrice: 198.5, avgCur: 'USD', costKrw: 3_310_000 },
       { id: 't5', name: 'TIGER 미국S&P500', ticker: '360750', market: 'pension', qty: 210, avgPrice: 17_850, avgCur: 'KRW' },
     ],
-    stockPlan: { monthly: 500_000 },
-    homes: [{ id: 'h1', name: '우리 집', lawdCd: '41135', aptName: '예시마을', area: 84, share: 100, useAuto: true, manualPrice: 950_000_000 }],
+    homes: [{ id: 'h1', name: '우리 집', lawdCd: '41135', aptName: '예시마을', area: 84, share: 100, useAuto: true, manualPrice: 950_000_000, purchasePrice: 830_000_000, purchaseDate: '2021-05' }],
     debts: [
       { id: 'd1', name: '아낌e보금자리론', kind: '주택담보대출', rate: 3.9, method: 'graduated', schedule: sampleSchedule(), original: 400_000_000, balance: 0, maturity: '' },
       { id: 'd2', name: '신용대출', kind: '신용대출', original: 30_000_000, balance: 18_000_000, rate: 5.2, payDay: 14, method: 'equal', maturity: '2029-06', graceEnd: '' },
