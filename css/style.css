@@ -701,3 +701,13 @@ pre.debug { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-
 /* 고정지출·상환 표시: 원형 배경의 ₩ */
 .won { display: inline-grid; place-items: center; flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--hot-bg); color: var(--hot-ink); font-size: 11px; font-weight: 800; line-height: 1; }
 .cal-opts { display: inline-flex; align-items: center; gap: 12px; }
+
+/* 반려자 일정: 날짜 오른쪽 작은 점 */
+.mhead { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+.pdots { position: absolute; left: 100%; top: 2px; display: inline-flex; gap: 2px; margin-left: 1px; }
+.pdots i { display: block; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
+@media (min-width: 900px) {
+  .mhead { align-self: flex-start; }
+  .pdots { top: 50%; transform: translateY(-50%); margin-left: 4px; }
+  .pdots i { width: 7px; height: 7px; }
+}
