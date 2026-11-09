@@ -696,3 +696,4 @@ dialog.lock img { width: 96px; height: 96px; }
 .view > .ask-box:first-child { margin-top: 8px; }
 .view > .ask-box + .block { margin-top: 24px; }
 @media (min-width: 900px) { .ask-box textarea { min-height: 72px; } }
+pre.debug { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.5; color: var(--text-secondary); background: var(--surface-2); padding: 10px 12px; border-radius: 8px; margin: 0; }
