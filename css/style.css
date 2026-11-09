@@ -25,6 +25,8 @@
   --danger: #c93a39;
   --r: 16px;
   --tab-h: 58px;
+  --brand-gray: #7c7d82;      /* 로고의 회색 */
+  --brand-gray-dark: #66676c;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -535,7 +537,11 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .brand img { display: block; object-fit: contain; }
 .side-brand { display: none; }
 @media (min-width: 900px) { .side-brand { display: flex; } }
-.login-logo { border-radius: 16px; box-shadow: 0 2px 12px rgb(0 0 0 / .08); margin-bottom: 4px; }
+.login-logo { display: block; width: 84px; height: 84px; object-fit: contain; margin: 0 auto 6px; }
+/* 로그인: 로고·이름·소개 문구는 가운데, 로그인 버튼은 로고와 어울리는 회색 */
+.login-form h1, .login-form > .hint:first-of-type { text-align: center; }
+.login-form .btn.primary { background: var(--brand-gray); border-color: var(--brand-gray); color: #fff; }
+.login-form .btn.primary:hover { background: var(--brand-gray-dark); border-color: var(--brand-gray-dark); opacity: 1; }
 
 /* ───── 비서 대화: 아이메시지처럼 ───── */
 .msg.me.pop { transform-origin: 100% 100%; animation: bubble-in .42s cubic-bezier(.2, 1.35, .45, 1) both; }
