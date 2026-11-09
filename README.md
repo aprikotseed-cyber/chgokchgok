@@ -42,6 +42,7 @@ js/assistant.js         비서: 질문 이해와 답 만들기 (순수 함수)
 js/feedback.js          비서 개선 목록과 복사용 글
 js/history.js           하루 한 줄 자산 기록과 일별·월별·연도별 추이
 js/trades.js            주식 매수·매도 (이동평균)
+js/github.js            앱 안 [지금 업데이트] 버튼: GitHub Actions 작업 실행
 js/store.js             Firebase 연결 / 체험 모드
 scripts/update-market.mjs  GitHub Actions가 매일 실거래가·주가를 가져오는 스크립트
 .github/workflows/update-market.yml  매일 오전 6시 17분(미국장 마감 가격): 아파트 실거래가 + 주가·환율
@@ -103,3 +104,13 @@ GitHub 저장소 **Settings → Secrets and variables → Actions → New reposi
 - 알림은 GitHub Actions가 매일 **오전 8시**에 확인해서 보내요. 시세 수집과 같은 `FIREBASE_SERVICE_ACCOUNT` 시크릿을 써요.
 - 대출은 **매달 상환일**을 넣어야 알림과 일정에 나와요.
 - 주말·공휴일에 실제 출금일이 밀리는 것은 따로 계산하지 않아요.
+
+## 앱 안 [지금 업데이트] 버튼
+자산 탭 맨 아래 **지금 업데이트**를 누르면 GitHub에서 Run workflow를 누른 것처럼 주가·환율을 바로 받아와요 (1분쯤 뒤 반영).
+처음 한 번 앱 **설정 → 지금 업데이트 버튼**에 GitHub 토큰을 넣어야 해요.
+1. [새 토큰 만들기 (Fine-grained)](https://github.com/settings/personal-access-tokens/new)
+2. Repository access: Only select repositories → chgokchgok
+3. Permissions → Repository permissions → **Actions: Read and write**
+4. Generate token → github_pat_… 복사 → 앱 설정에 붙여 넣고 저장
+
+토큰은 `users/{uid}/data/secrets`(본인만 읽기)에 저장되고 공개 코드·백업 파일에는 들어가지 않아요.
