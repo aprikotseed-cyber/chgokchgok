@@ -1,14 +1,14 @@
-import { connect, isDemo } from './store.js?v=20261109q';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109q';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109q';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109q';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109q';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109q';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109q';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109q';
-import { ask, SUGGEST } from './assistant.js?v=20261109q';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109q';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109q';
+import { connect, isDemo } from './store.js?v=20261109r';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109r';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109r';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109r';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261109r';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109r';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109r';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109r';
+import { ask, SUGGEST } from './assistant.js?v=20261109r';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109r';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109r';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -387,7 +387,7 @@ function viewAssets() {
   </div><div class="col-side">
   ${section('주택', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
   </div></div>
-  ${m.updatedAt || m.quotesAt ? `<p class="hint center">주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트</p>` : ''}`;
+  ${m.updatedAt || m.quotesAt ? `<p class="hint update-time">주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 주택 실거래가 ${dateTime(m.updatedAt)} 업데이트</p>` : ''}`;
 }
 
 const MARKETS = [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']];
