@@ -1,10 +1,11 @@
-import { connect, isDemo } from './store.js?v=20261109f';
-import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109f';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109f';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109f';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109f';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109f';
-import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109f';
+import { connect, isDemo } from './store.js?v=20261109g';
+import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109g';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109g';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109g';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109g';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109g';
+import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109g';
+import { ask, SUGGEST } from './assistant.js?v=20261109g';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -616,6 +617,9 @@ function viewSettings() {
       <p class="pad">매일 오전 8시에 확인해서 <b>대출 상환일 5·3·1일 전</b>, <b>고정지출 출금 하루 전</b>에 휴대폰으로 알려드려요. 앱을 열면 대시보드의 '다가오는 2주'에서도 볼 수 있어요.</p>
       ${pushBody}
     </div>`)}
+  ${section('비서가 못 알아들은 질문', `<div class="panel list">${(state.data.assistantMisses || []).length
+      ? `${state.data.assistantMisses.slice().reverse().map((m) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(m.q)}</span><span class="row-meta">${dateTime(m.at)}</span></span></div>`).join('')}<div class="pad"><button class="link-btn" data-action="misses-clear">목록 비우기</button></div>`
+      : empty('아직 없어요. 비서가 모르는 질문을 받으면 여기에 모아 둘게요. 이 목록을 알려주시면 알아듣는 말을 늘릴 수 있어요.')}</div>`)}
   ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">매일 오전 6시에 실거래가와 주가를 가져와요. 지금 바로 받으려면 GitHub 저장소의 Actions → 시세 자동 업데이트 → Run workflow를 누르세요.</p><p class="hint pad">마지막 업데이트 ${dateTime(state.market?.updatedAt)}</p></div>`)}
   </div><div class="col-side">
   ${section('백업', `<div class="panel"><div class="pad actions">
@@ -645,6 +649,7 @@ const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라�
 function render() {
   $('#login').hidden = !!state.user;
   $('#app').hidden = !state.user;
+  $('#assistant-open').hidden = !state.user;
   if (!state.user) return;
   if (!VIEWS[state.tab]) state.tab = 'home';
   document.querySelectorAll('[data-tab]').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === state.tab ? 'page' : 'false'));
@@ -881,7 +886,58 @@ async function checkVersion() {
   } catch { /* 오프라인 */ }
 }
 
+// ───────────────────────── 비서 ─────────────────────────
+const chat = [];
+
+function chatHtml(m) {
+  const text = esc(m.text).replace(/\n/g, '<br>');
+  if (m.me) return `<div class="msg me">${text}</div>`;
+  return `<div class="msg bot">${text}</div>${m.chips?.length ? `<div class="as-chips">${m.chips.map((c) => `<button type="button" class="pill" data-q="${esc(c.q)}">${esc(c.label)}</button>`).join('')}</div>` : ''}`;
+}
+
+function renderChat() {
+  const log = $('#as-log');
+  log.innerHTML = chat.map(chatHtml).join('');
+  log.scrollTop = log.scrollHeight;
+}
+
+function askAssistant(q) {
+  q = q.trim();
+  if (!q) return;
+  chat.push({ me: true, text: q });
+  const a = ask(q, state.data, state.market, new Date());
+  chat.push({ text: a.text, chips: a.chips });
+  // 모르는 질문은 모아 두었다가 설정에서 보여줘요
+  if (a.unknown) {
+    const misses = (state.data.assistantMisses || []).filter((m) => m.q !== q);
+    misses.push({ q, at: new Date().toISOString() });
+    state.data.assistantMisses = misses.slice(-30);
+    commit();
+  }
+  renderChat();
+}
+
+function openAssistant() {
+  if (!chat.length) chat.push({ text: '무엇이 궁금하세요? 입력해 두신 자산·대출·고정지출·주식 내용으로 바로 알려드릴게요.', chips: SUGGEST });
+  renderChat();
+  $('#assistant').showModal();
+  if (matchMedia('(hover: hover)').matches) $('#as-input').focus();
+}
+
 function bind() {
+  $('#assistant-open').addEventListener('click', openAssistant);
+  $('#assistant-close').addEventListener('click', () => $('#assistant').close());
+  $('#assistant').addEventListener('click', (e) => {
+    if (e.target === $('#assistant')) $('#assistant').close();
+    const chip = e.target.closest('[data-q]');
+    if (chip) askAssistant(chip.dataset.q);
+  });
+  $('#as-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    askAssistant($('#as-input').value);
+    $('#as-input').value = '';
+  });
+
   window.addEventListener('hashchange', () => {
     state.tab = location.hash.slice(1) || 'home';
     render();
@@ -921,6 +977,7 @@ function bind() {
       toast(`단지명을 '${b.dataset.name}'(으)로 바꿨어요. 다음 자동 수집 때 반영돼요.`);
     }
     if (a === 'logout') store.logout();
+    if (a === 'misses-clear') { state.data.assistantMisses = []; commit(); }
     if (a === 'export') {
       const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: 'application/json' });
       Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `차곡차곡-백업-${today()}.json` }).click();
