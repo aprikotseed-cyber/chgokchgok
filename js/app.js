@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110n';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110n';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110n';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110n';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110n';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110n';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110n';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110n';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110n';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110n';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110n';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110n';
-import { createGoogle } from './google.js?v=20261110n';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110n';
-import { createDemoGoogle } from './google-demo.js?v=20261110n';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal } from './agenda.js?v=20261110n';
+import { connect, isDemo } from './store.js?v=20261110p';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110p';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110p';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110p';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110p';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110p';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110p';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110p';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110p';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110p';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110p';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110p';
+import { createGoogle } from './google.js?v=20261110p';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110p';
+import { createDemoGoogle } from './google-demo.js?v=20261110p';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, nextOccurrence, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110p';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -66,6 +66,7 @@ const FORMS = {
       { key: 'endDate', label: '끝나는 날', type: 'date', optional: true, showIf: { allDay: 'all' }, hint: '여러 날 이어지는 일정일 때만' },
       { key: 'time', label: '시작', type: 'time', showIf: { allDay: 'time' } },
       { key: 'endTime', label: '끝', type: 'time', showIf: { allDay: 'time' } },
+      { key: 'repeat', label: '반복', type: 'select', options: REPEAT_CHOICES, hint: '구글 캘린더 반복 일정으로 들어가요' },
       { key: 'location', label: '장소', type: 'text', placeholder: '선택' },
     ],
   },
@@ -74,6 +75,7 @@ const FORMS = {
     fields: [
       { key: 'title', label: '할일', type: 'text', required: true },
       { key: 'due', label: '마감일', type: 'date', optional: true, hint: '비워 두면 날짜 없는 할일이에요.' },
+      { key: 'repeat', label: '반복', type: 'select', options: REPEAT_CHOICES, hint: '완료하면 다음 차례 할일을 구글 태스크에 만들어 드려요' },
       { key: 'notes', label: '메모', type: 'text', placeholder: '선택' },
     ],
   },
@@ -302,7 +304,7 @@ function viewHome() {
   <form id="home-ask" class="ask-box" autocomplete="off">
     <label for="home-ask-input" class="ask-label">비서</label>
     <textarea id="home-ask-input" rows="3" enterkeyhint="send" aria-label="비서에게 물어보기"></textarea>
-    <button class="ask-send" type="submit">💬 보내기</button>
+    <button class="ask-send" type="submit">보내기</button>
   </form>
   ${todayBlock()}
   ${monthBlock()}`;
@@ -1019,20 +1021,45 @@ async function taskOp(change, call, listId = state.agenda?.listId) {
 }
 
 function addTask(text) {
-  const { title, due } = parseQuickTask(text, now());
-  if (title) addTaskItem(title, due);
+  const { title, due, repeat } = parseQuickTask(text, now());
+  if (title) addTaskItem(title, due, repeat);
 }
 
-async function addTaskItem(title, due) {
+// ───── 반복 할일: 구글 태스크 API가 반복 규칙을 알려주지 않아서, 규칙은 앱(설정)에 할일 제목별로 저장해요 ─────
+const taskRule = (t) => state.data.settings?.taskRepeat?.[t.title] || null;
+function setTaskRule(title, rule, oldTitle) {
+  const map = { ...(state.data.settings?.taskRepeat || {}) };
+  if (oldTitle && oldTitle !== title) delete map[oldTitle];
+  if (rule) map[title] = rule; else delete map[title];
+  state.data.settings = { ...(state.data.settings || {}), taskRepeat: map };
+  commit();
+}
+
+/** 반복 할일을 끝내면 다음 차례를 만들어요 (구글이 이미 만들어 뒀으면 건너뛰기) */
+async function makeNextTask(t, rule) {
+  const next = nextOccurrence(rule, t.due || today());
+  if (!next) return;
+  const g = gapi();
+  try {
+    await new Promise((r) => setTimeout(r, 1200));
+    const fresh = (await g.tasks(t.listId, true)).map((x) => normTask(x, t.listId));
+    if (fresh.some((x) => !x.done && !x.deleted && x.title === t.title && x.due === next)) { toast(`다음 차례(${mdw(fromKey(next))})는 이미 있어요.`); return; }
+  } catch { /* 확인을 못 해도 만들어요 */ }
+  const ok = await addTaskItem(t.title, next, null, t.listId, t.notes, true);
+  if (ok) toast(`잘했어요! 다음 차례 ${mdw(fromKey(next))} 할일을 만들어 뒀어요.`);
+}
+
+async function addTaskItem(title, due, repeat = null, listId = state.agenda?.listId, notes = '', quiet = false) {
   if (!state.agenda?.listId) { toast('먼저 설정에서 구글에 연결해 주세요.'); return false; }
-  const tmp = { id: `tmp-${Date.now()}`, listId: state.agenda.listId, title, notes: '', due, done: false, completedAt: '', updated: '' };
+  const tmp = { id: `tmp-${Date.now()}`, listId, title, notes, due, done: false, completedAt: '', updated: '' };
+  if (repeat) setTaskRule(title, repeat);
   const ok = await taskOp((ts) => ts.unshift(tmp), async (g, l) => {
-    const r = await g.addTask(l, { title, ...(due ? { due: toTaskDue(due) } : {}) });
+    const r = await g.addTask(l, { title, ...(notes ? { notes } : {}), ...(due ? { due: toTaskDue(due) } : {}) });
     const i = state.agenda.tasks.findIndex((x) => x.id === tmp.id);
     if (i >= 0) state.agenda.tasks[i] = normTask(r, l);
     render();
-  });
-  if (ok) toast(due ? `‘${title}’ · ${dueLabel(due, today())}${due === today() ? '' : '까지'} 추가했어요.` : `‘${title}’을(를) 추가했어요.`);
+  }, listId);
+  if (ok && !quiet) toast(due ? `‘${title}’ · ${dueLabel(due, today())}${due === today() ? '' : '까지'}${repeat ? ` · ${repeatLabel(repeat, due)}` : ''} 추가했어요.` : `‘${title}’을(를) 추가했어요.`);
   return ok;
 }
 
@@ -1040,13 +1067,20 @@ function toggleTask(id) {
   const t = state.agenda?.tasks.find((x) => x.id === id);
   if (!t || t.id.startsWith('tmp-')) return;
   const done = !t.done;
+  const rule = taskRule(t);
   taskOp(() => Object.assign(t, { done, completedAt: done ? today() : '' }),
-    (g, l) => g.patchTask(l, id, done ? { status: 'completed' } : { status: 'needsAction', completed: null }), listOf(id));
+    (g, l) => g.patchTask(l, id, done ? { status: 'completed' } : { status: 'needsAction', completed: null }), listOf(id))
+    .then((ok) => { if (ok && done && rule) makeNextTask(t, rule); });
 }
 
 function saveTask(vals) {
   const id = editing.id;
   const due = vals.due || '';
+  const rule = vals.repeat ? ruleFromChoice(vals.repeat, due || today(), editing.rule) : null;
+  if (rule && !due) { toast('반복 할일은 마감일이 있어야 해요.'); return false; }
+  if (!id) { addTaskItem(vals.title, due, rule); return; }
+  const old = state.agenda?.tasks.find((x) => x.id === id);
+  if (rule || old && taskRule(old)) setTaskRule(vals.title, rule, old?.title);
   taskOp((ts) => Object.assign(ts.find((x) => x.id === id) || {}, { title: vals.title, notes: vals.notes, due }),
     (g, l) => g.patchTask(l, id, { title: vals.title, notes: vals.notes, due: due ? toTaskDue(due) : null }), listOf(id));
 }
@@ -1070,7 +1104,7 @@ function defaultCal(title) {
 function eventPreview(p) {
   if (!p.title) return EVENT_HINT;
   const cal = defaultCal(p.title);
-  return `‘${p.title}’ · ${eventLine({ ...p, date: p.date || today() }).replace(` ${p.title}`, '')}${p.date ? '' : ' (날짜를 안 써서 오늘)'}${cal ? ` · ${cal.name}` : ''}`;
+  return `‘${p.title}’ · ${eventLine({ ...p, date: p.date || today() }).replace(` ${p.title}`, '')}${p.date ? '' : ' (날짜를 안 써서 오늘)'}${p.repeat ? ` · ${repeatLabel(p.repeat, p.date)}` : ''}${cal ? ` · ${cal.name}` : ''}`;
 }
 const appEvent = (r, cal) => normEvent(r, { id: cal.id, summary: cal.name, backgroundColor: cal.color, partner: calPref(cal).partner });
 
@@ -1106,14 +1140,16 @@ async function createEvent(ev) {
     const i = state.agenda.events.findIndex((x) => x.id === tmp.id);
     if (i >= 0) state.agenda.events[i] = appEvent(r, cal);
   });
-  if (ok) toast(`${cal.name}에 넣었어요: ${eventLine(ev)}${calPref(cal).show ? '' : ' (설정에서 숨긴 캘린더예요)'}`);
+  if (ok) toast(`${cal.name}에 넣었어요: ${eventLine(ev)}${ev.repeat ? ` · ${repeatLabel(ev.repeat, ev.date)}` : ''}${calPref(cal).show ? '' : ' (설정에서 숨긴 캘린더예요)'}`);
+  // 반복 일정은 다음 차례들까지 구글에서 다시 받아 와요
+  if (ok && ev.repeat) { if (gConnected()) syncAgenda(false); else if (autoLinked()) requestAgendaSync(); }
   return ok;
 }
 
 function saveEvent(vals) {
-  const ev = { ...vals, allDay: vals.allDay !== 'time', endDate: vals.allDay === 'time' ? '' : vals.endDate };
+  const ev = { ...vals, allDay: vals.allDay !== 'time', endDate: vals.allDay === 'time' ? '' : vals.endDate, repeat: undefined };
   if (!ev.allDay && !ev.time) { toast('시작 시간을 넣어 주세요.'); return false; }
-  if (!editing.id) { createEvent(ev); return; }
+  if (!editing.id) { createEvent({ ...ev, repeat: vals.repeat ? ruleFromChoice(vals.repeat, ev.date, editing.rule) : null }); return; }
   const { id, calId: oldCal } = editing;
   const cal = writableCals().find((c) => c.id === ev.calId) || writableCals().find((c) => c.id === oldCal);
   const body = toGoogleEvent(ev);
@@ -1228,7 +1264,7 @@ function eventRow(e, dayKey) {
   const md = (k) => `${Number(k.slice(5, 7))}.${Number(k.slice(8))}`;
   const span = multi ? `${md(e.startKey)}~${md(e.endKey)}` : '';
   const when = e.allDay ? '종일' : (e.startKey < dayKey ? '계속' : e.time);
-  const meta = [e.calName + (e.partner ? ' (반려자)' : ''), !e.allDay && e.endTime && e.endKey === dayKey ? `~${e.endTime}` : '', span, e.location].filter(Boolean).map(esc).join(' · ');
+  const meta = [e.calName + (e.partner ? ' (반려자)' : ''), !e.allDay && e.endTime && e.endKey === dayKey ? `~${e.endTime}` : '', span, e.recurring ? '반복' : '', e.location].filter(Boolean).map(esc).join(' · ');
   const inner = `<span class="ev-time">${when}</span><span class="ev-dot${e.money ? ' money' : ''}" style="${e.color ? `--c:${esc(e.color)}` : ''}"></span>
     <span class="row-main"><span class="row-title">${esc(e.title)}</span><span class="row-meta">${meta}</span></span>`;
   const cls = `row ev${e.partner ? ' partner' : ''}`;
@@ -1243,7 +1279,8 @@ function taskRow(t) {
   const late = t.due && t.due < today() && !t.done;
   const lists = (state.agenda?.lists || []).filter((l) => l.show !== false);
   const list = lists.length > 1 ? lists.find((l) => l.id === t.listId)?.title || '' : '';
-  const meta = [label ? `<span class="${late ? 'late' : ''}">${label}</span>` : '', esc(list), esc(t.notes.split('\n')[0])].filter(Boolean).join(' · ');
+  const rule = taskRule(t);
+  const meta = [label ? `<span class="${late ? 'late' : ''}">${label}</span>` : '', rule ? esc(repeatLabel(rule, t.due)) : '', esc(list), esc(t.notes.split('\n')[0])].filter(Boolean).join(' · ');
   return `<div class="row task${t.done ? ' done' : ''}">
     <button class="check" data-action="task-toggle" data-id="${esc(t.id)}" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title)} ${t.done ? '완료 취소' : '완료'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
     <button class="row-main" data-action="task-edit" data-id="${esc(t.id)}"><span class="row-title">${esc(t.title)}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</button>
@@ -1293,8 +1330,8 @@ function monthBlock() {
     const label = [`${d.getMonth() + 1}월 ${d.getDate()}일`, de.length ? `일정 ${de.length}개` : '', open.length ? `할일 ${open.length}개` : '', mo.length ? `출금 ${mo.length}건` : ''].filter(Boolean).join(', ');
     cells.push(`<button class="mday${d.getMonth() !== m - 1 ? ' out' : ''}${k === todayKey ? ' today' : ''}${k === sel ? ' sel' : ''}${d.getDay() === 0 ? ' sun' : d.getDay() === 6 ? ' sat' : ''}" data-action="cal-day" data-key="${k}" aria-label="${label}" aria-pressed="${k === sel}">
       <span class="num">${d.getDate()}</span>
-      <span class="mdots">${de.slice(0, 4).map((e) => `<i style="--c:${esc(e.color || '#8b8a83')}"></i>`).join('')}${mo.length ? '<i class="m"></i>' : ''}${open.length ? '<i class="t"></i>' : ''}</span>
-      <span class="mchips">${de.slice(0, 3).map((e) => `<span class="mchip${e.partner ? ' partner' : ''}" style="--c:${esc(e.color || '#8b8a83')}">${e.allDay ? '' : `${e.time} `}${esc(e.title)}</span>`).join('')}${de.length > 3 ? `<span class="mmore">+${de.length - 3}</span>` : ''}${mo.map((x) => `<span class="mchip money">${esc(x.name)}</span>`).slice(0, de.length >= 3 ? 0 : 3 - de.length).join('')}${open.length ? `<span class="mtask">할일 ${open.length}</span>` : ''}</span>
+      <span class="mdots">${de.slice(0, 4).map((e) => `<i style="--c:${esc(e.color || '#8b8a83')}"></i>`).join('')}${mo.length ? '<i class="m">₩</i>' : ''}${open.length ? '<i class="t"></i>' : ''}</span>
+      <span class="mchips">${de.slice(0, 3).map((e) => `<span class="mchip${e.partner ? ' partner' : ''}" style="--c:${esc(e.color || '#8b8a83')}">${e.allDay ? '' : `${e.time} `}${esc(e.title)}</span>`).join('')}${de.length > 3 ? `<span class="mmore">+${de.length - 3}</span>` : ''}${mo.map((x) => `<span class="mchip money"><b class="won">₩</b>${esc(x.name)}</span>`).slice(0, de.length >= 3 ? 0 : 3 - de.length).join('')}${open.length ? `<span class="mtask">할일 ${open.length}</span>` : ''}</span>
     </button>`);
   }
   const a = state.agenda;
@@ -1307,7 +1344,7 @@ function monthBlock() {
   return section(`${y === now().getFullYear() ? '' : `${y}년 `}${m}월`, `<div class="panel mcal-wrap">
       <div class="mcal-head">${'일월화수목금토'.split('').map((w, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}</div>
       <div class="mcal">${cells.join('')}</div>
-      <div class="mlegend"><span><i style="--c:var(--text-secondary)"></i>일정(캘린더 색)</span><span><i class="t"></i>할일</span><span><i class="m"></i>고정지출·상환</span></div>
+      <div class="mlegend"><span><i style="--c:var(--text-secondary)"></i>일정(캘린더 색)</span><span><i class="t"></i>할일</span><span><i class="m">₩</i>고정지출·상환</span></div>
     </div>
     ${sel ? dayDetail(sel, evs, money.get(sel) || outflowsBetween(state.data, fromKey(sel), fromKey(sel), now()), tasks.get(sel) || []) : '<p class="hint">날짜를 누르면 그날 일정·할일·나가는 돈을 보여드려요.</p>'}
     ${outOfRange ? `<p class="hint">구글 일정은 ${mdw(fromKey(a.from))} ~ ${mdw(fromKey(agendaUntil(a)))}만 받아 둬요.</p>` : ''}
@@ -1321,7 +1358,7 @@ function dayDetail(key, evs, money, tasks) {
   const rows = [
     ...de.map((e) => eventRow(e, key)),
     ...tasks.map(taskRow),
-    ...money.map((x) => `<div class="row static ev"><span class="ev-time">${x.loan ? '상환' : '출금'}</span><span class="ev-dot money"></span><span class="row-main"><span class="row-title">${esc(x.name)}</span><span class="row-meta">${x.loan ? '대출 상환' : '고정지출'}</span></span><span class="row-side"><span class="row-value">${wonExact(x.amount)}</span></span></div>`),
+    ...money.map((x) => `<div class="row static ev"><span class="ev-time">${x.loan ? '상환' : '출금'}</span><b class="won">₩</b><span class="row-main"><span class="row-title">${esc(x.name)}</span><span class="row-meta">${x.loan ? '대출 상환' : '고정지출'}</span></span><span class="row-side"><span class="row-value">${wonExact(x.amount)}</span></span></div>`),
   ];
   return `<div class="panel list day-detail"><div class="mini-head">${key === today() ? '오늘 · ' : ''}${mdw(d)}${state.agenda ? `<button class="link-btn" data-action="cal-add" data-key="${key}">+ 일정</button>` : ''}</div>${rows.length ? rows.join('') : empty('이날은 일정·할일·출금이 없어요.')}</div>`;
 }
@@ -1397,11 +1434,12 @@ function googleSettings() {
     <div class="row static"><span class="row-main"><span class="row-title">${conn ? '연결됨' : a ? '저장된 일정·할일을 보여주는 중' : '아직 연결 전'}</span><span class="row-meta">${a?.syncedAt ? `마지막으로 받은 때 ${dateTime(a.syncedAt)}` : '구글 연결하기를 누르면 구글 화면에서 허용을 눌러 주세요'}${conn ? ' · 이 창에서 1시간 동안 연결돼요' : ''}</span></span>
       ${conn ? '<button class="link-btn" data-action="g-disconnect">연결 끊기</button>' : ''}</div>
     <div class="pad actions"><button class="btn primary" data-action="g-sync">${conn ? '지금 새로 받기' : '구글 연결하기'}</button></div>
-    ${cals.length ? `<div class="pad"><b class="mini-title">보여줄 캘린더</b><div class="cal-prefs">${cals.map((c) => { const p = calPref(c); return `<div class="cal-pref"><label><input type="checkbox" data-cal-show="${esc(c.id)}" ${p.show ? 'checked' : ''}><span class="ev-dot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</label><label class="hint"><input type="checkbox" data-cal-partner="${esc(c.id)}" ${p.partner ? 'checked' : ''}>반려자</label></div>`; }).join('')}</div>
+    ${cals.length ? `<div class="pad"><b class="mini-title">보여줄 캘린더</b><div class="cal-prefs">${cals.filter((c) => !calPref(c).hidden).map((c) => { const p = calPref(c); return `<div class="cal-pref"><label><input type="checkbox" data-cal-show="${esc(c.id)}" ${p.show ? 'checked' : ''}><span class="ev-dot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</label><span class="cal-opts"><label class="hint"><input type="checkbox" data-cal-partner="${esc(c.id)}" ${p.partner ? 'checked' : ''}>반려자</label><button class="link-btn" data-action="cal-hide" data-id="${esc(c.id)}">숨기기</button></span></div>`; }).join('')}</div>
+      ${cals.some((c) => calPref(c).hidden) ? details('cal-hidden', `숨긴 캘린더 ${cals.filter((c) => calPref(c).hidden).length}개`, `<div class="cal-prefs">${cals.filter((c) => calPref(c).hidden).map((c) => `<div class="cal-pref"><span class="hint"><span class="ev-dot" style="--c:${esc(c.color)}"></span> ${esc(c.name)}</span><button class="link-btn" data-action="cal-unhide" data-id="${esc(c.id)}">다시 보이기</button></div>`).join('')}</div>`) : ''}
       <p class="hint">반려자 캘린더 일정은 하루 일정 맨 뒤에 보여줘요. 새로 켠 캘린더는 다음에 받아올 때부터 보여요.</p></div>` : ''}
     ${autoSyncPanel()}
     ${naverPanel()}
-    ${a?.lists?.length ? `<div class="pad"><b class="mini-title">보여줄 할일 목록</b><div class="cal-prefs">${a.lists.map((l) => `<div class="cal-pref"><label><input type="checkbox" data-list-show="${esc(l.id)}" ${l.show !== false ? 'checked' : ''}>${esc(l.title)}</label><span class="hint">${l.show !== false && l.count != null ? `남은 할일 ${l.count}개` : ''}</span></div>`).join('')}</div>
+    ${a?.lists?.length ? `<div class="pad"><b class="mini-title">보여줄 할일 목록</b><div class="cal-prefs">${a.lists.map((l) => `<div class="cal-pref"><label><input type="checkbox" data-list-show="${esc(l.id)}" ${l.show !== false ? 'checked' : ''}>${esc(l.title)}</label><span class="hint">${l.show !== false && l.count != null ? `남은 할일 ${l.count}개${l.received != null ? ` (구글에서 받은 ${l.received}개, 완료 ${l.done}개)` : ''}` : ''}</span></div>`).join('')}</div>
       ${a.lists.length > 1 ? `<b class="mini-title" style="margin-top:14px">새 할일을 넣을 목록</b><select id="g-tasklist" class="select">${a.lists.map((l) => `<option value="${esc(l.id)}" ${l.id === a.listId ? 'selected' : ''}>${esc(l.title)}</option>`).join('')}</select>` : ''}</div>` : ''}
     ${guide}
   </div>`;
@@ -1502,11 +1540,19 @@ function openForm(kind, item, preset = {}) {
   }
   if (kind === 'stocks' && item) v = { avgCur: 'KRW', manualCur: 'KRW', market: stockMarket(item), ...item };
   if (kind === 'fx') v = { usdKrw: state.data.settings?.usdKrw || '' };
+  if (kind === 'event' || kind === 'task') {
+    // 반복: 고를 수 있는 것 + 지금 규칙이 목록에 없으면 그대로 두기
+    const rule = kind === 'task' ? (item ? taskRule(item) : preset.repeat) : preset.repeat;
+    const f = spec.fields.find((x) => x.key === 'repeat');
+    f.options = choiceOf(rule) === 'keep' ? [...REPEAT_CHOICES, ['keep', `${repeatLabel(rule)} (그대로)`]] : REPEAT_CHOICES;
+    editing.rule = rule || null;
+  }
+  if (kind === 'task') v = { ...(item || preset), repeat: choiceOf(editing.rule) };
   if (kind === 'event') {
     spec.fields.find((f) => f.key === 'calId').options = writableCals().map((c) => [c.id, c.name]);
     const e = item || preset;
     v = { title: e.title || '', calId: e.calId || defaultCal(e.title || '')?.id || '', allDay: e.allDay === false || e.time ? 'time' : 'all',
-      date: e.startKey || e.date || today(), endDate: e.endKey && e.endKey !== e.startKey ? e.endKey : '', time: e.time || '', endTime: e.endTime || '', location: e.location || '' };
+      date: e.startKey || e.date || today(), endDate: e.endKey && e.endKey !== e.startKey ? e.endKey : '', time: e.time || '', endTime: e.endTime || '', location: e.location || '', repeat: choiceOf(editing.rule) };
     editing.calId = item?.calId;
     editing.recurring = !!item?.recurring;
   }
@@ -1565,6 +1611,8 @@ function openForm(kind, item, preset = {}) {
     return `<div class="field"${show}><label for="${id}">${f.label}</label>${input}${hint}</div>`;
   }).join('');
   $('#editor-delete').hidden = !item || kind === 'trade';
+  // 이미 있는 일정의 반복은 구글 캘린더에서 바꿔요 (여기서는 그 날 하나만 고쳐요)
+  if (kind === 'event' && item) $('#f-repeat')?.closest('.field')?.setAttribute('hidden', '');
   if (kind === 'event' && item) {
     $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint">${item.recurring ? '반복 일정이라 이 날 하나만 바뀌어요. ' : ''}${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noopener">구글 캘린더에서 열기</a>` : ''}</p>`);
   }
@@ -1858,7 +1906,7 @@ async function doAction(m, what) {
     m.done = 'busy';
     renderChat();
     const ok = a.kind === 'task'
-      ? await addTaskItem(a.title, a.due)
+      ? await addTaskItem(a.title, a.due, a.repeat || null)
       : await createEvent({ ...a.ev, calId: writableCals().find((c) => c.name === a.ev.calName)?.id });
     m.done = ok ? 'ok' : 'fail';
   }
@@ -1982,6 +2030,13 @@ function bind() {
       toast(v ? '저장했어요. 이제 구글 연결하기를 눌러 주세요.' : '클라이언트 ID를 지웠어요.');
     }
     if (a === 'cal-more') { state.calDays = 31; render(); }
+    if (a === 'cal-hide' || a === 'cal-unhide') {
+      const c = state.agenda.calendars.find((x) => x.id === b.dataset.id);
+      const hide = a === 'cal-hide';
+      setGoogle({ cals: { ...(gset().cals || {}), [c.id]: { ...(gset().cals?.[c.id] || {}), hidden: hide, show: !hide } } });
+      toast(hide ? `‘${c.name}’을(를) 숨겼어요. 아래 ‘숨긴 캘린더’에서 다시 보이게 할 수 있어요.` : `‘${c.name}’을(를) 다시 보여줘요. 다음에 받아올 때부터 일정이 보여요.`);
+      if (!hide) { if (gConnected()) syncAgenda(false); else if (autoLinked()) requestAgendaSync(); }
+    }
     if (a === 'cal-day') { state.calSel = state.calSel === b.dataset.key ? '' : b.dataset.key; state.calMonth = b.dataset.key.slice(0, 7); render(); }
     if (a === 'cal-month') {
       const n = Number(b.dataset.key);
@@ -2105,9 +2160,9 @@ function bind() {
       $('#event-preview').textContent = v ? eventPreview(parseQuickEvent(v, now())) : EVENT_HINT;
     }
     if (e.target.id === 'task-input') {
-      const { title, due } = parseQuickTask(e.target.value, now());
-      $('#task-preview').textContent = !title ? '날짜를 말하면 알아서 마감일로 넣어요. 요일만 쓰면 이번 주 그 요일이에요.'
-        : due ? `‘${title}’ · ${dueLabel(due, today())}${due < today() ? '' : due === today() ? '' : '까지'}` : `‘${title}’ · 날짜 없음`;
+      const { title, due, repeat } = parseQuickTask(e.target.value, now());
+      $('#task-preview').textContent = !title ? '날짜를 말하면 알아서 마감일로 넣어요. 요일만 쓰면 이번 주 그 요일이에요. ‘매주 토요일’처럼 쓰면 반복 할일이에요.'
+        : due ? `‘${title}’ · ${dueLabel(due, today())}${due < today() ? '' : due === today() ? '' : '까지'}${repeat ? ` · ${repeatLabel(repeat, due)} 반복` : ''}` : `‘${title}’ · 날짜 없음`;
     }
   });
   // 비서 칸: Enter로 보내기, Shift+Enter는 줄바꿈 (한글 조합 중에는 보내지 않아요)
@@ -2148,7 +2203,7 @@ function bind() {
     if (cs) {
       const c = state.agenda.calendars.find((x) => x.id === cs);
       const key = e.target.dataset.calShow ? 'show' : 'partner';
-      setGoogle({ cals: { ...(gset().cals || {}), [cs]: { ...calPref(c), [key]: e.target.checked } } });
+      setGoogle({ cals: { ...(gset().cals || {}), [cs]: { ...(gset().cals?.[cs] || {}), ...calPref(c), [key]: e.target.checked } } });
       if (key === 'show' && e.target.checked) syncAgenda(false);
     }
     if (e.target.id === 'lock-after') { setLockAfter(Number(e.target.value)); toast('저장했어요.'); }

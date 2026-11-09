@@ -651,13 +651,13 @@ dialog.lock img { width: 96px; height: 96px; }
   padding: 6px 2px; border: 0; border-radius: 10px; background: none; cursor: pointer; font: inherit; color: inherit;
 }
 .mday:hover { background: var(--surface-2); }
-.mday.sel { background: var(--surface-2); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.mday.sel { background: color-mix(in srgb, var(--ink) 12%, var(--surface-1)); }
 .mday.out { opacity: .35; }
 .mday .num { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font-size: 14px; font-weight: 600; }
 .mday.today .num { background: var(--ink); color: var(--on-ink); }
-.mdots { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; max-width: 100%; }
+.mdots { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; max-width: 100%; }
 .mdots i, .mlegend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
-.mdots i.m, .mlegend i.m { border-radius: 1px; background: var(--hot-ink); }
+.mdots i.m, .mlegend i.m { width: 13px; height: 13px; border-radius: 50%; background: var(--hot-bg); color: var(--hot-ink); font-size: 9px; font-style: normal; font-weight: 800; line-height: 13px; text-align: center; }
 .mdots i.t, .mlegend i.t { background: none; border: 1.5px solid var(--text-secondary); width: 7px; height: 7px; }
 .mchips { display: none; }
 .mlegend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 10px 10px 0; font-size: 12px; color: var(--text-muted); }
@@ -674,7 +674,7 @@ dialog.lock img { width: 96px; height: 96px; }
   .mchip { font-size: 13px; line-height: 1.6; padding: 1px 7px; border-radius: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     background: color-mix(in srgb, var(--c) 20%, transparent); color: var(--text-primary); }
   .mchip.partner { opacity: .7; }
-  .mchip.money { --c: var(--hot-ink); }
+  .mchip.money { background: none; padding-left: 0; display: flex; align-items: center; gap: 5px; color: var(--text-secondary); }
   .mmore, .mtask { font-size: 12px; color: var(--text-muted); padding-left: 7px; }
   .mlegend { font-size: 13px; }
 }
@@ -697,3 +697,7 @@ dialog.lock img { width: 96px; height: 96px; }
 .view > .ask-box + .block { margin-top: 24px; }
 @media (min-width: 900px) { .ask-box textarea { min-height: 72px; } }
 pre.debug { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-height: 1.5; color: var(--text-secondary); background: var(--surface-2); padding: 10px 12px; border-radius: 8px; margin: 0; }
+
+/* 고정지출·상환 표시: 원형 배경의 ₩ */
+.won { display: inline-grid; place-items: center; flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--hot-bg); color: var(--hot-ink); font-size: 11px; font-weight: 800; line-height: 1; }
+.cal-opts { display: inline-flex; align-items: center; gap: 12px; }

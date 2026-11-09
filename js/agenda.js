@@ -95,7 +95,8 @@ export const toTaskDue = (key) => (key ? `${key}T00:00:00.000Z` : undefined);
  * 요일만 말하면 이번 주(월~일)의 그 요일, '다음 주 ○요일'이면 다음 주. 날짜가 없으면 due 없음.
  */
 export function parseQuickTask(text, now = new Date()) {
-  let s = ` ${String(text || '').trim()} `;
+  const rep = parseRepeat(text, now);
+  let s = ` ${rep.rest} `;
   const today = dayKeyDate(now);
   let due = '';
   const take = (re, fn) => {
@@ -115,7 +116,10 @@ export function parseQuickTask(text, now = new Date()) {
   take(/\s(\d{1,2})월\s?(\d{1,2})일(까지|에)?\s/, (m) => nearest(today, Number(m[1]), Number(m[2])));
   take(/\s(\d{1,2})[/.](\d{1,2})(까지|에)?\s/, (m) => nearest(today, Number(m[1]), Number(m[2])));
   const title = s.replace(/\s+/g, ' ').trim();
-  return { title, due };
+  if (!rep.rule) return { title, due };
+  // 반복: 날짜를 따로 안 쓰면 오늘부터 첫 차례
+  const first = due && matchesRule(rep.rule, due) ? due : firstOccurrence(rep.rule, due || dayKey(today));
+  return { title, due: first, repeat: { ...rep.rule, anchor: first } };
 }
 
 /** 월·일만 주어지면 올해, 이미 한참 지났으면(30일 넘게) 내년 */
@@ -140,7 +144,11 @@ export function dueLabel(key, todayKey) {
 // ───── 보여줄 일정 (앱·아침 브리핑·비서 공통) ─────
 
 /** 캘린더별 보기·반려자 설정: 설정에서 바꾼 값(googleSettings.cals)이 우선 */
-export const calPref = (c, gs = {}) => ({ show: gs.cals?.[c.id]?.show ?? c.show, partner: gs.cals?.[c.id]?.partner ?? c.partner });
+export const calPref = (c, gs = {}) => {
+  const p = gs.cals?.[c.id] || {};
+  // 숨긴 캘린더는 설정 목록에서도 빠지고, 일정도 보여주지 않아요
+  return { show: p.hidden ? false : p.show ?? c.show, partner: p.partner ?? c.partner, hidden: !!p.hidden };
+};
 
 /** 저장해 둔 agenda에서 숨긴 캘린더는 빼고, 반려자 표시는 지금 설정대로 */
 export function visibleEvents(agenda, gs = {}) {
@@ -193,8 +201,8 @@ export function parseQuickEvent(text, now = new Date()) {
       s = s.replace(m[0], ' ');
     }
   }
-  const { title, due } = parseQuickTask(s, now);
-  return { title, date: due, time, endTime, allDay: !time };
+  const { title, due, repeat } = parseQuickTask(s, now);
+  return { title, date: due, time, endTime, allDay: !time, ...(repeat ? { repeat } : {}) };
 }
 
 /** 캘린더 고르기 (덕준님 기준): 생일 → Birthday, 대학원 → Life, 운동 → Exercise, 공연·영화·전시 → Cherish, 학교·업무·연수 → Work, 나머지 → Life */
@@ -211,8 +219,9 @@ export function classifyEvent(title) {
 }
 
 /** 앱 일정 → 구글 캘린더 일정 (한국 시간) */
-export function toGoogleEvent({ title, date, endDate, allDay, time, endTime, location, notes }) {
+export function toGoogleEvent({ title, date, endDate, allDay, time, endTime, location, notes, repeat }) {
   const body = { summary: title };
+  if (repeat) body.recurrence = [toRRule(repeat)];
   if (location !== undefined) body.location = location;
   if (notes !== undefined) body.description = notes;
   if (allDay || !time) {
@@ -271,7 +280,8 @@ export async function fetchAgenda(g, gs = {}, now = new Date(), interactive = fa
   const tasks = perList.flat().filter((x) => !x.deleted && x.title !== '(제목 없음)').filter((x) => !x.done || !x.completedAt || x.completedAt >= old);
   return {
     calendars, listId,
-    lists: lists.map((l) => ({ id: l.id, title: l.title || '', show: !hidden.has(l.id), count: tasks.filter((x) => x.listId === l.id && !x.done).length })),
+    lists: lists.map((l, i) => ({ id: l.id, title: l.title || '', show: !hidden.has(l.id), count: tasks.filter((x) => x.listId === l.id && !x.done).length,
+      received: shownLists.includes(l) ? perList[shownLists.indexOf(l)].length : null, done: tasks.filter((x) => x.listId === l.id && x.done).length })),
     events: evs.flat(),
     tasks,
     from: dayKey(from), until: dayKey(addDays(to, -1)),
@@ -286,4 +296,121 @@ export function keepExternal(next, prev) {
   if (!ext.length) return next;
   const ids = new Set(ext.map((c) => c.id));
   return { ...next, calendars: [...next.calendars, ...ext], events: [...next.events, ...(prev.events || []).filter((e) => ids.has(e.calId))], naver: prev.naver };
+}
+
+// ───── 반복: '매주 토요일', '매일', '평일마다', '격주 수요일', '매월 25일', '매년' ─────
+// 규칙 {freq: 'daily'|'weekly'|'monthly'|'yearly', interval, byday: [0~6 (일~토)], day: 매월 며칠, anchor: 첫 날, until}
+const DAYS = '일월화수목금토';
+const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+const daysIn = (str) => [...new Set([...str].map((c) => DAYS.indexOf(c)).filter((i) => i >= 0))].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+
+/** 글에서 반복 말을 찾아 {rule, rest} (rest는 반복 말을 뺀 글) */
+export function parseRepeat(text) {
+  let s = ` ${String(text || '').trim()} `;
+  let rule = null;
+  const take = (re, fn) => {
+    if (rule) return;
+    const m = s.match(re);
+    if (!m) return;
+    rule = fn(m);
+    s = s.replace(m[0], ' ');
+  };
+  take(/\s(매일|날마다)\s/, () => ({ freq: 'daily', interval: 1 }));
+  take(/\s(평일마다|매\s?평일|평일\s?매일)\s/, () => ({ freq: 'weekly', interval: 1, byday: [1, 2, 3, 4, 5] }));
+  take(/\s(주말마다|매\s?주말)\s/, () => ({ freq: 'weekly', interval: 1, byday: [6, 0] }));
+  take(/\s(격주|2주마다|이주마다)\s?([월화수목금토일,·\s]*?)(요일)?(마다|에)?\s/, (m) => ({ freq: 'weekly', interval: 2, byday: daysIn(m[2]) }));
+  take(/\s(매주|주마다)\s?([월화수목금토일,·]*)(요일)?(마다|에)?\s/, (m) => ({ freq: 'weekly', interval: 1, byday: daysIn(m[2]) }));
+  take(/\s([월화수목금토일])요일마다\s/, (m) => ({ freq: 'weekly', interval: 1, byday: daysIn(m[1]) }));
+  take(/\s(매월|매달|다달이)\s?(\d{1,2})일(마다|에)?\s/, (m) => ({ freq: 'monthly', interval: 1, day: Number(m[2]) }));
+  take(/\s(매월|매달|다달이)\s/, () => ({ freq: 'monthly', interval: 1 }));
+  take(/\s(매년|해마다)\s/, () => ({ freq: 'yearly', interval: 1 }));
+  return { rule, rest: s.replace(/\s+/g, ' ').trim() };
+}
+
+const monthDay = (y, m, d) => new Date(y, m, Math.min(d, new Date(y, m + 1, 0).getDate()));
+const mondayOf = (d) => addDays(d, -((d.getDay() + 6) % 7));
+
+/** 이 날이 규칙에 맞는 날인지 */
+export function matchesRule(rule, key) {
+  const d = fromKey(key);
+  if (rule.until && key > rule.until) return false;
+  if (rule.freq === 'daily') return !rule.anchor || Math.round((d - fromKey(rule.anchor)) / 86400000) % (rule.interval || 1) === 0;
+  if (rule.freq === 'weekly') {
+    const days = rule.byday?.length ? rule.byday : [fromKey(rule.anchor || key).getDay()];
+    if (!days.includes(d.getDay())) return false;
+    if ((rule.interval || 1) > 1 && rule.anchor) return Math.round((mondayOf(d) - mondayOf(fromKey(rule.anchor))) / (7 * 86400000)) % rule.interval === 0;
+    return true;
+  }
+  if (rule.freq === 'monthly') { const want = rule.day || fromKey(rule.anchor || key).getDate(); return dayKey(monthDay(d.getFullYear(), d.getMonth(), want)) === key; }
+  if (rule.freq === 'yearly') { const a = fromKey(rule.anchor || key); return dayKey(monthDay(d.getFullYear(), a.getMonth(), a.getDate())) === key; }
+  return false;
+}
+
+/** key 날짜부터(그날 포함) 첫 차례 */
+export function firstOccurrence(rule, key) {
+  for (let i = 0; i < 400; i++) { const k = dayKey(addDays(fromKey(key), i)); if (matchesRule({ ...rule, anchor: rule.anchor || key }, k)) return k; }
+  return key;
+}
+
+/** key 다음 차례 (끝났으면 '') */
+export function nextOccurrence(rule, key) {
+  const r = { ...rule, anchor: rule.anchor || key };
+  let n = '';
+  if (r.freq === 'monthly') { const d = fromKey(key); n = dayKey(monthDay(d.getFullYear(), d.getMonth() + (r.interval || 1), r.day || fromKey(r.anchor).getDate())); }
+  else if (r.freq === 'yearly') { const d = fromKey(key); const a = fromKey(r.anchor); n = dayKey(monthDay(d.getFullYear() + (r.interval || 1), a.getMonth(), a.getDate())); }
+  else if (r.freq === 'daily') n = dayKey(addDays(fromKey(key), r.interval || 1));
+  else for (let i = 1; i <= 7 * (r.interval || 1) + 7; i++) { const k = dayKey(addDays(fromKey(key), i)); if (matchesRule(r, k)) { n = k; break; } }
+  return n && (!r.until || n <= r.until) ? n : '';
+}
+
+/** 구글 캘린더 반복 규칙 */
+export function toRRule(rule) {
+  const parts = [`FREQ=${rule.freq.toUpperCase()}`];
+  if ((rule.interval || 1) > 1) parts.push(`INTERVAL=${rule.interval}`);
+  if (rule.freq === 'weekly' && rule.byday?.length) parts.push(`BYDAY=${rule.byday.map((i) => BYDAY[i]).join(',')}`);
+  if (rule.freq === 'monthly' && rule.day) parts.push(`BYMONTHDAY=${rule.day}`);
+  if (rule.until) parts.push(`UNTIL=${rule.until.replaceAll('-', '')}`);
+  return `RRULE:${parts.join(';')}`;
+}
+
+/** '매주 토요일', '평일마다', '2주마다 수요일', '매월 25일', '매년' */
+export function repeatLabel(rule, dateKey = '') {
+  if (!rule) return '';
+  const d = dateKey ? fromKey(dateKey) : null;
+  if (rule.freq === 'daily') return rule.interval > 1 ? `${rule.interval}일마다` : '매일';
+  if (rule.freq === 'weekly') {
+    const days = rule.byday?.length ? rule.byday : d ? [d.getDay()] : [];
+    const key = days.join();
+    if (rule.interval === 1 && key === '1,2,3,4,5') return '평일마다';
+    if (rule.interval === 1 && (key === '6,0' || key === '0,6')) return '주말마다';
+    return `${rule.interval > 1 ? `${rule.interval}주마다` : '매주'} ${days.map((i) => DAYS[i]).join('·')}요일`;
+  }
+  if (rule.freq === 'monthly') return `매월 ${rule.day || d?.getDate() || ''}일`;
+  if (rule.freq === 'yearly') return d ? `매년 ${d.getMonth() + 1}월 ${d.getDate()}일` : '매년';
+  return '';
+}
+
+/** 입력창 '반복' 고르기 ↔ 규칙 */
+export const REPEAT_CHOICES = [['', '반복 안 함'], ['daily', '매일'], ['weekdays', '평일마다'], ['weekly', '매주 (같은 요일)'], ['biweekly', '2주마다 (같은 요일)'], ['monthly', '매월 (같은 날짜)'], ['yearly', '매년']];
+export function ruleFromChoice(choice, dateKey, old) {
+  const wd = dateKey ? fromKey(dateKey).getDay() : new Date().getDay();
+  const anchor = dateKey || undefined;
+  if (choice === 'daily') return { freq: 'daily', interval: 1, anchor };
+  if (choice === 'weekdays') return { freq: 'weekly', interval: 1, byday: [1, 2, 3, 4, 5], anchor };
+  if (choice === 'weekly') return { freq: 'weekly', interval: 1, byday: [wd], anchor };
+  if (choice === 'biweekly') return { freq: 'weekly', interval: 2, byday: [wd], anchor };
+  if (choice === 'monthly') return { freq: 'monthly', interval: 1, day: dateKey ? fromKey(dateKey).getDate() : undefined, anchor };
+  if (choice === 'yearly') return { freq: 'yearly', interval: 1, anchor };
+  if (choice === 'keep') return old || null;
+  return null;
+}
+export function choiceOf(rule) {
+  if (!rule) return '';
+  const days = (rule.byday || []).join();
+  if (rule.freq === 'daily' && (rule.interval || 1) === 1) return 'daily';
+  if (rule.freq === 'weekly' && (rule.interval || 1) === 1 && days === '1,2,3,4,5') return 'weekdays';
+  if (rule.freq === 'weekly' && (rule.byday || []).length <= 1) return (rule.interval || 1) === 2 ? 'biweekly' : (rule.interval || 1) === 1 ? 'weekly' : 'keep';
+  if (rule.freq === 'monthly' && (rule.interval || 1) === 1) return 'monthly';
+  if (rule.freq === 'yearly') return 'yearly';
+  return 'keep';
 }
