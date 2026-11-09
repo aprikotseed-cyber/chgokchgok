@@ -82,8 +82,8 @@ function sampleData() {
       { id: 't1', name: '삼성전자', ticker: '005930', qty: 120, avgPrice: 68_000 },
       { id: 't2', name: 'S&P500 ETF', ticker: 'VOO', qty: 15, avgPrice: 650_000 },
     ],
-    stockPlan: { monthly: 500_000, rate: 6 },
-    homes: [{ id: 'h1', name: '우리 집', lawdCd: '41135', aptName: '예시마을', area: 84, share: 100, useAuto: true, manualPrice: 950_000_000, growth: 2 }],
+    stockPlan: { monthly: 500_000 },
+    homes: [{ id: 'h1', name: '우리 집', lawdCd: '41135', aptName: '예시마을', area: 84, share: 100, useAuto: true, manualPrice: 950_000_000 }],
     debts: [
       { id: 'd1', name: '아낌e보금자리론', kind: '주택담보대출', original: 400_000_000, balance: 352_000_000, rate: 3.9, method: 'graduated', payment: 1_250_000, paymentAsOf: new Date().toISOString().slice(0, 7), maturity: '2054-03', graceEnd: '' },
       { id: 'd2', name: '신용대출', kind: '신용대출', original: 30_000_000, balance: 18_000_000, rate: 5.2, method: 'equal', maturity: '2029-06', graceEnd: '' },

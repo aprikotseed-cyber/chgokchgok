@@ -5,7 +5,7 @@ import { won, pct, esc, ymLabel, dateTime } from './format.js';
 import { projectionChart, homeChart, redrawAll } from './charts.js';
 
 const EMPTY = () => ({
-  savings: [], stocks: [], stockPlan: { monthly: 0, rate: 5 }, homes: [], debts: [],
+  savings: [], stocks: [], stockPlan: { monthly: 0 }, homes: [], debts: [],
   settings: { horizon: 20 }, snapshots: {}, records: [],
 });
 
@@ -48,7 +48,6 @@ const FORMS = {
     title: '주식 투자 계획',
     fields: [
       { key: 'monthly', label: '매달 추가 투자', type: 'money' },
-      { key: 'rate', label: '기대 연수익률', type: 'pct', hint: '보수적으로 4~6% 정도를 많이 써요' },
     ],
   },
   homes: {
@@ -61,7 +60,6 @@ const FORMS = {
       { key: 'share', label: '내 지분', type: 'pct', def: 100 },
       { key: 'useAuto', label: '실거래가로 자동 시세 반영', type: 'check', def: true },
       { key: 'manualPrice', label: '직접 입력 시세', type: 'money', hint: '자동 시세를 끄거나, 아직 거래가 없을 때 사용' },
-      { key: 'growth', label: '예상 연 상승률', type: 'pct', def: 2, hint: '예측 그래프에만 쓰여요' },
     ],
   },
   debts: {
@@ -210,7 +208,7 @@ function viewHome() {
         <tbody>${points.map((p) => `<tr><th>${p.label === '현재' ? '지금' : `${p.year}년 말`}</th><td>${won(p.savings + p.stocks)}</td><td>${won(p.homes)}</td><td>${won(p.debts)}</td><td><b>${won(p.net)}</b></td></tr>`).join('')}</tbody>
       </table></div>
     </details>
-    <p class="fine">총자산 = 저축액 + 아파트 시세 − 대출잔액. 예측은 저축은 매달 적립 + 연 이자, 아파트는 예상 상승률, 대출은 상환 방식대로 갚는다고 계산해요.</p>
+    <p class="fine">총자산 = 저축액 + 아파트 시세 − 대출잔액. 예측은 저축은 매달 적립 + 연 이자, 대출은 상환 방식대로 갚는다고 계산해요. 아파트·주식 시세는 오르내림을 가정하지 않고 지금 값 그대로 둬요.</p>
   </section>`;
 }
 
@@ -267,7 +265,7 @@ function viewAssets() {
   </section>
   <section class="section">
     <div class="section-head"><h2>주식 <span class="sum">${won(t.stocks)}</span></h2><button class="btn" data-action="add" data-kind="stocks">+ 종목</button></div>
-    <button class="plan" data-action="plan">투자 계획: 매달 <b>${won(plan.monthly || 0)}</b> 추가 · 기대수익률 <b>연 ${pct(plan.rate)}</b> <span>수정</span></button>
+    <button class="plan" data-action="plan">투자 계획: 매달 <b>${won(plan.monthly || 0)}</b> 추가 <span>수정</span></button>
     <div class="items">${stk || '<p class="empty">종목코드와 수량만 넣으면 매일 아침 시세가 자동으로 반영돼요.</p>'}</div>
   </section>
   <section class="section">
