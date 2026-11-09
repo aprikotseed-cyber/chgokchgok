@@ -110,3 +110,16 @@ test('비서 개선 2026-11-09: 일정 옮기기·지우기', () => {
   // 반려자 일정은 바꿀 수 없어요
   assert.match(A2('야근 일정 지워줘').text, /반려자 캘린더 일정이라/);
 });
+
+test('비서: 메모 남기기·찾기', () => {
+  const memos = [
+    { id: '1', text: '와이파이 비밀번호 바뀜: 공유기 뒷면', createdAt: 2 },
+    { id: '2', text: '읽을 책: 도둑맞은 집중력', createdAt: 1, pinned: true },
+  ];
+  const M = (q) => ask(q, data, {}, now, agenda, memos);
+  assert.deepEqual(M('주차 B2 37번이라고 메모해줘').action, { kind: 'memo', text: '주차 B2 37번' });
+  assert.deepEqual(M('메모: 우산 챙기기').action, { kind: 'memo', text: '우산 챙기기' });
+  assert.match(M('와이파이 메모 찾아줘').text, /와이파이 비밀번호 바뀜/);
+  assert.match(M('메모 보여줘').text, /메모 2개 중[\s\S]*읽을 책[\s\S]*와이파이/); // 고정 먼저
+  assert.equal(M('내일 3시 상담 넣어줘').action.kind, 'event'); // 넣어줘는 그대로 일정
+});
