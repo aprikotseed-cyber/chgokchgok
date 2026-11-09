@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110u';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110u';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110u';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110u';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110u';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110u';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110u';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110u';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110u';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110u';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110u';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110u';
-import { createGoogle } from './google.js?v=20261110u';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110u';
-import { createDemoGoogle } from './google-demo.js?v=20261110u';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110u';
+import { connect, isDemo } from './store.js?v=20261110w';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110w';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110w';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110w';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110w';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110w';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110w';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110w';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110w';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110w';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110w';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110w';
+import { createGoogle } from './google.js?v=20261110w';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110w';
+import { createDemoGoogle } from './google-demo.js?v=20261110w';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110w';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -974,6 +974,7 @@ function viewSettings() {
   return `
   <div class="cols"><div class="col-main">
   ${section('구글 캘린더·할일', googleSettings())}
+  ${section('아이폰 단축어', shortcutPanel())}
   ${section('Face ID 잠금', lockSettings())}
   ${section('비서 알림', `<div class="panel">
       <p class="pad">매일 오전 8시쯤 <b>아침 브리핑</b>을 보내 드려요: 오늘 일정, 오늘 마감 할일과 지난 할일, 그리고 <b>오늘이 상환일·출금일인</b> 대출 상환과 고정지출. 앱 화면(PC 알림 카드)에서는 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p>
@@ -1181,14 +1182,14 @@ function removeTask(id) {
 const writableCals = () => (state.agenda?.calendars || []).filter((c) => c.write !== false && !/holiday|공휴일|#contacts|#weather/i.test(c.id));
 const canWrite = (calId) => writableCals().some((c) => c.id === calId);
 /** 내용을 보고 고른 캘린더 (없으면 기본 캘린더) */
-function defaultCal(title) {
-  const want = classifyEvent(title || '').toLowerCase();
+function defaultCal(title, calName = '') {
+  const want = (calName || (gset().keywords || []).find((k) => k.word && (title || '').includes(k.word))?.cal || classifyEvent(title || '')).toLowerCase();
   const cals = writableCals();
   return cals.find((c) => c.name.toLowerCase() === want) || cals.find((c) => c.name.toLowerCase() === 'life') || cals.find((c) => c.primary) || cals[0];
 }
 function eventPreview(p) {
   if (!p.title) return EVENT_HINT;
-  const cal = defaultCal(p.title);
+  const cal = defaultCal(p.title, p.calName);
   return `‘${p.title}’ · ${eventLine({ ...p, date: p.date || today() }).replace(` ${p.title}`, '')}${p.date ? '' : ' (날짜를 안 써서 오늘)'}${p.repeat ? ` · ${repeatLabel(p.repeat, p.date)}` : ''}${cal ? ` · ${cal.name}` : ''}`;
 }
 const appEvent = (r, cal) => normEvent(r, { id: cal.id, summary: cal.name, backgroundColor: cal.color, partner: calPref(cal).partner });
@@ -1317,6 +1318,49 @@ function autoSyncPanel() {
     <p class="hint">보안 비밀번호는 GitHub Secrets에만 들어가고 공개 코드나 앱에는 들어가지 않아요. 앱 안 업데이트 버튼에 쓰는 GitHub 토큰이 필요해요${state.secrets?.githubToken ? ' (저장돼 있어요)' : ' (아래 ‘지금 업데이트 버튼’에서 먼저 넣어 주세요)'}.</p>
     <button class="btn primary" data-action="g-auto-on">자동 동기화 켜기</button>
   </div>`)}`;
+}
+
+/** 아이폰 단축어: 일정·할일·메모를 앱을 열지 않고 넣기 */
+function shortcutPanel() {
+  const { owner, repo } = repoFromLocation(location);
+  const code = (label, value, copy) => `<div class="sc-row"><span class="sc-label">${label}</span><code>${esc(value)}</code>${copy ? `<button class="link-btn" data-action="sc-copy" data-what="${copy}">복사</button>` : ''}</div>`;
+  const ready = autoLinked() && state.secrets?.githubToken;
+  return `<div class="panel"><p class="pad">단축어나 시리로 ‘일정 · 할일 · 메모’를 고르고 말하면, 앱을 열지 않아도 30초~1분 뒤 구글 캘린더·태스크와 메모에 들어가고 휴대폰 알림으로 알려드려요.</p>
+    ${ready ? '' : `<p class="pad warn">먼저 ${autoLinked() ? '' : '위의 <b>자동 동기화</b>와 '}아래 <b>지금 업데이트 버튼</b>의 GitHub 토큰을 준비해 주세요.</p>`}
+    ${details('sc-guide', '단축어 만들기 (처음 한 번, 아이폰에서)', `<div class="pad">
+      <p class="hint">말한 내용은 덕준님만 읽을 수 있는 Firestore 받은편지함에 먼저 넣고, GitHub에는 ‘처리해 줘’ 신호만 보내요. 저장소가 공개라서 내용이 공개 기록에 남지 않게 하려는 거예요.</p>
+      <ol class="steps">
+        <li>단축어 앱 → <b>+</b> → 이름을 <b>차곡차곡에 추가</b>로 해요. (시리에게 이 이름으로 부를 수 있어요)</li>
+        <li><b>목록</b> 동작을 넣고 항목을 <b>일정</b>, <b>할일</b>, <b>메모</b> 세 개로 적어요. 이어서 <b>목록에서 선택</b>을 넣어요.</li>
+        <li><b>입력 요청</b> (텍스트) → 질문: ‘무엇을 넣을까요?’</li>
+        <li><b>URL의 콘텐츠 가져오기</b> → URL은 아래 ①, 방법 <b>POST</b>, 요청 본문 <b>양식</b>: <code>grant_type</code> = <code>refresh_token</code>, <code>refresh_token</code> = 아래 ②(단축어 키)</li>
+        <li><b>사전 값 가져오기</b> 두 번: 위 결과에서 <code>id_token</code>, <code>user_id</code></li>
+        <li><b>URL의 콘텐츠 가져오기</b> → URL은 ③에서 <code>[user_id]</code> 자리에 5번의 user_id 변수를 넣어요. 방법 <b>POST</b>, 헤더 <code>Authorization</code> = <code>Bearer </code>+ id_token 변수. 요청 본문 <b>JSON</b>: <code>fields</code>(사전) 안에 <code>kind</code>(사전: <code>stringValue</code> = 선택한 항목), <code>text</code>(사전: <code>stringValue</code> = 입력한 텍스트)</li>
+        <li><b>URL의 콘텐츠 가져오기</b> → URL은 ④, 방법 <b>POST</b>, 헤더 <code>Authorization</code> = <code>Bearer </code>+ ⑤(GitHub 토큰), <code>Accept</code> = <code>application/vnd.github+json</code>. 요청 본문 <b>JSON</b>: <code>ref</code> = <code>main</code></li>
+        <li><b>알림 보기</b> → ‘보냈어요’. 끝이에요.</li>
+      </ol>
+      <div class="sc-codes">
+        ${code('①', `https://securetoken.googleapis.com/v1/token?key=${store.apiKey}`, 'token-url')}
+        ${code('②', '단축어 키 (로그인 유지 토큰, 길어요)', 'key')}
+        ${code('③', 'https://firestore.googleapis.com/v1/projects/chgokchgok/databases/(default)/documents/users/[user_id]/inbox', 'inbox-url')}
+        ${code('④', `https://api.github.com/repos/${owner}/${repo}/actions/workflows/agenda-sync.yml/dispatches`, 'gh-url')}
+        ${code('⑤', state.secrets?.githubToken ? 'GitHub 토큰 (저장된 것)' : '아래 ‘지금 업데이트 버튼’에서 먼저 넣어 주세요', state.secrets?.githubToken ? 'gh-token' : '')}
+      </div>
+      <p class="hint">단축어 키와 GitHub 토큰은 이 아이폰 단축어 안에만 두세요. 비밀번호를 바꾸면 단축어 키가 바뀌니 ②를 다시 복사해 넣으면 돼요. 일정은 말한 캘린더 이름(‘라이프에 …’) → 나만의 낱말 → 기본 규칙 순서로 캘린더를 골라요.</p>
+    </div>`)}
+  </div>`;
+}
+
+/** 나만의 낱말: '라스런' → Life 처럼, 이 낱말이 들어간 일정은 정한 캘린더로 */
+function keywordPanel() {
+  const list = gset().keywords || [];
+  const cals = writableCals();
+  if (!cals.length) return '';
+  return details('g-keywords', `나만의 낱말 ${list.length ? `${list.length}개` : ''}`, `<div class="pad">
+    <p class="hint">일정 제목에 이 낱말이 있으면 정한 캘린더로 넣어요. 빠른 입력·비서·단축어 모두 같아요. 말할 때 ‘라이프에 …’처럼 캘린더 이름을 붙이면 그게 가장 먼저예요.</p>
+    ${list.length ? `<div class="cal-prefs kw-list">${list.map((k, i) => `<div class="cal-pref"><span><b>${esc(k.word)}</b> → ${esc(k.cal)}</span><button class="link-btn" data-action="kw-del" data-i="${i}">지우기</button></div>`).join('')}</div>` : ''}
+    <div class="inline kw-add"><input id="kw-word" type="text" placeholder="낱말" autocomplete="off"><select id="kw-cal" class="select">${cals.map((c) => `<option>${esc(c.name)}</option>`).join('')}</select><button class="btn" data-action="kw-add">추가</button></div>
+  </div>`);
 }
 
 /** 반려자 네이버 캘린더 (GitHub 자동 동기화가 CalDAV로 읽어 와요) */
@@ -1531,7 +1575,7 @@ function googleSettings() {
     <p class="hint">클라이언트 ID는 공개돼도 괜찮은 값이에요. 연결할 때 구글 화면에서 ‘확인되지 않은 앱’이 나오면 고급 → 차곡차곡(으)로 이동을 누르면 돼요 (덕준님이 직접 만든 앱이라 그래요).</p>
     <div class="inline"><input id="g-client" type="text" value="${esc(gs.clientId || '')}" placeholder="…apps.googleusercontent.com" autocomplete="off"><button class="btn" data-action="g-client-save">저장</button></div>
   </div>`);
-  if (isDemo()) return `<div class="panel"><p class="pad">체험 모드에서는 예시 일정·할일을 보여줘요. 실제 구글 연결은 로그인한 앱에서 할 수 있어요.</p></div>`;
+  if (isDemo()) return `<div class="panel"><p class="pad">체험 모드에서는 예시 일정·할일을 보여줘요. 실제 구글 연결은 로그인한 앱에서 할 수 있어요.</p>${keywordPanel()}</div>`;
   if (!gs.clientId) return `<div class="panel"><p class="pad">구글 캘린더 일정과 구글 태스크 할일을 앱에서 함께 보고, 할일은 여기서 추가·완료하면 구글에도 그대로 기록돼요.</p>${guide}</div>`;
   const conn = gConnected();
   const cals = a?.calendars || [];
@@ -1544,6 +1588,7 @@ function googleSettings() {
       <p class="hint">반려자 캘린더 일정은 하루 일정 맨 뒤에 보여줘요. 새로 켠 캘린더는 다음에 받아올 때부터 보여요.</p></div>` : ''}
     ${autoSyncPanel()}
     ${naverPanel()}
+    ${keywordPanel()}
     ${a?.lists?.length ? `<div class="pad"><b class="mini-title">보여줄 할일 목록</b><div class="cal-prefs">${a.lists.map((l) => `<div class="cal-pref"><label><input type="checkbox" data-list-show="${esc(l.id)}" ${l.show !== false ? 'checked' : ''}>${esc(l.title)}</label><span class="hint">${l.show !== false && l.count != null ? `남은 할일 ${l.count}개${l.received != null ? ` (구글에서 받은 ${l.received}개, 완료 ${l.done}개)` : ''}` : ''}</span></div>`).join('')}</div>
       ${a.lists.length > 1 ? `<b class="mini-title" style="margin-top:14px">새 할일을 넣을 목록</b><select id="g-tasklist" class="select">${a.lists.map((l) => `<option value="${esc(l.id)}" ${l.id === a.listId ? 'selected' : ''}>${esc(l.title)}</option>`).join('')}</select>` : ''}</div>` : ''}
     ${guide}
@@ -1996,7 +2041,7 @@ function askAssistant(q) {
   chat.push({ me: true, text: q });
   renderChat();
   // 일정·할일도 함께 (구글을 연결해 받아 둔 것)
-  const ag = state.agenda ? { events: agendaEvents(), tasks: state.agenda.tasks || [], until: agendaUntil(state.agenda), calendars: writableCals() } : null;
+  const ag = state.agenda ? { events: agendaEvents(), tasks: state.agenda.tasks || [], until: agendaUntil(state.agenda), calendars: writableCals(), keywords: gset().keywords || [] } : null;
   const a = ask(q, state.data, state.market, new Date(), ag, state.memos);
   // 모르는 질문은 저절로 개선 목록에
   if (a.unknown) saveFeedback({ q, kind: 'unknown' });
@@ -2152,6 +2197,21 @@ function bind() {
       toast(v ? '저장했어요. 이제 구글 연결하기를 눌러 주세요.' : '클라이언트 ID를 지웠어요.');
     }
     if (a === 'cal-more') { state.calDays = 31; render(); }
+    if (a === 'sc-copy') {
+      const { owner, repo } = repoFromLocation(location);
+      const v = { 'token-url': `https://securetoken.googleapis.com/v1/token?key=${store.apiKey}`, key: store.shortcutKey(),
+        'inbox-url': 'https://firestore.googleapis.com/v1/projects/chgokchgok/databases/(default)/documents/users/[user_id]/inbox',
+        'gh-url': `https://api.github.com/repos/${owner}/${repo}/actions/workflows/agenda-sync.yml/dispatches`, 'gh-token': state.secrets?.githubToken || '' }[b.dataset.what];
+      try { await navigator.clipboard.writeText(v); toast('복사했어요. 단축어에 붙여 넣어 주세요.'); } catch { prompt('길게 눌러 복사해 주세요', v); }
+    }
+    if (a === 'kw-add') {
+      const word = $('#kw-word').value.trim();
+      if (!word) return $('#kw-word').focus();
+      const cal = $('#kw-cal').value;
+      setGoogle({ keywords: [...(gset().keywords || []).filter((k) => k.word !== word), { word, cal }] });
+      toast(`‘${word}’이(가) 들어간 일정은 ${cal} 캘린더로 넣을게요.`);
+    }
+    if (a === 'kw-del') { const ks = [...(gset().keywords || [])]; ks.splice(Number(b.dataset.i), 1); setGoogle({ keywords: ks }); }
     if (a === 'cal-hide' || a === 'cal-unhide') {
       const c = state.agenda.calendars.find((x) => x.id === b.dataset.id);
       const hide = a === 'cal-hide';
@@ -2288,7 +2348,7 @@ function bind() {
     }
     if (e.target.id === 'event-input') {
       const v = e.target.value.trim();
-      $('#event-preview').textContent = v ? eventPreview(parseQuickEvent(v, now())) : EVENT_HINT;
+      $('#event-preview').textContent = v ? eventPreview(parseEventInput(v, now(), writableCals(), gset().keywords)) : EVENT_HINT;
     }
     if (e.target.id === 'task-input') {
       const { title, due, repeat } = parseQuickTask(e.target.value, now());
@@ -2326,9 +2386,9 @@ function bind() {
     if (e.target.id === 'event-add') {
       e.preventDefault();
       const input = $('#event-input');
-      const p = parseQuickEvent(input.value, now());
+      const p = parseEventInput(input.value, now(), writableCals(), gset().keywords);
       if (!p.title) return;
-      createEvent({ ...p, date: p.date || today(), calId: defaultCal(p.title)?.id });
+      createEvent({ ...p, date: p.date || today(), calId: defaultCal(p.title, p.calName)?.id });
       input.value = '';
       $('#event-preview').textContent = EVENT_HINT;
       return;

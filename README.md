@@ -137,6 +137,12 @@ GitHub 저장소 **Settings → Secrets and variables → Actions → New reposi
 
 GitHub Secrets에 `NAVER_CALDAV_ID`(네이버 아이디)와 `NAVER_CALDAV_PASSWORD`(네이버 2단계 인증의 애플리케이션 비밀번호)를 넣으면, 자동 동기화가 CalDAV(`caldav.calendar.naver.com`)로 네이버 캘린더를 읽어 반려자 일정으로 합쳐요 (`js/caldav.js`). 반복 일정·빼는 날·옮긴 날을 한국 시간으로 펼쳐요.
 
+### 아이폰 단축어로 일정·할일·메모 넣기
+
+단축어가 Firebase 로그인 유지 토큰(앱 설정 → 아이폰 단축어의 '단축어 키')으로 본인의 `users/{uid}/inbox`에 `{kind: 일정|할일|메모, text}`를 쓰고, `agenda-sync.yml`을 실행해요. 작업이 받은편지함을 처리해 구글 캘린더·태스크·메모에 넣고 푸시 알림으로 알려요. 저장소가 공개라서 내용은 GitHub에 보내지 않아요 (공개 로그에는 개수만).
+
+캘린더는 ① 말한 캘린더 이름('라이프에 …') → ② 설정의 나만의 낱말 → ③ 기본 규칙 순서로 골라요.
+
 ## 앱 안 [업데이트] 버튼
 자산 탭 주식 제목 옆 **업데이트**를 누르면 GitHub에서 Run workflow를 누른 것처럼 주가·환율을 바로 받아와요 (1분쯤 뒤 반영).
 처음 한 번 앱 **설정 → 지금 업데이트 버튼**에 GitHub 토큰을 넣어야 해요.
