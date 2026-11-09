@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110m';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110m';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110m';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110m';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110m';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110m';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110m';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110m';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110m';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110m';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110m';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110m';
-import { createGoogle } from './google.js?v=20261110m';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110m';
-import { createDemoGoogle } from './google-demo.js?v=20261110m';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal } from './agenda.js?v=20261110m';
+import { connect, isDemo } from './store.js?v=20261110n';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110n';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110n';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110n';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110n';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110n';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110n';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110n';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110n';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110n';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110n';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110n';
+import { createGoogle } from './google.js?v=20261110n';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110n';
+import { createDemoGoogle } from './google-demo.js?v=20261110n';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal } from './agenda.js?v=20261110n';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1188,7 +1188,8 @@ function naverPanel() {
   const cals = (state.agenda?.calendars || []).filter((c) => c.ext === 'naver');
   const status = nv?.error
     ? `<p class="pad warn">네이버 캘린더를 받지 못했어요: ${esc(nv.error)} (${dateTime(nv.at)})</p>`
-    : nv ? `<div class="row static"><span class="row-main"><span class="row-title">네이버 캘린더 연결됨</span><span class="row-meta">${cals.map((c) => esc(c.name)).join(', ') || '캘린더 없음'} · 일정 ${nv.count}개 · ${dateTime(nv.at)}</span></span></div>` : '';
+    : nv ? `<div class="row static"><span class="row-main"><span class="row-title">네이버 캘린더 연결됨</span><span class="row-meta">${cals.map((c) => esc(c.name)).join(', ') || '캘린더 없음'} · 일정 ${nv.count}개 · ${dateTime(nv.at)}</span></span></div>
+      ${nv.debug?.length ? details('naver-debug', '진단 정보 (일정이 안 보이면 캡처해서 Claude에게 보여 주세요)', `<div class="pad"><pre class="debug">${esc(nv.debug.map((d) => Object.entries(d).map(([k, v]) => `${k}: ${v}`).join(' · ')).join('\n\n'))}</pre></div>`) : ''}` : '';
   return `${status}${details('naver-guide', nv && !nv.error ? '네이버 캘린더 설정 다시 보기' : '반려자 네이버 캘린더 연결 (읽기만)', `<div class="pad">
     <p class="hint">GitHub 자동 동기화가 1시간마다 반려자분의 네이버 캘린더를 읽어 와서, 반려자 일정으로 하루 맨 뒤에 보여줘요. 네이버 캘린더를 바꾸지는 않아요. 자동 동기화가 켜져 있어야 해요.</p>
     <ol class="steps">

@@ -78,8 +78,10 @@ for (const doc of docs) {
     if (NAVER_ID && NAVER_PW) {
       try {
         const nv = await fetchCalDav({ base: 'https://caldav.calendar.naver.com/', user: NAVER_ID, pass: NAVER_PW, from: agenda.from, to: agenda.until, gs });
-        agenda = { ...agenda, calendars: [...agenda.calendars, ...nv.calendars], events: [...agenda.events, ...nv.events], naver: { at: Date.now(), count: nv.events.length } };
+        agenda = { ...agenda, calendars: [...agenda.calendars, ...nv.calendars], events: [...agenda.events, ...nv.events], naver: { at: Date.now(), count: nv.events.length, debug: nv.debug } };
         console.log(`네이버 캘린더 ${nv.calendars.length}개, 일정 ${nv.events.length}개`);
+        // 공개 로그라서 캘린더 이름·내용 없이 개수만
+        nv.debug.forEach((d, i) => console.log(`  캘린더 ${i + 1}:`, JSON.stringify({ ...d, name: undefined, sample: d.sample ? `(${d.sample.length}자)` : undefined })));
       } catch (e) {
         console.log('네이버 캘린더 실패:', e.message);
         const prev = (await userRef.doc('agenda').get()).data();

@@ -104,3 +104,24 @@ test('CalDAV: 주소 찾기 → 캘린더 목록 → 일정 받기 (가짜 서�
   await assert.rejects(fetchCalDav({ base, user: 'x', pass: 'y', from: '2026-11-01', to: '2026-11-30', fetchImpl: async () => ({ ok: false, status: 401, text: async () => '' }) }), /애플리케이션 비밀번호/);
   assert.equal(prop(responses('<d:multistatus xmlns:d="DAV:"><d:response><d:href>/a</d:href><d:propstat><d:prop><d:displayname>A &amp; B</d:displayname></d:prop></d:propstat></d:response></d:multistatus>')[0].xml, 'displayname'), 'A & B');
 });
+
+test('CalDAV: 기간 검색에 내용이 없으면 multiget, 그것도 안 되면 하나씩 받기', async () => {
+  const base = 'https://cal.example/';
+  const ICS1 = 'BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:x\nDTSTART;VALUE=DATE:20261115\nSUMMARY:하나씩 받은 일정\nEND:VEVENT\nEND:VCALENDAR';
+  const ms = (body) => ({ ok: true, status: 207, text: async () => `<D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">${body}</D:multistatus>` });
+  const make = (mode) => async (url, opt) => {
+    const p = new URL(url).pathname;
+    if (opt.method === 'PROPFIND' && p === '/') return ms('<D:response><D:href>/</D:href><D:propstat><D:prop><D:current-user-principal><D:href>/u/</D:href></D:current-user-principal></D:prop></D:propstat></D:response>');
+    if (opt.method === 'PROPFIND' && p === '/u/' && opt.headers.Depth === '0') return ms('<D:response><D:href>/u/</D:href><D:propstat><D:prop><C:calendar-home-set><D:href>/u/cals/</D:href></C:calendar-home-set></D:prop></D:propstat></D:response>');
+    if (opt.method === 'PROPFIND' && p === '/u/cals/') return ms('<D:response><D:href>/u/cals/a/</D:href><D:propstat><D:prop><D:displayname>A</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype></D:prop></D:propstat></D:response>');
+    if (opt.method === 'REPORT' && /calendar-query/.test(opt.body)) return mode === 'hrefs' ? ms('<D:response><D:href>/u/cals/a/1.ics</D:href><D:propstat><D:prop><D:getetag>"1"</D:getetag></D:prop></D:propstat></D:response>') : ms('');
+    if (opt.method === 'REPORT' && /multiget/.test(opt.body)) return mode === 'hrefs' ? ms(`<D:response><D:href>/u/cals/a/1.ics</D:href><D:propstat><D:prop><C:calendar-data><![CDATA[${ICS1}]]></C:calendar-data></D:prop></D:propstat></D:response>`) : ms('');
+    if (opt.method === 'PROPFIND' && p === '/u/cals/a/') return ms('<D:response><D:href>/u/cals/a/</D:href></D:response><D:response><D:href>/u/cals/a/1.ics</D:href></D:response>');
+    if (opt.method === 'GET' && p === '/u/cals/a/1.ics') return { ok: true, status: 200, text: async () => ICS1 };
+    return { ok: false, status: 404, text: async () => '' };
+  };
+  const a = await fetchCalDav({ base, user: 'u', pass: 'p', from: '2026-11-01', to: '2026-11-30', fetchImpl: make('hrefs') });
+  assert.deepEqual([a.events.map((e) => e.title), a.debug[0].multiget], [['하나씩 받은 일정'], 1]);
+  const b = await fetchCalDav({ base, user: 'u', pass: 'p', from: '2026-11-01', to: '2026-11-30', fetchImpl: make('none') });
+  assert.deepEqual([b.events.map((e) => e.title), b.debug[0].listed, b.debug[0].get], [['하나씩 받은 일정'], 1, 1]);
+});

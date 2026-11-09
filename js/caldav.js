@@ -1,7 +1,7 @@
 // 네이버 캘린더(CalDAV) 읽기: GitHub 자동 동기화에서 반려자 캘린더를 받아 와요. 읽기만 해요.
 // CalDAV는 일정을 주고받는 표준 방식이에요. 네이버 아이디 + 애플리케이션 비밀번호로 접속해요.
 // 날짜·시간은 모두 한국 시간 기준으로 계산해요.
-import { normEvent } from './agenda.js?v=20261110m';
+import { normEvent } from './agenda.js?v=20261110n';
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -177,11 +177,11 @@ const XML = { 'Content-Type': 'application/xml; charset=utf-8' };
  */
 export async function fetchCalDav({ base, user, pass, from, to, gs = {}, fetchImpl = fetch, idPrefix = 'naver:', label = '네이버' }) {
   const auth = `Basic ${Buffer.from(`${user}:${pass}`).toString('base64')}`;
-  const call = async (url, method, depth, body) => {
-    const res = await fetchImpl(url, { method, headers: { ...XML, Authorization: auth, Depth: String(depth) }, body });
+  const call = async (url, method, depth, body, raw = false) => {
+    const res = await fetchImpl(url, { method, headers: { ...XML, Authorization: auth, ...(depth != null ? { Depth: String(depth) } : {}) }, body });
     if (res.status === 401 || res.status === 403) throw new Error(`${label} 로그인 실패: 아이디나 애플리케이션 비밀번호를 확인해 주세요`);
-    if (!res.ok && res.status !== 207) throw new Error(`${label} 캘린더 오류 ${res.status}`);
-    return res.text();
+    if (!res.ok && res.status !== 207) throw Object.assign(new Error(`${label} 캘린더 오류 ${res.status}`), { status: res.status });
+    return raw ? res : res.text();
   };
   const abs = (href, at) => new URL(href, at).href;
   const principalXml = await call(base, 'PROPFIND', 0, '<d:propfind xmlns:d="DAV:"><d:prop><d:current-user-principal/></d:prop></d:propfind>');
@@ -198,14 +198,66 @@ export async function fetchCalDav({ base, user, pass, from, to, gs = {}, fetchIm
   const query = `<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><c:calendar-data/></d:prop><c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"><c:time-range start="${range(from)}" end="${range(to, true)}"/></c:comp-filter></c:comp-filter></c:filter></c:calendar-query>`;
   const calendars = [];
   const events = [];
+  const debug = [];
   for (const c of cals) {
     const pref = gs.cals?.[c.id] || {};
     const cal = { id: c.id, name: c.name, color: c.color, primary: false, write: false, ext: 'naver', show: true, partner: true };
     calendars.push(cal);
     if (pref.show === false) continue;
-    const xml = await call(c.url, 'REPORT', 1, query);
-    const texts = responses(xml).map((r) => prop(r.xml, 'calendar-data')).filter(Boolean);
-    events.push(...icsToEvents(texts, { ...cal, partner: pref.partner ?? true }, from, to));
+    const { texts, dbg } = await calendarTexts(c.url, query, call, abs);
+    const evs = icsToEvents(texts, { ...cal, partner: pref.partner ?? true }, from, to);
+    debug.push({ name: c.name, ...dbg, events: evs.length });
+    events.push(...evs);
   }
-  return { calendars, events };
+  return { calendars, events, debug };
+}
+
+/**
+ * 한 캘린더의 일정 글(ICS)들. 서버마다 방식이 달라서 차례로 시도해요:
+ * ① 기간 검색(REPORT) → ② 검색 결과 주소로 한꺼번에(multiget) → ③ 전체 목록에서 한꺼번에 → ④ 하나씩 GET
+ * dbg에는 개수와 상태만 (내용은 남기지 않아요). sample은 앱 설정의 진단용으로만 저장해요.
+ */
+async function calendarTexts(url, query, call, abs) {
+  const dbg = {};
+  const data = (xml) => responses(xml).map((r) => prop(r.xml, 'calendar-data')).filter((x) => x && /BEGIN:VCALENDAR/.test(x));
+  const self = new URL(url).pathname;
+  let hrefs = [];
+  let texts = [];
+  try {
+    const xml = await call(url, 'REPORT', 1, query);
+    const rs = responses(xml);
+    dbg.report = rs.length;
+    texts = data(xml);
+    dbg.reportData = texts.length;
+    hrefs = rs.map((r) => r.href).filter((h) => h && h !== self);
+    if (!rs.length) dbg.sample = xml.replace(/\s+/g, ' ').slice(0, 300);
+  } catch (e) { dbg.reportError = e.status || e.message; }
+  if (!texts.length && !hrefs.length) {
+    try {
+      const xml = await call(url, 'PROPFIND', 1, '<d:propfind xmlns:d="DAV:"><d:prop><d:getetag/><d:getcontenttype/></d:prop></d:propfind>');
+      hrefs = responses(xml).map((r) => r.href).filter((h) => h && h !== self && abs(h, url) !== url);
+      dbg.listed = hrefs.length;
+    } catch (e) { dbg.listError = e.status || e.message; }
+  }
+  if (!texts.length && hrefs.length) {
+    try {
+      for (let i = 0; i < hrefs.length; i += 50) {
+        const body = `<c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav"><d:prop><d:getetag/><c:calendar-data/></d:prop>${hrefs.slice(i, i + 50).map((h) => `<d:href>${h.replace(/&/g, '&amp;')}</d:href>`).join('')}</c:calendar-multiget>`;
+        texts.push(...data(await call(url, 'REPORT', 1, body)));
+      }
+      dbg.multiget = texts.length;
+    } catch (e) { dbg.multigetError = e.status || e.message; }
+  }
+  if (!texts.length && hrefs.length) {
+    let ok = 0;
+    for (const h of hrefs.slice(0, 300)) {
+      try {
+        const res = await call(abs(h, url), 'GET', null, undefined, true);
+        const t = await res.text();
+        if (/BEGIN:VCALENDAR/.test(t)) { texts.push(t); ok++; }
+      } catch { /* 하나 실패해도 계속 */ }
+    }
+    dbg.get = ok;
+  }
+  return { texts, dbg };
 }
