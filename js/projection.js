@@ -1,4 +1,4 @@
-import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261109h';
+import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261109i';
 // 자산·부채 계산과 연도별 예측. 화면(app.js)과 테스트가 함께 쓰는 순수 함수만 둡니다.
 // 금액 단위는 모두 '원'입니다.
 
@@ -189,9 +189,7 @@ export function project(data, market, { years = 15, now = new Date() } = {}) {
     monthly: Number(s.monthly) || 0,
     r: (Number(s.rate) || 0) / 100 / 12,
   }));
-  const plan = data.stockPlan || {};
   let stock = currentTotals({ stocks: data.stocks }, market).stocks;
-  const stockMonthly = Number(plan.monthly) || 0;
   const homes = (data.homes || []).map((h) => ({ v: homeValue(h, market) })); // 집값 상승률은 가정하지 않아요
   const loans = (data.debts || []).map((d) => ({ d: prepareLoan(d, now), bal: loanBalance(d, now), schedule: d.schedule?.length ? d.schedule : null }));
 
@@ -213,7 +211,7 @@ export function project(data, market, { years = 15, now = new Date() } = {}) {
   while (recorded < years) {
     step++;
     for (const s of savings) s.bal = s.bal * (1 + s.r) + s.monthly;
-    stock += stockMonthly; // 주가 상승률은 가정하지 않아요
+    // 주식은 매수·매도로 직접 관리하니 지금 평가금액 그대로 둬요 (주가 상승률도 가정하지 않아요)
     for (const l of loans) if (!l.schedule) l.bal -= loanMonth(l.bal, l.d, step).principal;
     if ((startMonth + step) % 12 === 11) {
       const year = now.getFullYear() + Math.floor((startMonth + step) / 12);
