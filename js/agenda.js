@@ -136,3 +136,22 @@ export function dueLabel(key, todayKey) {
   if (n < 0) return `${-n}일 지남`;
   return `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEK[d.getDay()]})`;
 }
+
+// ───── 보여줄 일정 (앱·아침 브리핑·비서 공통) ─────
+
+/** 캘린더별 보기·반려자 설정: 설정에서 바꾼 값(googleSettings.cals)이 우선 */
+export const calPref = (c, gs = {}) => ({ show: gs.cals?.[c.id]?.show ?? c.show, partner: gs.cals?.[c.id]?.partner ?? c.partner });
+
+/** 저장해 둔 agenda에서 숨긴 캘린더는 빼고, 반려자 표시는 지금 설정대로 */
+export function visibleEvents(agenda, gs = {}) {
+  if (!agenda) return [];
+  const prefs = new Map((agenda.calendars || []).map((c) => [c.id, calPref(c, gs)]));
+  return (agenda.events || []).filter((e) => prefs.get(e.calId)?.show !== false).map((e) => ({ ...e, partner: prefs.get(e.calId)?.partner ?? e.partner }));
+}
+
+/** 받아 둔 일정이 어느 날까지 있는지 (받은 날 + 31일) */
+export function agendaUntil(agenda) {
+  if (!agenda?.syncedAt) return '';
+  const d = new Date(agenda.syncedAt);
+  return dayKey(addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), 31));
+}
