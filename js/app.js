@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110f';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110f';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110f';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110f';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110f';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110f';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110f';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110f';
-import { ask, SUGGEST } from './assistant.js?v=20261110f';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110f';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110f';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110f';
-import { createGoogle } from './google.js?v=20261110f';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110f';
-import { createDemoGoogle } from './google-demo.js?v=20261110f';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil } from './agenda.js?v=20261110f';
+import { connect, isDemo } from './store.js?v=20261110g';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110g';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110g';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110g';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110g';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110g';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110g';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110g';
+import { ask, SUGGEST } from './assistant.js?v=20261110g';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110g';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110g';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110g';
+import { createGoogle } from './google.js?v=20261110g';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110g';
+import { createDemoGoogle } from './google-demo.js?v=20261110g';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine } from './agenda.js?v=20261110g';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -56,6 +56,19 @@ const SIGUNGU = [
 const FIXED_CATS = ['주거', '통신', '보험', '구독', '교통', '공과금', '교육', '기부·후원', '모임·데이트', '기타'];
 
 const FORMS = {
+  event: {
+    title: '일정',
+    fields: [
+      { key: 'title', label: '일정', type: 'text', required: true },
+      { key: 'calId', label: '캘린더', type: 'select', options: [] }, // 열 때 내 캘린더 목록으로 채워요
+      { key: 'allDay', label: '시간', type: 'seg', str: true, options: [['all', '종일'], ['time', '시간 지정']], def: 'all' },
+      { key: 'date', label: '날짜', type: 'date' },
+      { key: 'endDate', label: '끝나는 날', type: 'date', optional: true, showIf: { allDay: 'all' }, hint: '여러 날 이어지는 일정일 때만' },
+      { key: 'time', label: '시작', type: 'time', showIf: { allDay: 'time' } },
+      { key: 'endTime', label: '끝', type: 'time', showIf: { allDay: 'time' } },
+      { key: 'location', label: '장소', type: 'text', placeholder: '선택' },
+    ],
+  },
   task: {
     title: '할일',
     fields: [
@@ -301,6 +314,11 @@ function viewHome() {
   const noPayDay = (d.debts || []).some((l) => !l.schedule?.length && loanBalance(l) > 0 && !l.payDay);
 
   return `
+  <form id="home-ask" class="ask-bar" autocomplete="off">
+    ${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>'}
+    <input id="home-ask-input" type="text" placeholder="비서에게: 금요일 7시 헬스 넣어줘 · 이번 주 할일 뭐야?" enterkeyhint="send" aria-label="비서에게 물어보기">
+    <button class="btn primary" type="submit" aria-label="보내기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </form>
   ${todayBlock()}
   ${isEmpty ? `<p class="notice">아직 입력된 자산이 없어요. <a href="#assets">자산</a>과 <a href="#debts">부채</a>에서 하나씩 추가해 보세요.</p>` : ''}
   <div class="summary">
@@ -941,7 +959,7 @@ function syncAgenda(interactive = false) {
       const named = raw.some((c) => DEFAULT_CALS.includes((c.summaryOverride || c.summary || '').toLowerCase()));
       const calendars = raw.map((c) => {
         const name = c.summaryOverride || c.summary || '';
-        return { id: c.id, name, color: c.backgroundColor || '', primary: !!c.primary,
+        return { id: c.id, name, color: c.backgroundColor || '', primary: !!c.primary, write: ['owner', 'writer'].includes(c.accessRole),
           show: named ? DEFAULT_CALS.includes(name.toLowerCase()) : c.accessRole === 'owner' || !!c.primary,
           partner: PARTNER_NAMES.includes(name) };
       });
@@ -982,33 +1000,39 @@ function saveAgendaSoon(ms = 800) {
 /** 할일 바꾸기: 화면에 먼저 반영하고, 구글에서 실패하면 되돌려요 */
 async function taskOp(change, call) {
   const g = gapi();
-  if (!g || !state.agenda) return toast('먼저 설정에서 구글에 연결해 주세요.');
+  if (!g || !state.agenda) { toast('먼저 설정에서 구글에 연결해 주세요.'); return false; }
   const before = JSON.stringify(state.agenda.tasks);
   change(state.agenda.tasks);
   render();
   try {
     await call(g, state.agenda.listId);
     saveAgendaSoon();
+    return true;
   } catch (e) {
     state.agenda.tasks = JSON.parse(before);
     if (e.needsAuth) state.gsync = 'auth';
     render();
     toast(`구글에 반영하지 못했어요: ${e.message}`);
+    return false;
   }
 }
 
 function addTask(text) {
   const { title, due } = parseQuickTask(text, now());
-  if (!title) return;
-  if (!state.agenda?.listId) return toast('먼저 설정에서 구글에 연결해 주세요.');
+  if (title) addTaskItem(title, due);
+}
+
+async function addTaskItem(title, due) {
+  if (!state.agenda?.listId) { toast('먼저 설정에서 구글에 연결해 주세요.'); return false; }
   const tmp = { id: `tmp-${Date.now()}`, listId: state.agenda.listId, title, notes: '', due, done: false, completedAt: '', updated: '' };
-  taskOp((ts) => ts.unshift(tmp), async (g, l) => {
+  const ok = await taskOp((ts) => ts.unshift(tmp), async (g, l) => {
     const r = await g.addTask(l, { title, ...(due ? { due: toTaskDue(due) } : {}) });
     const i = state.agenda.tasks.findIndex((x) => x.id === tmp.id);
     if (i >= 0) state.agenda.tasks[i] = normTask(r, l);
     render();
   });
-  toast(due ? `‘${title}’ · ${dueLabel(due, today())}${due === today() ? '' : '까지'} 추가했어요.` : `‘${title}’을(를) 추가했어요.`);
+  if (ok) toast(due ? `‘${title}’ · ${dueLabel(due, today())}${due === today() ? '' : '까지'} 추가했어요.` : `‘${title}’을(를) 추가했어요.`);
+  return ok;
 }
 
 function toggleTask(id) {
@@ -1028,6 +1052,81 @@ function saveTask(vals) {
 
 function removeTask(id) {
   taskOp((ts) => ts.splice(ts.findIndex((x) => x.id === id), 1), (g, l) => g.deleteTask(l, id));
+}
+
+// ───── 일정 넣기·고치기·지우기 (구글 캘린더에 바로) ─────
+const writableCals = () => (state.agenda?.calendars || []).filter((c) => c.write !== false && !/holiday|공휴일|#contacts|#weather/i.test(c.id));
+const canWrite = (calId) => writableCals().some((c) => c.id === calId);
+/** 내용을 보고 고른 캘린더 (없으면 기본 캘린더) */
+function defaultCal(title) {
+  const want = classifyEvent(title || '').toLowerCase();
+  const cals = writableCals();
+  return cals.find((c) => c.name.toLowerCase() === want) || cals.find((c) => c.name.toLowerCase() === 'life') || cals.find((c) => c.primary) || cals[0];
+}
+function eventPreview(p) {
+  if (!p.title) return EVENT_HINT;
+  const cal = defaultCal(p.title);
+  return `‘${p.title}’ · ${eventLine({ ...p, date: p.date || today() }).replace(` ${p.title}`, '')}${p.date ? '' : ' (날짜를 안 써서 오늘)'}${cal ? ` · ${cal.name}` : ''}`;
+}
+const appEvent = (r, cal) => normEvent(r, { id: cal.id, summary: cal.name, backgroundColor: cal.color, partner: calPref(cal).partner });
+
+/** 화면에 먼저 반영하고 구글에 보내요. 실패하면 되돌려요. 성공하면 true */
+async function eventOp(change, call) {
+  const g = gapi();
+  if (!g || !state.agenda) { toast('먼저 설정에서 구글에 연결해 주세요.'); return false; }
+  const before = JSON.stringify(state.agenda.events);
+  change(state.agenda.events);
+  render();
+  try {
+    await call(g);
+    saveAgendaSoon();
+    render();
+    return true;
+  } catch (e) {
+    state.agenda.events = JSON.parse(before);
+    if (e.needsAuth) state.gsync = 'auth';
+    render();
+    toast(`구글 캘린더에 반영하지 못했어요: ${e.message}`);
+    return false;
+  }
+}
+
+/** ev: {title, date, endDate, allDay, time, endTime, location, calId} */
+async function createEvent(ev) {
+  const cal = writableCals().find((c) => c.id === ev.calId) || defaultCal(ev.title);
+  if (!cal) { toast('일정을 넣을 수 있는 캘린더가 없어요. 설정에서 구글 연결을 확인해 주세요.'); return false; }
+  const tmp = { id: `tmp-${Date.now()}`, calId: cal.id, calName: cal.name, color: cal.color, partner: false, title: ev.title, location: ev.location || '',
+    allDay: !!ev.allDay, startKey: ev.date, endKey: ev.endDate || ev.date, time: ev.allDay ? '' : ev.time, endTime: ev.allDay ? '' : ev.endTime, link: '' };
+  const ok = await eventOp((evs) => evs.push(tmp), async (g) => {
+    const r = await g.addEvent(cal.id, toGoogleEvent(ev));
+    const i = state.agenda.events.findIndex((x) => x.id === tmp.id);
+    if (i >= 0) state.agenda.events[i] = appEvent(r, cal);
+  });
+  if (ok) toast(`${cal.name}에 넣었어요: ${eventLine(ev)}${calPref(cal).show ? '' : ' (설정에서 숨긴 캘린더예요)'}`);
+  return ok;
+}
+
+function saveEvent(vals) {
+  const ev = { ...vals, allDay: vals.allDay !== 'time', endDate: vals.allDay === 'time' ? '' : vals.endDate };
+  if (!ev.allDay && !ev.time) { toast('시작 시간을 넣어 주세요.'); return false; }
+  if (!editing.id) { createEvent(ev); return; }
+  const { id, calId: oldCal } = editing;
+  const cal = writableCals().find((c) => c.id === ev.calId) || writableCals().find((c) => c.id === oldCal);
+  const body = toGoogleEvent(ev);
+  eventOp((evs) => {
+    const e = evs.find((x) => x.id === id && x.calId === oldCal);
+    if (e) Object.assign(e, { title: ev.title, location: ev.location, allDay: ev.allDay, startKey: ev.date, endKey: ev.endDate || ev.date, time: ev.allDay ? '' : ev.time, endTime: ev.allDay ? '' : ev.endTime, calId: cal.id, calName: cal.name, color: cal.color });
+  }, async (g) => {
+    let r;
+    if (cal.id === oldCal) r = await g.patchEvent(oldCal, id, body);
+    else { r = await g.addEvent(cal.id, body); await g.deleteEvent(oldCal, id); } // 다른 캘린더로 옮기기
+    const i = state.agenda.events.findIndex((x) => x.id === id && x.calId === cal.id);
+    if (i >= 0) state.agenda.events[i] = appEvent(r, cal);
+  });
+}
+
+function removeEvent(calId, id) {
+  eventOp((evs) => evs.splice(evs.findIndex((x) => x.id === id && x.calId === calId), 1), (g) => g.deleteEvent(calId, id));
 }
 
 /** 구글 연결 상태 한 줄 (일정·할일 화면 위) */
@@ -1059,6 +1158,8 @@ function eventRow(e, dayKey) {
   const inner = `<span class="ev-time">${when}</span><span class="ev-dot${e.money ? ' money' : ''}" style="${e.color ? `--c:${esc(e.color)}` : ''}"></span>
     <span class="row-main"><span class="row-title">${esc(e.title)}</span><span class="row-meta">${meta}</span></span>`;
   const cls = `row ev${e.partner ? ' partner' : ''}`;
+  // 내가 쓸 수 있는 캘린더 일정은 눌러서 앱에서 고쳐요
+  if (!e.money && canWrite(e.calId) && !e.id.startsWith('tmp-')) return `<button class="${cls}" data-action="event-edit" data-cal="${esc(e.calId)}" data-id="${esc(e.id)}">${inner}</button>`;
   if (!e.link) return `<div class="${cls} static">${inner}</div>`;
   return e.money ? `<a class="${cls}" href="${e.link}">${inner}</a>` : `<a class="${cls}" href="${esc(e.link)}" target="_blank" rel="noopener">${inner}</a>`;
 }
@@ -1093,10 +1194,15 @@ function viewCalendar() {
   if (!a) return section('다가오는 일정', connectCta('앞으로의 일정이'), { action: gsyncLine() });
   const days = state.calDays || 14;
   const list = agendaDays([...agendaEvents(), ...moneyEvents(days)], now(), days);
-  return section(`앞으로 ${days === 14 ? '2주' : '한 달'}`, `${list.length ? list.map((d) => `<div class="day-group"><h3>${d.label}</h3><div class="panel list">${d.events.map((e) => eventRow(e, d.key)).join('')}</div></div>`).join('') : `<div class="panel">${empty('이 기간에는 일정이 없어요.')}</div>`}
+  return `${section('일정 넣기', `<form id="event-add" class="quick-add panel" autocomplete="off">
+      <input id="event-input" type="text" placeholder="예: 금요일 7시 헬스 · 11/20 병원 · 다음주 수 3시 상담" enterkeyhint="done" aria-label="일정">
+      <button class="btn primary" type="submit">넣기</button>
+    </form><p class="hint task-preview" id="event-preview">${EVENT_HINT}</p>`, { action: gsyncLine() })}
+  ${section(`앞으로 ${days === 14 ? '2주' : '한 달'}`, `${list.length ? list.map((d) => `<div class="day-group"><h3>${d.label}</h3><div class="panel list">${d.events.map((e) => eventRow(e, d.key)).join('')}</div></div>`).join('') : `<div class="panel">${empty('이 기간에는 일정이 없어요.')}</div>`}
     ${days === 14 ? '<div class="more"><button class="btn" data-action="cal-more">한 달까지 보기</button></div>' : ''}
-    <p class="hint">구글 캘린더 일정을 보여줘요 (지금은 보기만). 일정을 누르면 구글 캘린더에서 열려요. 보여줄 캘린더는 설정에서 고를 수 있어요.</p>`, { action: gsyncLine() });
+    <p class="hint">구글 캘린더와 연결돼 있어서, 여기서 넣고 고친 일정이 구글 캘린더에도 바로 들어가요. 일정을 누르면 고칠 수 있어요. 보여줄 캘린더는 설정에서 골라요.</p>`)}`;
 }
+const EVENT_HINT = '시간을 안 쓰면 종일 일정, 요일만 쓰면 이번 주예요. 캘린더는 내용을 보고 골라 드려요.';
 
 const TASK_GROUPS = [['overdue', '지난 할일'], ['today', '오늘'], ['tomorrow', '내일'], ['week', '이번 주'], ['later', '나중에'], ['nodate', '날짜 없음']];
 function viewTasks() {
@@ -1254,6 +1360,14 @@ function openForm(kind, item, preset = {}) {
   }
   if (kind === 'stocks' && item) v = { avgCur: 'KRW', manualCur: 'KRW', market: stockMarket(item), ...item };
   if (kind === 'fx') v = { usdKrw: state.data.settings?.usdKrw || '' };
+  if (kind === 'event') {
+    spec.fields.find((f) => f.key === 'calId').options = writableCals().map((c) => [c.id, c.name]);
+    const e = item || preset;
+    v = { title: e.title || '', calId: e.calId || defaultCal(e.title || '')?.id || '', allDay: e.allDay === false || e.time ? 'time' : 'all',
+      date: e.startKey || e.date || today(), endDate: e.endKey && e.endKey !== e.startKey ? e.endKey : '', time: e.time || '', endTime: e.endTime || '', location: e.location || '' };
+    editing.calId = item?.calId;
+    editing.recurring = !!item?.recurring;
+  }
   if (isRecord(kind) && !item) {
     const list = state.data[kind === 'repayment' ? 'debts' : 'savings'] || [];
     const first = list.find((x) => x.id === preset.targetId) || list.filter((x) => !x.schedule?.length)[0];
@@ -1294,6 +1408,8 @@ function openForm(kind, item, preset = {}) {
       input = `<select id="${id}" name="${f.key}" required>${(state.data[f.source] || []).filter((o) => !f.filter || f.filter(o) || o.id === val).map((o) => `<option value="${esc(o.id)}" ${o.id === val ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>`;
     } else if (f.type === 'date') {
       input = `<input id="${id}" name="${f.key}" type="date" value="${esc(val)}" ${f.optional ? '' : 'required'}>`;
+    } else if (f.type === 'time') {
+      input = `<input id="${id}" name="${f.key}" type="time" value="${esc(val)}" step="300">`;
     } else if (f.type === 'month') {
       input = `<input id="${id}" name="${f.key}" type="month" value="${esc(val)}">`;
     } else if (f.type === 'sigungu') {
@@ -1307,6 +1423,9 @@ function openForm(kind, item, preset = {}) {
     return `<div class="field"${show}><label for="${id}">${f.label}</label>${input}${hint}</div>`;
   }).join('');
   $('#editor-delete').hidden = !item || kind === 'trade';
+  if (kind === 'event' && item) {
+    $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint">${item.recurring ? '반복 일정이라 이 날 하나만 바뀌어요. ' : ''}${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noopener">구글 캘린더에서 열기</a>` : ''}</p>`);
+  }
   $('#editor').showModal();
   syncShowIf();
   $('#editor-fields').querySelectorAll('[data-money], [data-cmoney]').forEach(previewMoney);
@@ -1366,7 +1485,7 @@ function readForm() {
     else if (f.type === 'schedule') out.schedule = editing.schedule || null;
     else if (f.type === 'pct' || f.type === 'number') out[f.key] = el.value === '' ? (f.def ?? 0) : Number(el.value);
     else if (f.type === 'day') out[f.key] = el.value ? Number(el.value) : '';
-    else if (f.type === 'seg') out[f.key] = Number(el.value) || f.def;
+    else if (f.type === 'seg') out[f.key] = f.str ? el.value || f.def : Number(el.value) || f.def;
     else out[f.key] = el.value.trim();
   }
   return out;
@@ -1377,6 +1496,7 @@ function saveForm() {
   const d = state.data;
   if (editing.kind === 'trade') return saveTrade(vals);
   if (editing.kind === 'task') return saveTask(vals);
+  if (editing.kind === 'event') return saveEvent(vals);
   if (editing.kind === 'fx') d.settings = { ...(d.settings || {}), usdKrw: vals.usdKrw };
   else if (isRecord(editing.kind)) {
     upsertRecord(d, { id: editing.id || crypto.randomUUID().slice(0, 8), type: editing.kind, ...vals });
@@ -1403,6 +1523,11 @@ function saveForm() {
 }
 
 function deleteItem() {
+  if (editing.kind === 'event') {
+    if (!confirm(editing.recurring ? '반복 일정 중 이 날 하나만 지울까요? 구글 캘린더에서도 지워져요.' : '이 일정을 지울까요? 구글 캘린더에서도 지워져요.')) return false;
+    removeEvent(editing.calId, editing.id);
+    return true;
+  }
   if (editing.kind === 'task') {
     if (!confirm('이 할일을 지울까요? 구글 태스크에서도 지워져요.')) return false;
     removeTask(editing.id);
@@ -1530,7 +1655,14 @@ function chatHtml(m, i) {
   }
   if (m.unknown) fb = '<p class="fb-done">이 질문은 개선 목록에 자동으로 담겼어요.</p>';
   const after = pop ? ' fade-in' : '';
-  return `<div class="msg bot${pop}">${text}</div>${fb ? fb.replace(/^<(\w+) class="/, `<$1 class="${after.trim()} `) : ''}${m.chips?.length ? `<div class="as-chips${after}">${m.chips.map((c) => `<button type="button" class="pill" data-q="${esc(c.q)}">${esc(c.label)}</button>`).join('')}</div>` : ''}`;
+  // 일정·할일 넣기 확인 카드
+  let act = '';
+  if (m.action) {
+    if (m.done) act = `<p class="fb-done${after}">${{ ok: m.action.kind === 'task' ? '구글 태스크에 넣었어요.' : '구글 캘린더에 넣었어요.', fail: '넣지 못했어요. 다시 해 볼까요?', cancel: '넣지 않았어요.', edit: '입력창에서 고쳐서 넣어 주세요.', busy: '넣는 중…' }[m.done]}</p>`;
+    if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="pill primary" data-act="do" data-i="${i}">넣기</button>${m.action.kind === 'event' ? `<button type="button" class="pill" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="pill" data-act="cancel" data-i="${i}">취소</button></div>`;
+    fb = '';
+  }
+  return `<div class="msg bot${pop}">${text}</div>${act}${fb ? fb.replace(/^<(\w+) class="/, `<$1 class="${after.trim()} `) : ''}${m.chips?.length ? `<div class="as-chips${after}">${m.chips.map((c) => `<button type="button" class="pill" data-q="${esc(c.q)}">${esc(c.label)}</button>`).join('')}</div>` : ''}`;
 }
 
 function renderChat() {
@@ -1556,7 +1688,7 @@ function askAssistant(q) {
   chat.push({ me: true, text: q });
   renderChat();
   // 일정·할일도 함께 (구글을 연결해 받아 둔 것)
-  const ag = state.agenda ? { events: agendaEvents(), tasks: state.agenda.tasks || [], until: agendaUntil(state.agenda) } : null;
+  const ag = state.agenda ? { events: agendaEvents(), tasks: state.agenda.tasks || [], until: agendaUntil(state.agenda), calendars: writableCals() } : null;
   const a = ask(q, state.data, state.market, new Date(), ag);
   // 모르는 질문은 저절로 개선 목록에
   if (a.unknown) saveFeedback({ q, kind: 'unknown' });
@@ -1569,9 +1701,26 @@ function askAssistant(q) {
       await wait(Math.min(1100, 450 + a.text.length * 6)); // 답이 길수록 조금 더 '쓰는' 시간
       chat.splice(chat.indexOf(typing), 1);
     }
-    chat.push({ text: a.text, chips: a.chips, q, unknown: !!a.unknown });
+    chat.push({ text: a.text, chips: a.chips, q, unknown: !!a.unknown, action: a.action });
     renderChat();
   });
+}
+
+/** 비서 확인 카드의 [넣기]·[고쳐서 넣기]·[취소] */
+async function doAction(m, what) {
+  if (!m?.action || (m.done && m.done !== 'fail')) return;
+  const a = m.action;
+  if (what === 'cancel') m.done = 'cancel';
+  if (what === 'edit') { m.done = 'edit'; openForm('event', null, { ...a.ev, calId: writableCals().find((c) => c.name === a.ev.calName)?.id }); }
+  if (what === 'do') {
+    m.done = 'busy';
+    renderChat();
+    const ok = a.kind === 'task'
+      ? await addTaskItem(a.title, a.due)
+      : await createEvent({ ...a.ev, calId: writableCals().find((c) => c.name === a.ev.calName)?.id });
+    m.done = ok ? 'ok' : 'fail';
+  }
+  renderChat();
 }
 
 function openAssistant() {
@@ -1588,6 +1737,8 @@ function bind() {
     if (e.target === $('#assistant')) $('#assistant').close();
     const chip = e.target.closest('[data-q]');
     if (chip) askAssistant(chip.dataset.q);
+    const act = e.target.closest('[data-act]');
+    if (act) doAction(chat[act.dataset.i], act.dataset.act);
     const fb = e.target.closest('button.fb');
     if (fb) {
       chat[fb.dataset.fb].fb = 'open';
@@ -1604,6 +1755,34 @@ function bind() {
     m.fb = 'sent';
     renderChat();
   });
+  // 키보드: '/' 또는 Ctrl(⌘)+K로 비서 열기
+  document.addEventListener('keydown', (e) => {
+    const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '') || document.querySelector('dialog[open]');
+    if (!state.user || typing) return;
+    if (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) { e.preventDefault(); openAssistant(); }
+  });
+  // 말로 물어보기 (브라우저가 음성 인식을 지원할 때만 마이크가 보여요)
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SR) {
+    const mic = $('#as-mic');
+    mic.hidden = false;
+    let rec = null;
+    mic.addEventListener('click', () => {
+      if (rec) { rec.stop(); return; }
+      rec = new SR();
+      rec.lang = 'ko-KR';
+      rec.interimResults = true;
+      rec.onresult = (ev) => {
+        const text = [...ev.results].map((r) => r[0].transcript).join('');
+        $('#as-input').value = text;
+        if (ev.results[ev.results.length - 1].isFinal) { askAssistant(text); $('#as-input').value = ''; }
+      };
+      rec.onerror = (ev) => { if (ev.error !== 'aborted' && ev.error !== 'no-speech') toast(ev.error === 'not-allowed' ? '마이크 권한을 허용해 주세요.' : '음성을 알아듣지 못했어요.'); };
+      rec.onend = () => { rec = null; mic.classList.remove('on'); };
+      mic.classList.add('on');
+      rec.start();
+    });
+  }
   $('#as-form').addEventListener('submit', (e) => {
     e.preventDefault();
     askAssistant($('#as-input').value);
@@ -1652,6 +1831,7 @@ function bind() {
     }
     if (a === 'cal-more') { state.calDays = 31; render(); }
     if (a === 'task-toggle') toggleTask(id);
+    if (a === 'event-edit') { const ev = state.agenda?.events.find((x) => x.id === id && x.calId === b.dataset.cal); if (ev) openForm('event', ev); }
     if (a === 'task-edit') { const t = state.agenda?.tasks.find((x) => x.id === id); if (t && !t.id.startsWith('tmp-')) openForm('task', t); }
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
     if (a === 'trade') openTrade(id, b.dataset.type);
@@ -1756,6 +1936,10 @@ function bind() {
   }, true);
 
   $('#view').addEventListener('input', (e) => {
+    if (e.target.id === 'event-input') {
+      const v = e.target.value.trim();
+      $('#event-preview').textContent = v ? eventPreview(parseQuickEvent(v, now())) : EVENT_HINT;
+    }
     if (e.target.id === 'task-input') {
       const { title, due } = parseQuickTask(e.target.value, now());
       $('#task-preview').textContent = !title ? '날짜를 말하면 알아서 마감일로 넣어요. 요일만 쓰면 이번 주 그 요일이에요.'
@@ -1763,6 +1947,27 @@ function bind() {
     }
   });
   $('#view').addEventListener('submit', (e) => {
+    if (e.target.id === 'home-ask') {
+      e.preventDefault();
+      const input = $('#home-ask-input');
+      const v = input.value.trim();
+      if (!v) return openAssistant();
+      input.value = '';
+      input.blur();
+      openAssistant();
+      askAssistant(v);
+      return;
+    }
+    if (e.target.id === 'event-add') {
+      e.preventDefault();
+      const input = $('#event-input');
+      const p = parseQuickEvent(input.value, now());
+      if (!p.title) return;
+      createEvent({ ...p, date: p.date || today(), calId: defaultCal(p.title)?.id });
+      input.value = '';
+      $('#event-preview').textContent = EVENT_HINT;
+      return;
+    }
     if (e.target.id !== 'task-add') return;
     e.preventDefault();
     const input = $('#task-input');
@@ -1810,6 +2015,7 @@ function bind() {
     if (sg) {
       $(`#f-${sg.dataset.seg}`).value = sg.dataset.val;
       sg.parentElement.querySelectorAll('button').forEach((x) => x.setAttribute('aria-selected', String(x === sg)));
+      syncShowIf();
     }
   });
   $('#editor-fields').addEventListener('change', async (e) => {

@@ -23,7 +23,7 @@ export function normEvent(ev, cal = {}) {
     id: ev.id, calId: cal.id || '', calName: cal.summary || cal.name || '', color: cal.backgroundColor || cal.color || '',
     partner: !!cal.partner, title: ev.summary || '(제목 없음)', location: ev.location || '',
     allDay, startKey: dayKey(start), endKey: dayKey(end), time: allDay ? '' : hm(start), endTime: allDay ? '' : hm(end),
-    link: ev.htmlLink || '',
+    link: ev.htmlLink || '', recurring: !!ev.recurringEventId, notes: ev.description || '',
   };
 }
 
@@ -154,4 +154,81 @@ export function agendaUntil(agenda) {
   if (!agenda?.syncedAt) return '';
   const d = new Date(agenda.syncedAt);
   return dayKey(addDays(new Date(d.getFullYear(), d.getMonth(), d.getDate()), 31));
+}
+
+// ───── 일정 빠른 입력: '금요일 7시 헬스', '다음주 수요일 3시~4시 반 상담', '11/20 병원' ─────
+const T = '(오전|오후|아침|낮|저녁|밤|새벽)?\\s?(\\d{1,2})(?::(\\d{2})|시(?:\\s?(\\d{1,2})분|\\s?(반))?)';
+const TIME_RE = new RegExp(`\\s${T}(?:\\s?(?:~|-|부터)\\s?${T}(?:까지)?)?(?:에|부터)?\\s`);
+
+/** '오후' 3, '30' → '15:30'. 오전·오후를 안 쓰면 1~7시는 오후로 봐요 (3시 상담 → 15시) */
+function toHM(ampm, h, colonMin, min, half, plain = true) {
+  let hh = Number(h);
+  const mm = Number(colonMin || min || (half ? 30 : 0));
+  if (hh > 24 || mm > 59) return null;
+  if (/오후|저녁|밤/.test(ampm || '') && hh < 12) hh += 12;
+  else if (ampm === '낮' && hh <= 6) hh += 12;
+  else if (/오전|아침|새벽/.test(ampm || '') && hh === 12) hh = 0;
+  else if (!ampm && plain && hh >= 1 && hh <= 7) hh += 12;
+  return hh * 60 + mm;
+}
+const hm = (mins) => `${pad(Math.floor(mins / 60) % 24)}:${pad(mins % 60)}`;
+
+/**
+ * 일정 한 줄 → {title, date, time, endTime, allDay}.
+ * 시간을 안 쓰면 종일, 날짜를 안 쓰면 date가 ''(부르는 쪽에서 오늘로), 요일만 쓰면 이번 주.
+ */
+export function parseQuickEvent(text, now = new Date()) {
+  let s = ` ${String(text || '').trim()} `;
+  let time = '';
+  let endTime = '';
+  const m = s.match(TIME_RE);
+  if (m) {
+    const a = toHM(m[1], m[2], m[3], m[4], m[5]);
+    let b = m[7] ? toHM(m[6] || m[1], m[7], m[8], m[9], m[10], false) : null;
+    if (a != null) {
+      if (b != null && !m[6] && b <= a && b + 720 > a) b += 720; // '3시~5시' → 15~17시
+      time = hm(a);
+      endTime = hm(b != null && b > a ? b : Math.min(a + 60, 23 * 60 + 59));
+      s = s.replace(m[0], ' ');
+    }
+  }
+  const { title, due } = parseQuickTask(s, now);
+  return { title, date: due, time, endTime, allDay: !time };
+}
+
+/** 캘린더 고르기 (덕준님 기준): 생일 → Birthday, 대학원 → Life, 운동 → Exercise, 공연·영화·전시 → Cherish, 학교·업무·연수 → Work, 나머지 → Life */
+const CAL_RULES = [
+  ['Birthday', /생일|생신|탄신/],
+  ['Life', /대학원|논문|지도교수/],
+  ['Exercise', /운동|헬스|러닝|달리기|조깅|요가|필라테스|수영|등산|pt|자전거|클라이밍|테니스|골프|배드민턴|스트레칭|마라톤|축구|농구|볼링/i],
+  ['Cherish', /공연|영화|전시|콘서트|뮤지컬|연극|미술관|박물관|페스티벌|팬미팅|오페라|발레/],
+  ['Work', /학교|업무|회의|협의|연수|출장|상담|학부모|교무|공문|교육청|수업|평가|채점|현장체험|졸업식|입학식|방학식|개학|학년|담임|교직원|직원|워크숍|세미나|당직/],
+];
+export function classifyEvent(title) {
+  for (const [cal, re] of CAL_RULES) if (re.test(title)) return cal;
+  return 'Life';
+}
+
+/** 앱 일정 → 구글 캘린더 일정 (한국 시간) */
+export function toGoogleEvent({ title, date, endDate, allDay, time, endTime, location, notes }) {
+  const body = { summary: title };
+  if (location !== undefined) body.location = location;
+  if (notes !== undefined) body.description = notes;
+  if (allDay || !time) {
+    const last = endDate && endDate > date ? endDate : date;
+    body.start = { date };
+    body.end = { date: dayKey(addDays(fromKey(last), 1)) }; // 구글은 끝 날짜를 '다음 날'로 받아요
+  } else {
+    let end = endTime && endTime > time ? endTime : hm(Math.min(Number(time.slice(0, 2)) * 60 + Number(time.slice(3)) + 60, 23 * 60 + 59));
+    body.start = { dateTime: `${date}T${time}:00`, timeZone: 'Asia/Seoul' };
+    body.end = { dateTime: `${date}T${end}:00`, timeZone: 'Asia/Seoul' };
+  }
+  return body;
+}
+
+/** 일정 한 줄 요약: '11월 13일 (금) 19:00~20:00 헬스' */
+export function eventLine(e) {
+  const d = fromKey(e.date || e.startKey);
+  const base = `${d.getMonth() + 1}월 ${d.getDate()}일 (${WEEK[d.getDay()]})`;
+  return `${base} ${e.allDay ? '종일' : `${e.time}~${e.endTime}`} ${e.title}`;
 }

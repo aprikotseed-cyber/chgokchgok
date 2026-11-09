@@ -14,7 +14,9 @@ export function createDemoGoogle() {
     { id: 'cherish', summary: 'Cherish', backgroundColor: '#e87ba4' },
     { id: 'birthday', summary: 'Birthday', backgroundColor: '#eda100' },
     { id: 'partner', summary: '내 캘린더', backgroundColor: '#8b8a83' },
-  ];
+  ].map((c) => ({ accessRole: 'owner', ...c }));
+  // 구글처럼 '2026-11-13T19:00:00' + timeZone을 받으면 그대로 돌려줘요
+  const fix = (x) => (x?.dateTime && !/Z|[+-]\d\d:\d\d$/.test(x.dateTime) ? { dateTime: `${x.dateTime}+09:00` } : x);
   const events = {
     work: [{ id: 'w1', summary: '학년 협의회', ...at(0, 15, 0, 60) }, { id: 'w2', summary: '학부모 상담', ...at(1, 16, 30, 40) }, { id: 'w3', summary: '디지털 교육 연수', ...allDay(3, 2) }],
     life: [{ id: 'l1', summary: '대학원 수업', ...at(2, 19, 0, 150) }, { id: 'l2', summary: '자동차 정기검사', ...at(6, 10, 0, 60) }],
@@ -43,6 +45,9 @@ export function createDemoGoogle() {
     calendars: async () => (await delay(), calendars),
     events: async (calId) => (await delay(), events[calId] || []),
     taskLists: async () => lists,
+    addEvent: async (calId, body) => { await delay(); const e = { id: `e${n++}`, ...body, start: fix(body.start), end: fix(body.end) }; (events[calId] ||= []).push(e); return e; },
+    patchEvent: async (calId, id, body) => { await delay(); const e = events[calId].find((x) => x.id === id); Object.assign(e, body, body.start ? { start: fix(body.start), end: fix(body.end) } : {}); return e; },
+    deleteEvent: async (calId, id) => { await delay(); events[calId] = events[calId].filter((x) => x.id !== id); return null; },
     tasks: async () => (await delay(), tasks),
     addTask: async (_l, body) => { await delay(); const t = { id: `t${n++}`, status: 'needsAction', ...body }; tasks = [t, ...tasks]; return t; },
     patchTask: async (_l, id, body) => { await delay(); tasks = tasks.map((t) => (t.id === id ? { ...t, ...body, completed: body.status === 'completed' ? new Date().toISOString() : body.status ? null : t.completed } : t)); return tasks.find((t) => t.id === id); },
