@@ -2,7 +2,7 @@ name: 시세 자동 업데이트
 
 on:
   schedule:
-    - cron: '7 21 * * *' # 매일 오전 6시 7분 (한국 시간, 정각은 붐벼서 비켜 둠)
+    - cron: '17 21 * * *' # 매일 오전 6시 17분 (한국 시간): 미국장 마감(겨울 6시·서머타임 5시) 가격 + 주택 실거래가
   workflow_dispatch: {}   # Actions 탭에서 'Run workflow'로 바로 실행 가능
 
 concurrency:
