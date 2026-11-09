@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110l';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110l';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110l';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110l';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110l';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110l';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110l';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110l';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110l';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110l';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110l';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110l';
-import { createGoogle } from './google.js?v=20261110l';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110l';
-import { createDemoGoogle } from './google-demo.js?v=20261110l';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda } from './agenda.js?v=20261110l';
+import { connect, isDemo } from './store.js?v=20261110m';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110m';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110m';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110m';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110m';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110m';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110m';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110m';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110m';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110m';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110m';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110m';
+import { createGoogle } from './google.js?v=20261110m';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110m';
+import { createDemoGoogle } from './google-demo.js?v=20261110m';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal } from './agenda.js?v=20261110m';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -978,7 +978,7 @@ function syncAgenda(interactive = false) {
   renderGsync();
   syncing = (async () => {
     try {
-      state.agenda = await fetchAgenda(g, gset(), now(), interactive);
+      state.agenda = keepExternal(await fetchAgenda(g, gset(), now(), interactive), state.agenda); // 네이버 캘린더는 GitHub이 받아 둔 것 그대로
       state.gsync = '';
       saveAgendaSoon(0);
     } catch (e) {
@@ -1182,6 +1182,25 @@ function autoSyncPanel() {
   </div>`)}`;
 }
 
+/** 반려자 네이버 캘린더 (GitHub 자동 동기화가 CalDAV로 읽어 와요) */
+function naverPanel() {
+  const nv = state.agenda?.naver;
+  const cals = (state.agenda?.calendars || []).filter((c) => c.ext === 'naver');
+  const status = nv?.error
+    ? `<p class="pad warn">네이버 캘린더를 받지 못했어요: ${esc(nv.error)} (${dateTime(nv.at)})</p>`
+    : nv ? `<div class="row static"><span class="row-main"><span class="row-title">네이버 캘린더 연결됨</span><span class="row-meta">${cals.map((c) => esc(c.name)).join(', ') || '캘린더 없음'} · 일정 ${nv.count}개 · ${dateTime(nv.at)}</span></span></div>` : '';
+  return `${status}${details('naver-guide', nv && !nv.error ? '네이버 캘린더 설정 다시 보기' : '반려자 네이버 캘린더 연결 (읽기만)', `<div class="pad">
+    <p class="hint">GitHub 자동 동기화가 1시간마다 반려자분의 네이버 캘린더를 읽어 와서, 반려자 일정으로 하루 맨 뒤에 보여줘요. 네이버 캘린더를 바꾸지는 않아요. 자동 동기화가 켜져 있어야 해요.</p>
+    <ol class="steps">
+      <li><b>반려자분 휴대폰·PC</b>에서 <a href="https://nid.naver.com" target="_blank" rel="noopener">네이버 내정보</a> → 보안설정을 열어 <b>2단계 인증</b>을 켜요 (이미 켜져 있으면 건너뛰기).</li>
+      <li>같은 화면의 <b>애플리케이션 비밀번호 관리</b>에서 종류를 <b>직접 입력 → 차곡차곡</b>으로 하고 <b>생성</b>을 눌러요. 나온 비밀번호(영문 12자리)를 적어 둬요.</li>
+      <li><a href="https://github.com/${repoFromLocation(location).owner}/${repoFromLocation(location).repo}/settings/secrets/actions/new" target="_blank" rel="noopener">GitHub 새 Secret</a>을 두 개 만들어요: <b>NAVER_CALDAV_ID</b> = 반려자분 네이버 아이디(@naver.com 빼고), <b>NAVER_CALDAV_PASSWORD</b> = 2번의 애플리케이션 비밀번호.</li>
+      <li>위의 <b>지금 새로 받기 (GitHub)</b>를 누르고 1~2분 기다려요. 네이버 캘린더가 ‘보여줄 캘린더’ 목록에 ‘(네이버)’로 생기고, 반려자로 체크돼 있어요.</li>
+    </ol>
+    <p class="hint">비밀번호는 GitHub Secrets에만 들어가요. 반려자분이 네이버 보안설정에서 그 애플리케이션 비밀번호를 지우면 언제든 연결이 끊겨요.</p>
+  </div>`)}`;
+}
+
 /** 구글 연결 상태 한 줄 (일정·할일 화면 위) */
 function gsyncLine() {
   const a = state.agenda;
@@ -1380,6 +1399,7 @@ function googleSettings() {
     ${cals.length ? `<div class="pad"><b class="mini-title">보여줄 캘린더</b><div class="cal-prefs">${cals.map((c) => { const p = calPref(c); return `<div class="cal-pref"><label><input type="checkbox" data-cal-show="${esc(c.id)}" ${p.show ? 'checked' : ''}><span class="ev-dot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</label><label class="hint"><input type="checkbox" data-cal-partner="${esc(c.id)}" ${p.partner ? 'checked' : ''}>반려자</label></div>`; }).join('')}</div>
       <p class="hint">반려자 캘린더 일정은 하루 일정 맨 뒤에 보여줘요. 새로 켠 캘린더는 다음에 받아올 때부터 보여요.</p></div>` : ''}
     ${autoSyncPanel()}
+    ${naverPanel()}
     ${a?.lists?.length ? `<div class="pad"><b class="mini-title">보여줄 할일 목록</b><div class="cal-prefs">${a.lists.map((l) => `<div class="cal-pref"><label><input type="checkbox" data-list-show="${esc(l.id)}" ${l.show !== false ? 'checked' : ''}>${esc(l.title)}</label><span class="hint">${l.show !== false && l.count != null ? `남은 할일 ${l.count}개` : ''}</span></div>`).join('')}</div>
       ${a.lists.length > 1 ? `<b class="mini-title" style="margin-top:14px">새 할일을 넣을 목록</b><select id="g-tasklist" class="select">${a.lists.map((l) => `<option value="${esc(l.id)}" ${l.id === a.listId ? 'selected' : ''}>${esc(l.title)}</option>`).join('')}</select>` : ''}</div>` : ''}
     ${guide}
