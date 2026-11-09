@@ -1,12 +1,12 @@
-import { connect, isDemo } from './store.js?v=20261109i';
-import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109i';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109i';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109i';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109i';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109i';
-import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109i';
-import { ask, SUGGEST } from './assistant.js?v=20261109i';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109i';
+import { connect, isDemo } from './store.js?v=20261109j';
+import { project, currentTotals, currentPayment, homeValue, milestones, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109j';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109j';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109j';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109j';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109j';
+import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109j';
+import { ask, SUGGEST } from './assistant.js?v=20261109j';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109j';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -65,7 +65,7 @@ const FORMS = {
   },
   fx: {
     title: '달러 환율',
-    fields: [{ key: 'usdKrw', label: '1달러', type: 'won', hint: '자동 환율을 아직 못 받았을 때만 써요. 매일 아침 자동 환율이 들어오면 그걸 우선해요' }],
+    fields: [{ key: 'usdKrw', label: '1달러', type: 'won', hint: '자동 환율을 아직 못 받았을 때만 써요. 자동 환율이 들어오면 그걸 우선해요' }],
   },
   homes: {
     title: '집',
@@ -319,7 +319,7 @@ function viewAssets() {
   </div><div class="col-side">
   ${section('아파트', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
   </div></div>
-  ${m.updatedAt ? `<p class="hint center">시세 업데이트 ${dateTime(m.updatedAt)}</p>` : ''}`;
+  ${m.updatedAt || m.quotesAt ? `<p class="hint center">주가·환율 ${dateTime(m.quotesAt || m.updatedAt)} · 아파트 실거래가 ${dateTime(m.updatedAt)} 업데이트</p>` : ''}`;
 }
 
 const MARKETS = [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']];
@@ -400,7 +400,7 @@ function stockSection(d, m) {
 
   const fxRow = tab === 'us' ? row({
     kind: 'fx', id: 'usd', action: 'fx', cls: 'muted-row', title: '달러 환율',
-    value: m.fx?.USD ? wonExact(m.fx.USD) : '입력 필요', sub: m.fxAuto ? '매일 아침 자동' : '직접 입력',
+    value: m.fx?.USD ? wonExact(m.fx.USD) : '입력 필요', sub: m.fxAuto ? `자동 · ${dateTime(m.quotesAt || m.updatedAt)}` : '직접 입력',
   }) : '';
   const emptyText = { kr: '국내 주식 종목을 추가해 보세요.', us: '해외 주식은 평균 매수가를 달러로, 원화 매입금액을 함께 넣으면 환율 효과까지 계산해요.', pension: '연금저축 계좌에서 산 ETF·펀드를 추가해 보세요.' }[tab];
   return `${total}${seg}${summary}<div class="panel list gap">${fxRow}${rows || empty(emptyText)}</div>`;
@@ -644,7 +644,7 @@ function viewSettings() {
   ${section('비서가 못 알아들은 질문', `<div class="panel list">${(state.data.assistantMisses || []).length
       ? `${state.data.assistantMisses.slice().reverse().map((m) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(m.q)}</span><span class="row-meta">${dateTime(m.at)}</span></span></div>`).join('')}<div class="pad"><button class="link-btn" data-action="misses-clear">목록 비우기</button></div>`
       : empty('아직 없어요. 비서가 모르는 질문을 받으면 여기에 모아 둘게요. 이 목록을 알려주시면 알아듣는 말을 늘릴 수 있어요.')}</div>`)}
-  ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">매일 오전 6시에 실거래가와 주가를 가져와요. 지금 바로 받으려면 GitHub 저장소의 Actions → 시세 자동 업데이트 → Run workflow를 누르세요.</p><p class="hint pad">마지막 업데이트 ${dateTime(state.market?.updatedAt)}</p></div>`)}
+  ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">주가와 환율은 장이 열린 평일에 1시간마다 (국내장 오전 9시~오후 3시 반, 미국장 밤 10시 반~새벽 5시 반), 아파트 실거래가는 매일 오전 6시에 가져와요. 지금 바로 받으려면 GitHub 저장소의 Actions → 주가·환율 장중 업데이트(또는 시세 자동 업데이트) → Run workflow를 누르세요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 아파트 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
   </div><div class="col-side">
   ${section('백업', `<div class="panel"><div class="pad actions">
       <button class="btn" data-action="export">백업 파일 받기</button>

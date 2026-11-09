@@ -1,0 +1,29 @@
+name: 주가·환율 장중 업데이트
+
+# 장이 열려 있는 평일에 1시간마다 주가와 환율만 가져와요. (아파트 실거래가는 '시세 자동 업데이트'가 아침에 한 번)
+# GitHub 예약 실행은 UTC 기준이고, 몇 분~십여 분 늦게 시작될 수 있어요.
+on:
+  schedule:
+    - cron: '0 0-6 * * 1-5'    # 국내장: 오전 9시 ~ 오후 3시 정각 (한국 시간)
+    - cron: '35 6 * * 1-5'     # 국내장 마감 직후 오후 3시 35분
+    - cron: '30 13-20 * * 1-5' # 미국장: 밤 10시 30분 ~ 새벽 5시 30분 (한국 시간, 서머타임 포함)
+  workflow_dispatch: {}
+
+concurrency:
+  group: market
+  cancel-in-progress: false
+
+jobs:
+  quotes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save firebase-admin@12
+      - run: node scripts/update-market.mjs
+        env:
+          MODE: quotes
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

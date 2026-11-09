@@ -5,6 +5,10 @@ on:
     - cron: '0 21 * * *' # 매일 오전 6시 (한국 시간)
   workflow_dispatch: {}   # Actions 탭에서 'Run workflow'로 바로 실행 가능
 
+concurrency:
+  group: market
+  cancel-in-progress: false
+
 jobs:
   update:
     runs-on: ubuntu-latest

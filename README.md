@@ -36,7 +36,8 @@ js/charts.js            그래프
 js/assistant.js         비서: 질문 이해와 답 만들기 (순수 함수)
 js/store.js             Firebase 연결 / 체험 모드
 scripts/update-market.mjs  GitHub Actions가 매일 실거래가·주가를 가져오는 스크립트
-.github/workflows/update-market.yml  매일 오전 6시 자동 실행
+.github/workflows/update-market.yml  매일 오전 6시: 아파트 실거래가 + 주가·환율
+.github/workflows/quotes.yml         장중 1시간마다: 주가·환율만
 firestore.rules         Firestore 보안 규칙
 tests/                  계산 로직 테스트 (node --test tests/*.test.mjs)
 ```
