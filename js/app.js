@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110r';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110r';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110r';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110r';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110r';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110r';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110r';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110r';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110r';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110r';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110r';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110r';
-import { createGoogle } from './google.js?v=20261110r';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110r';
-import { createDemoGoogle } from './google-demo.js?v=20261110r';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110r';
+import { connect, isDemo } from './store.js?v=20261110s';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110s';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110s';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110s';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110s';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110s';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110s';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110s';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110s';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110s';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110s';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110s';
+import { createGoogle } from './google.js?v=20261110s';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110s';
+import { createDemoGoogle } from './google-demo.js?v=20261110s';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110s';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1168,8 +1168,24 @@ function saveEvent(vals) {
   });
 }
 
+/** 비서가 옮기기: a = {calId, id, to: {date, endDate, allDay, time, endTime}} */
+function moveEvent(a) {
+  const e = state.agenda?.events.find((x) => x.id === a.id && x.calId === a.calId);
+  const cal = writableCals().find((c) => c.id === a.calId);
+  if (!e || !cal) { toast('그 일정을 찾지 못했어요. 새로고침 후 다시 해 주세요.'); return false; }
+  const ev = { title: e.title, ...a.to, endDate: a.to.endDate || '' };
+  return eventOp((evs) => {
+    const x = evs.find((y) => y.id === a.id && y.calId === a.calId);
+    if (x) Object.assign(x, { allDay: ev.allDay, startKey: ev.date, endKey: ev.endDate || ev.date, time: ev.allDay ? '' : ev.time, endTime: ev.allDay ? '' : ev.endTime });
+  }, async (g) => {
+    const r = await g.patchEvent(a.calId, a.id, toGoogleEvent(ev));
+    const i = state.agenda.events.findIndex((y) => y.id === a.id && y.calId === a.calId);
+    if (i >= 0) state.agenda.events[i] = appEvent(r, cal);
+  });
+}
+
 function removeEvent(calId, id) {
-  eventOp((evs) => evs.splice(evs.findIndex((x) => x.id === id && x.calId === calId), 1), (g) => g.deleteEvent(calId, id));
+  return eventOp((evs) => evs.splice(evs.findIndex((x) => x.id === id && x.calId === calId), 1), (g) => g.deleteEvent(calId, id));
 }
 
 // ───── 자동 동기화 (GitHub이 1시간마다 구글에서 받아 둬요) ─────
@@ -1855,8 +1871,10 @@ function chatHtml(m, i) {
   // 일정·할일 넣기 확인 카드
   let act = '';
   if (m.action) {
-    if (m.done) act = `<p class="fb-done${after}">${{ ok: m.action.kind === 'task' ? '구글 태스크에 넣었어요.' : '구글 캘린더에 넣었어요.', fail: '넣지 못했어요. 다시 해 볼까요?', cancel: '넣지 않았어요.', edit: '입력창에서 고쳐서 넣어 주세요.', busy: '넣는 중…' }[m.done]}</p>`;
-    if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="pill primary" data-act="do" data-i="${i}">넣기</button>${m.action.kind === 'event' ? `<button type="button" class="pill" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="pill" data-act="cancel" data-i="${i}">취소</button></div>`;
+    const verb = { move: '옮기', delete: '지우' }[m.action.kind] || '넣';
+    const doneText = { move: '구글 캘린더에서 옮겼어요.', delete: '구글 캘린더에서 지웠어요.', task: '구글 태스크에 넣었어요.' }[m.action.kind] || '구글 캘린더에 넣었어요.';
+    if (m.done) act = `<p class="fb-done${after}">${{ ok: doneText, fail: `${verb}지 못했어요. 다시 해 볼까요?`, cancel: `${verb}지 않았어요.`, edit: '입력창에서 고쳐서 넣어 주세요.', busy: `${verb}는 중…` }[m.done]}</p>`;
+    if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="pill primary" data-act="do" data-i="${i}">${verb}기</button>${m.action.kind === 'event' ? `<button type="button" class="pill" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="pill" data-act="cancel" data-i="${i}">취소</button></div>`;
     fb = '';
   }
   return `<div class="msg bot${pop}">${text}</div>${act}${fb ? fb.replace(/^<(\w+) class="/, `<$1 class="${after.trim()} `) : ''}${m.chips?.length ? `<div class="as-chips${after}">${m.chips.map((c) => `<button type="button" class="pill" data-q="${esc(c.q)}">${esc(c.label)}</button>`).join('')}</div>` : ''}`;
@@ -1912,8 +1930,9 @@ async function doAction(m, what) {
   if (what === 'do') {
     m.done = 'busy';
     renderChat();
-    const ok = a.kind === 'task'
-      ? await addTaskItem(a.title, a.due, a.repeat || null)
+    const ok = a.kind === 'task' ? await addTaskItem(a.title, a.due, a.repeat || null)
+      : a.kind === 'move' ? await moveEvent(a)
+      : a.kind === 'delete' ? await removeEvent(a.calId, a.id)
       : await createEvent({ ...a.ev, calId: writableCals().find((c) => c.name === a.ev.calName)?.id });
     m.done = ok ? 'ok' : 'fail';
   }

@@ -86,3 +86,27 @@ test('비서: 반복 일정·할일 넣기', () => {
   assert.deepEqual([b.action.ev.date, b.action.ev.time, b.action.ev.calName], ['2026-11-10', '19:00', 'Exercise']);
   assert.match(b.text, /반복: 매주 화요일/);
 });
+
+test('비서 개선 2026-11-09: 일정 옮기기·지우기', () => {
+  const ev = [
+    ...events,
+    normEvent({ id: 'r1', summary: '연구 면담', start: { dateTime: new Date(2026, 10, 12, 16).toISOString() }, end: { dateTime: new Date(2026, 10, 12, 17).toISOString() } }, cal('Life')),
+    normEvent({ id: 'r2', summary: '라스런회의', start: { dateTime: new Date(2026, 10, 12, 19).toISOString() }, end: { dateTime: new Date(2026, 10, 12, 20).toISOString() } }, cal('Life')),
+  ];
+  const ag = { ...agenda, events: ev, calendars: [{ id: 'Life', name: 'Life' }, { id: 'Work', name: 'Work' }] };
+  const A2 = (q) => ask(q, data, {}, now, ag);
+  const a = A2('목요일 연구 면담 일정을 수요일 오후 2시로 옮겨줘');
+  assert.equal(a.action.kind, 'move');
+  assert.deepEqual([a.action.id, a.action.to.date, a.action.to.time, a.action.to.endTime], ['r1', '2026-11-11', '14:00', '15:00']);
+  assert.match(a.text, /11월 12일 \(목\) 16:00~17:00 연구 면담\n→ 11월 11일 \(수\) 14:00~15:00/);
+  // 언제로 옮길지 안 말하면 되물어요
+  assert.match(A2('연구 면담 일정을 옮겨달라구').text, /언제로 옮길까요/);
+  // 을/를 없이, 시간만 바꾸기
+  const c = A2('연구 면담 5시로 바꿔줘');
+  assert.deepEqual([c.action.to.date, c.action.to.time, c.action.to.endTime], ['2026-11-12', '17:00', '18:00']);
+  // 지우기
+  const d = A2('라스런회의 일정 취소해줘');
+  assert.deepEqual([d.action.kind, d.action.id], ['delete', 'r2']);
+  // 반려자 일정은 바꿀 수 없어요
+  assert.match(A2('야근 일정 지워줘').text, /반려자 캘린더 일정이라/);
+});
