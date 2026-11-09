@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110h';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110h';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110h';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110h';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110h';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110h';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110h';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110h';
-import { ask, SUGGEST } from './assistant.js?v=20261110h';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110h';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110h';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110h';
-import { createGoogle } from './google.js?v=20261110h';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110h';
-import { createDemoGoogle } from './google-demo.js?v=20261110h';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine } from './agenda.js?v=20261110h';
+import { connect, isDemo } from './store.js?v=20261110i';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110i';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110i';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110i';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110i';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110i';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110i';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110i';
+import { ask, SUGGEST } from './assistant.js?v=20261110i';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110i';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110i';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110i';
+import { createGoogle } from './google.js?v=20261110i';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110i';
+import { createDemoGoogle } from './google-demo.js?v=20261110i';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine } from './agenda.js?v=20261110i';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -296,7 +296,19 @@ const details = (key, summary, body) => `<details data-key="${key}" ${state.open
 const dday = (n) => (n === 0 ? '오늘' : `D-${n}`);
 
 // ───────────────────────── 대시보드 ─────────────────────────
+// 오늘: 비서 입력줄 + 오늘 일정·할일
 function viewHome() {
+  return `
+  <form id="home-ask" class="ask-bar" autocomplete="off">
+    ${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>'}
+    <input id="home-ask-input" type="text" placeholder="비서에게: 금요일 7시 헬스 넣어줘 · 이번 주 할일 뭐야?" enterkeyhint="send" aria-label="비서에게 물어보기">
+    <button class="btn primary" type="submit" aria-label="보내기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+  </form>
+  ${todayBlock()}`;
+}
+
+// 자산 → 홈: 총자산, 자산 추이, 고정지출·상환 일정
+function viewMoney() {
   const d = state.data;
   const t = currentTotals(d, state.market);
   const saved = t.savings + t.stocks;
@@ -314,12 +326,6 @@ function viewHome() {
   const noPayDay = (d.debts || []).some((l) => !l.schedule?.length && loanBalance(l) > 0 && !l.payDay);
 
   return `
-  <form id="home-ask" class="ask-bar" autocomplete="off">
-    ${'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>'}
-    <input id="home-ask-input" type="text" placeholder="비서에게: 금요일 7시 헬스 넣어줘 · 이번 주 할일 뭐야?" enterkeyhint="send" aria-label="비서에게 물어보기">
-    <button class="btn primary" type="submit" aria-label="보내기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-  </form>
-  ${todayBlock()}
   ${isEmpty ? `<p class="notice">아직 입력된 자산이 없어요. <a href="#assets">자산</a>과 <a href="#debts">부채</a>에서 하나씩 추가해 보세요.</p>` : ''}
   <div class="summary">
   <section class="hero">
@@ -480,6 +486,21 @@ function assetsSummary(d, m) {
   }
   const gain = value - cost;
   return { value, gain, rate: cost ? (gain / cost) * 100 : 0 };
+}
+
+/** 대출 잔액과 지난달(월 기록) 대비 줄어든 금액·비율. diff > 0 이면 줄었어요 */
+function debtSummary() {
+  const value = currentTotals(state.data, state.market).debts;
+  const ym = today().slice(0, 7);
+  const snaps = state.data.snapshots || {};
+  const prevKey = Object.keys(snaps).filter((k) => k < ym && snaps[k]?.debts != null).sort().pop();
+  if (!prevKey || !snaps[prevKey].debts) return { value, diff: null };
+  const diff = snaps[prevKey].debts - value;
+  return { value, prevKey, diff, rate: (diff / snaps[prevKey].debts) * 100 };
+}
+function debtsTitleSum() {
+  const D = debtSummary();
+  return `<span class="title-sum"><b>${won(D.value)}</b>${D.diff != null ? `<span class="${D.diff > 0 ? 'down' : 'up'}">${D.diff > 0 ? '−' : '+'}${won(Math.abs(D.diff))} (${D.diff > 0 ? '−' : '+'}${pct(Math.abs(D.rate), 2)}) <small>${ymLabel(D.prevKey)} 대비</small></span>` : ''}</span>`;
 }
 
 function assetsTitleSum() {
@@ -655,9 +676,14 @@ function viewDebts() {
       ${done != null ? `<span class="progress" role="progressbar" aria-valuenow="${done.toFixed(0)}" aria-valuemin="0" aria-valuemax="100" aria-label="상환 진행률"><span style="width:${done}%"></span></span><span class="row-meta">${won(orig)} 중 ${pct(done, 0)} 상환</span>` : ''}
     </button>`;
   }).join('');
+  const D = debtSummary();
   return `
+  <section class="hero m-only">
+    <div class="eyebrow">대출 잔액</div>
+    <div class="hero-num">${won(t.debts)}</div>
+    ${D.diff != null ? `<div class="delta ${D.diff > 0 ? 'down' : 'up'}">${D.diff > 0 ? '−' : '+'}${won(Math.abs(D.diff))} (${D.diff > 0 ? '−' : '+'}${pct(Math.abs(D.rate), 2)})<span>${ymLabel(D.prevKey)} 대비</span></div>` : ''}
+  </section>
   <section class="panel stats">
-    <div class="stat"><span class="eyebrow">대출잔액</span><span class="stat-num">${won(t.debts)}</span></div>
     <div class="stat"><span class="eyebrow">이번 달 상환 (원금+이자)</span><span class="stat-num">${won(pay)}</span></div>
   </section>
   <div class="cols"><div class="col-main">
@@ -1273,11 +1299,11 @@ function setGoogle(patch) {
 }
 
 // ───────────────────────── 그리기 ─────────────────────────
-const VIEWS = { home: viewHome, calendar: viewCalendar, tasks: viewTasks, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
-const TITLES = { home: '오늘', calendar: '일정', tasks: '할일', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
+const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
+const TITLES = { home: '오늘', money: '자산 홈', calendar: '일정', tasks: '할일', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
 // 자산 메뉴 안의 작은 탭: 자산 | 부채 | 고정지출
-const MONEY_TABS = [['assets', '자산'], ['debts', '부채'], ['fixed', '고정지출']];
-const navTab = (t) => (t === 'debts' || t === 'fixed' ? 'assets' : t);
+const MONEY_TABS = [['money', '홈'], ['assets', '자산'], ['debts', '부채'], ['fixed', '고정지출']];
+const navTab = (t) => (MONEY_TABS.some(([k]) => k === t) ? 'money' : t);
 const subNav = () => `<nav class="segment subnav" aria-label="자산 메뉴">${MONEY_TABS.map(([k, l]) => `<a href="#${k}" role="tab" aria-selected="${state.tab === k}">${l}</a>`).join('')}</nav>`;
 const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라인', demo: '체험 모드' };
 
@@ -1290,8 +1316,8 @@ function render() {
   document.querySelectorAll('[data-tab]').forEach((a) => a.setAttribute('aria-current', a.dataset.tab === navTab(state.tab) ? 'page' : 'false'));
   renderSync();
   renderAlerts();
-  const money = navTab(state.tab) === 'assets';
-  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
+  const money = navTab(state.tab) === 'money';
+  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : state.tab === 'debts' ? debtsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
   afterRender();
 }
 
@@ -1328,7 +1354,7 @@ function renderSync() {
 }
 
 function afterRender() {
-  if (state.tab === 'home') {
+  if (state.tab === 'money') {
     const c = $('#chart-trend');
     const mode = state.data.settings?.trendMode || 'day';
     if (c) trendChart(c, trend(state.history, state.data.snapshots, mode, now()).points, mode);
@@ -2136,7 +2162,7 @@ async function main() {
     onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onSecrets: (sc) => { state.secrets = sc || {}; if (state.tab === 'settings') render(); },
-    onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'home') render(); recordDaily(); },
+    onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'money') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
     onAgenda: (a) => {
       const first = !agendaLoaded;
