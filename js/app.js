@@ -1,8 +1,8 @@
-import { connect, isDemo } from './store.js?v=20261109b';
-import { project, currentTotals, currentPayment, stockValue, homeValue, milestones, normTicker, loanThisMonth, graduatedInfo } from './projection.js?v=20261109b';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today } from './records.js?v=20261109b';
-import { won, pct, esc, ymLabel, dateTime } from './format.js?v=20261109b';
-import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109b';
+import { connect, isDemo } from './store.js?v=20261109c';
+import { project, currentTotals, currentPayment, stockValue, homeValue, milestones, normTicker, loanThisMonth, graduatedInfo } from './projection.js?v=20261109c';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today } from './records.js?v=20261109c';
+import { won, pct, esc, ymLabel, dateTime } from './format.js?v=20261109c';
+import { projectionChart, homeChart, redrawAll } from './charts.js?v=20261109c';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || '개발용';
 
@@ -68,11 +68,11 @@ const FORMS = {
     title: '대출',
     fields: [
       { key: 'name', label: '이름', type: 'text', placeholder: '예: 주택담보대출', required: true },
-      { key: 'kind', label: '종류', type: 'select', options: ['주택담보대출', '전세대출', '신용대출', '학자금대출', '기타'] },
+      { key: 'kind', label: '종류', type: 'select', options: ['주택담보대출', '신용대출', '교직원공제회', '기타'] },
       { key: 'original', label: '처음 빌린 금액', type: 'money', hint: '상환 진행률 표시용 (선택)' },
       { key: 'balance', label: '현재 남은 원금', type: 'money' },
       { key: 'rate', label: '연 금리', type: 'pct' },
-      { key: 'method', label: '상환 방식', type: 'select', options: [['annuity', '원리금균등'], ['equal', '원금균등'], ['graduated', '체증식 (보금자리론 등)'], ['bullet', '만기일시']] },
+      { key: 'method', label: '상환 방식', type: 'select', options: [['annuity', '원리금균등'], ['equal', '원금균등'], ['graduated', '체증식'], ['bullet', '만기일시']] },
       { key: 'payment', label: '이번 달 원리금 (체증식만)', type: 'money', showIf: { method: 'graduated' }, hint: '은행 앱·상환 스케줄표의 이번 달 납입액(원금+이자). 이걸로 매달 늘어나는 금액을 계산해요' },
       { key: 'maturity', label: '만기', type: 'month' },
       { key: 'graceEnd', label: '거치기간 끝 (선택)', type: 'month', hint: '이때까지는 이자만 내요' },
@@ -435,7 +435,8 @@ function openForm(kind, item) {
     if (f.type === 'check') return `<label class="field check"><input type="checkbox" id="${id}" name="${f.key}" ${val ? 'checked' : ''}><span>${f.label}</span>${hint}</label>`;
     let input;
     if (f.type === 'select') {
-      input = `<select id="${id}" name="${f.key}">${f.options.map((o) => { const [k, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${k}" ${k === val ? 'selected' : ''}>${l}</option>`; }).join('')}</select>`;
+      const opts = f.options.some((o) => (Array.isArray(o) ? o[0] : o) === val) || val === '' ? f.options : [...f.options, val];
+      input = `<select id="${id}" name="${f.key}">${opts.map((o) => { const [k, l] = Array.isArray(o) ? o : [o, o]; return `<option value="${k}" ${k === val ? 'selected' : ''}>${l}</option>`; }).join('')}</select>`;
     } else if (f.type === 'money') {
       input = `<div class="unit"><input id="${id}" name="${f.key}" type="text" inputmode="numeric" value="${val === '' ? '' : (Number(val) / 1e4).toLocaleString(undefined, { maximumFractionDigits: 4 })}" data-money placeholder="0"><span>만원</span></div><output class="money-preview" for="${id}"></output>`;
     } else if (f.type === 'pct') {
