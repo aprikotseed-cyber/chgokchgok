@@ -105,3 +105,17 @@ test('체증식: 3달 전에 입력한 원리금도 그동안 늘어난 만큼 �
   assert.ok(Math.abs(g.step - d) < 1, `${g.step} vs ${d}`);
   assert.ok(Math.abs(g.now - (1_160_000 + 3 * d)) < 5);
 });
+
+test('예측에 집값·주가 상승률을 쓰지 않는다 (예전 데이터에 값이 남아 있어도 무시)', () => {
+  const market = { homes: { h1: { estimate: 1e9 } }, stocks: { '005930': { price: 70000, currency: 'KRW' } } };
+  const data = {
+    homes: [{ id: 'h1', growth: 5 }],
+    stocks: [{ ticker: '005930', qty: 100 }],
+    stockPlan: { monthly: 100_000, rate: 10 },
+  };
+  const { points } = project(data, market, { years: 3, now });
+  const last = points.at(-1);
+  assert.equal(last.homes, 1e9);
+  const months = (2028 - 2026) * 12 + 1; // 2026년 12월 ~ 2028년 12월
+  assert.equal(last.stocks, 7_000_000 + 100_000 * months);
+});

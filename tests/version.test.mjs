@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+// 휴대폰·태블릿이 예전 파일을 붙잡고 있지 않도록 파일 주소 뒤에 ?v=버전을 붙여요.
+// 같은 파일이 다른 버전으로 두 번 불러와지지 않게, 모든 곳의 버전과 version.json이 같아야 해요.
+const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
+
+test('index.html, js 파일, version.json의 버전이 모두 같다', () => {
+  const files = ['index.html', 'js/app.js', 'js/charts.js'].map(read);
+  const versions = new Set(files.flatMap((s) => [...s.matchAll(/\.(?:js|css)\?v=([\w-]+)/g)].map((m) => m[1])));
+  assert.equal(versions.size, 1, [...versions].join(', '));
+  assert.equal(JSON.parse(read('version.json')).version, [...versions][0]);
+  for (const s of files.slice(1)) assert.ok(!/from '\.\/[a-z]+\.js'/.test(s), '버전 없는 import가 있어요');
+});
+
+test('서비스 워커의 Firebase 설정이 앱과 같다', () => {
+  const key = (s) => s.match(/apiKey: '([^']+)'/)?.[1];
+  assert.equal(key(read('firebase-messaging-sw.js')), key(read('js/store.js')));
+});

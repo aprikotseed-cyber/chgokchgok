@@ -29,7 +29,7 @@ export function homeValue(h, market) {
 }
 
 /**
- * 체증식(보금자리론 등): 매달 원리금이 같은 금액(d)씩 늘어나는 방식.
+ * 체증식: 매달 원리금이 같은 금액(d)씩 늘어나는 방식.
  * 이번 달 원리금 a와 남은 원금 B, 금리, 남은 기간 n을 알면 만기에 잔액이 0이 되는 d가 하나로 정해집니다.
  *   B = Σ_{k=1..n} (a + (k-1)·d) / (1+i)^k   →   d = (B − a·S0) / S1
  * (한국주택금융공사 예시: 3억·연 4.55%·30년, 첫 회 116만원 → 140회차까지 원리금균등 153만원보다 낮음 — 이 식과 일치)
@@ -126,11 +126,7 @@ export function project(data, market, { years = 15, now = new Date() } = {}) {
   const plan = data.stockPlan || {};
   let stock = currentTotals({ stocks: data.stocks }, market).stocks;
   const stockMonthly = Number(plan.monthly) || 0;
-  const stockR = Math.pow(1 + (Number(plan.rate) || 0) / 100, 1 / 12);
-  const homes = (data.homes || []).map((h) => ({
-    v: homeValue(h, market),
-    g: Math.pow(1 + (Number(h.growth) || 0) / 100, 1 / 12),
-  }));
+  const homes = (data.homes || []).map((h) => ({ v: homeValue(h, market) })); // 집값 상승률은 가정하지 않아요
   const loans = (data.debts || []).map((d) => ({ d: prepareLoan(d, now), bal: Number(d.balance) || 0 }));
 
   const snap = (label, year) => {
@@ -151,8 +147,7 @@ export function project(data, market, { years = 15, now = new Date() } = {}) {
   while (recorded < years) {
     step++;
     for (const s of savings) s.bal = s.bal * (1 + s.r) + s.monthly;
-    stock = stock * stockR + stockMonthly;
-    for (const h of homes) h.v *= h.g;
+    stock += stockMonthly; // 주가 상승률은 가정하지 않아요
     for (const l of loans) l.bal -= loanMonth(l.bal, l.d, step).principal;
     if ((startMonth + step) % 12 === 11) {
       const year = now.getFullYear() + Math.floor((startMonth + step) / 12);
