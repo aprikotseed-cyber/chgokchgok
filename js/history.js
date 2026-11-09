@@ -44,8 +44,30 @@ export function trend(days = {}, snapshots = {}, mode = 'day', today = new Date(
     }
     points = groups.map((g) => ({ key: g, label: mode === 'month' ? `${g.slice(2, 4)}.${g.slice(5)}` : `${g}년`, ...all[last[g]] }));
   }
+  // 바로 앞 점과 비교한 변화 (주식은 환율 효과 포함, 저축은 주식을 뺀 예금·적금 등)
+  points.forEach((p, i) => { if (i) p.diff = diffOf(points[i - 1], p); });
   const first = points[0];
   const end = points.at(-1);
   const change = points.length > 1 ? end.net - first.net : 0;
   return { points, change, rate: points.length > 1 && first.net ? (change / Math.abs(first.net)) * 100 : 0 };
+}
+
+/** 두 기록 사이 변화: 총자산과 무엇 때문에 움직였는지 */
+export function diffOf(a, b) {
+  const has = a.savings != null && b.savings != null;
+  const d = { net: b.net - a.net, prevLabel: a.label, prevKey: a.key };
+  if (has) {
+    d.stocks = (b.stocks || 0) - (a.stocks || 0);
+    d.cash = (b.savings - (b.stocks || 0)) - (a.savings - (a.stocks || 0));
+    d.homes = (b.homes || 0) - (a.homes || 0);
+    d.debts = (b.debts || 0) - (a.debts || 0);
+  }
+  return d;
+}
+
+/** 오늘 값과 가장 최근의 지난 기록 비교 (홈 맨 위 '어제 대비') */
+export function sinceLast(days, todayKey, current) {
+  const prev = Object.keys(days || {}).filter((k) => k < todayKey).sort().pop();
+  if (!prev) return null;
+  return { ...diffOf({ ...days[prev], label: prev, key: prev }, current), prevKey: prev };
 }

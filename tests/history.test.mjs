@@ -40,3 +40,18 @@ test('기록 한 줄 만들기와 비교', () => {
   assert.ok(sameEntry(a, { ...a }));
   assert.ok(!sameEntry(a, { ...a, net: 11 }));
 });
+
+test('하루 변화: 무엇 때문에 움직였는지 나눠 보기', async () => {
+  const { diffOf, sinceLast } = await import('../js/history.js');
+  const a = { key: '2026-11-08', label: '11/8', net: 1000, savings: 600, stocks: 200, homes: 900, debts: 500 };
+  const b = { key: '2026-11-09', label: '11/9', net: 1080, savings: 690, stocks: 270, homes: 900, debts: 510 };
+  const d = diffOf(a, b);
+  assert.deepEqual([d.net, d.stocks, d.cash, d.homes, d.debts], [80, 70, 20, 0, 10]);
+  const t = trend({ '2026-11-08': a, '2026-11-09': b }, {}, 'day', new Date(2026, 10, 9));
+  assert.equal(t.points[1].diff.net, 80);
+  assert.equal(t.points[0].diff, undefined);
+  const s = sinceLast({ '2026-11-07': a, '2026-11-09': b }, '2026-11-09', b);
+  assert.equal(s.prevKey, '2026-11-07');
+  assert.equal(s.net, 80);
+  assert.equal(sinceLast({ '2026-11-09': b }, '2026-11-09', b), null);
+});

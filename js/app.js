@@ -1,14 +1,14 @@
-import { connect, isDemo } from './store.js?v=20261109l';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109l';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109l';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109l';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109l';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109l';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109l';
-import { trend, makeEntry, sameEntry } from './history.js?v=20261109l';
-import { ask, SUGGEST } from './assistant.js?v=20261109l';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109l';
-import { addFeedback, feedbackText } from './feedback.js?v=20261109l';
+import { connect, isDemo } from './store.js?v=20261109m';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261109m';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261109m';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261109m';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS } from './reminders.js?v=20261109m';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261109m';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261109m';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261109m';
+import { ask, SUGGEST } from './assistant.js?v=20261109m';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261109m';
+import { addFeedback, feedbackText } from './feedback.js?v=20261109m';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -244,7 +244,8 @@ function viewHome() {
   <section class="hero">
     <div class="eyebrow">총자산</div>
     <div class="hero-num">${won(t.net)}</div>
-    ${diff != null ? `<div class="delta ${diff >= 0 ? 'up' : 'down'}">${diff >= 0 ? '+' : '−'}${won(Math.abs(diff))}<span>${ymLabel(prevKey)} 대비</span></div>` : ''}
+    ${dayDelta(t)}
+    ${diff != null ? `<div class="delta small ${diff >= 0 ? 'up' : 'down'}">${diff >= 0 ? '+' : '−'}${won(Math.abs(diff))}<span>${ymLabel(prevKey)} 대비</span></div>` : ''}
   </section>
 
   <section class="panel stats">
@@ -271,12 +272,27 @@ function viewHome() {
         ? `<div class="chart-box"><canvas id="chart-trend" role="img" aria-label="${RANGE[mode]} 총자산 추이"></canvas></div>`
         : `<p class="empty">${tr.points.length ? '기록이 쌓이는 중이에요.' : '아직 기록이 없어요.'} 오늘부터 매일 총자산이 자동으로 기록돼서, 내일부터 그래프로 보여요.</p>`}
       ${tr.points.length ? details('trend-table', '표로 보기', `<div class="table-scroll"><table>
-        <thead><tr><th>${{ day: '날짜', month: '월', year: '연도' }[mode]}</th><th>총자산</th><th>저축액</th><th>주택</th><th>대출잔액</th></tr></thead>
-        <tbody>${tr.points.slice().reverse().map((p) => `<tr><th>${p.label}</th><td>${won(p.net)}</td><td>${p.savings == null ? '-' : won(p.savings)}</td><td>${p.homes == null ? '-' : won(p.homes)}</td><td>${won(p.debts)}</td></tr>`).join('')}</tbody>
+        <thead><tr><th>${{ day: '날짜', month: '월', year: '연도' }[mode]}</th><th>총자산</th><th>${{ day: '전일', month: '전월', year: '전년' }[mode]} 대비</th><th>저축액</th><th>주택</th><th>대출잔액</th></tr></thead>
+        <tbody>${tr.points.slice().reverse().map((p) => `<tr><th>${p.label}</th><td>${won(p.net)}</td><td class="${p.diff ? (p.diff.net >= 0 ? 'up' : 'down') : ''}">${p.diff ? `${p.diff.net >= 0 ? '+' : '−'}${won(Math.abs(p.diff.net))}` : '-'}</td><td>${p.savings == null ? '-' : won(p.savings)}</td><td>${p.homes == null ? '-' : won(p.homes)}</td><td>${won(p.debts)}</td></tr>`).join('')}</tbody>
       </table></div>`) : ''}
     </div>
     <p class="hint">총자산 = 저축액(주식 포함) + 주택 − 대출잔액. 앱을 열 때와 시세를 받아올 때마다 그날 값으로 기록해요.</p>`)}
   </div></div>`;
+}
+
+/** 홈 맨 위 '어제 대비': 가장 최근 지난 기록과 비교하고, 무엇 때문에 움직였는지 */
+function dayDelta(t) {
+  const d = sinceLast(state.history, today(), makeEntry(t));
+  if (!d) return '';
+  const y = new Date(now().getFullYear(), now().getMonth(), now().getDate() - 1);
+  const label = d.prevKey === ymd(y) ? '어제' : `${Number(d.prevKey.slice(5, 7))}월 ${Number(d.prevKey.slice(8))}일`;
+  return `<div class="delta ${d.net >= 0 ? 'up' : 'down'}">${d.net >= 0 ? '+' : '−'}${won(Math.abs(d.net))}<span>${label} 대비</span></div>${diffParts(d) ? `<div class="delta-parts">${diffParts(d)}</div>` : ''}`;
+}
+
+/** '주식 +70,000원 · 대출 +10,000원' (움직인 것만) */
+function diffParts(d) {
+  const parts = [['주식', d.stocks], ['저축', d.cash], ['주택', d.homes], ['대출', d.debts]].filter(([, v]) => v);
+  return parts.map(([k, v]) => `${k} ${v >= 0 ? '+' : '−'}${won(Math.abs(v))}`).join(' · ');
 }
 
 function scheduleRow(u) {
@@ -748,7 +764,8 @@ function renderSync() {
 function afterRender() {
   if (state.tab === 'home') {
     const c = $('#chart-trend');
-    if (c) trendChart(c, trend(state.history, state.data.snapshots, state.data.settings?.trendMode || 'day', now()).points);
+    const mode = state.data.settings?.trendMode || 'day';
+    if (c) trendChart(c, trend(state.history, state.data.snapshots, mode, now()).points, mode);
   }
   if (state.tab === 'assets') {
     for (const h of state.data.homes || []) {

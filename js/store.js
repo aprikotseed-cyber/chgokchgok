@@ -227,7 +227,8 @@ function sampleHistory() {
     const debts = 430_000_000 - i * 25_000;
     const homes = 1_000_000_000 + i * 110_000;
     const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    days[k] = { net: Math.round(net), savings: Math.round(net - homes + debts), stocks: 0, homes, debts };
+    const stocks = Math.round(18_000_000 + i * 14_000 + Math.sin(i / 5) * 450_000);
+    days[k] = { net: Math.round(net), savings: Math.round(net - homes + debts), stocks, homes, debts };
   }
   return days;
 }
