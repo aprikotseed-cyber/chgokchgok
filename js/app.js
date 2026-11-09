@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110n';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110n';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110n';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110n';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110n';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110n';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110n';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110n';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110n';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110n';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110n';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110n';
-import { createGoogle } from './google.js?v=20261110n';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110n';
-import { createDemoGoogle } from './google-demo.js?v=20261110n';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal } from './agenda.js?v=20261110n';
+import { connect, isDemo } from './store.js?v=20261110o';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110o';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110o';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110o';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110o';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110o';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110o';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110o';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110o';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110o';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110o';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110o';
+import { createGoogle } from './google.js?v=20261110o';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110o';
+import { createDemoGoogle } from './google-demo.js?v=20261110o';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal } from './agenda.js?v=20261110o';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -302,7 +302,7 @@ function viewHome() {
   <form id="home-ask" class="ask-box" autocomplete="off">
     <label for="home-ask-input" class="ask-label">비서</label>
     <textarea id="home-ask-input" rows="3" enterkeyhint="send" aria-label="비서에게 물어보기"></textarea>
-    <button class="ask-send" type="submit">💬 보내기</button>
+    <button class="ask-send" type="submit">보내기</button>
   </form>
   ${todayBlock()}
   ${monthBlock()}`;
@@ -1293,8 +1293,8 @@ function monthBlock() {
     const label = [`${d.getMonth() + 1}월 ${d.getDate()}일`, de.length ? `일정 ${de.length}개` : '', open.length ? `할일 ${open.length}개` : '', mo.length ? `출금 ${mo.length}건` : ''].filter(Boolean).join(', ');
     cells.push(`<button class="mday${d.getMonth() !== m - 1 ? ' out' : ''}${k === todayKey ? ' today' : ''}${k === sel ? ' sel' : ''}${d.getDay() === 0 ? ' sun' : d.getDay() === 6 ? ' sat' : ''}" data-action="cal-day" data-key="${k}" aria-label="${label}" aria-pressed="${k === sel}">
       <span class="num">${d.getDate()}</span>
-      <span class="mdots">${de.slice(0, 4).map((e) => `<i style="--c:${esc(e.color || '#8b8a83')}"></i>`).join('')}${mo.length ? '<i class="m"></i>' : ''}${open.length ? '<i class="t"></i>' : ''}</span>
-      <span class="mchips">${de.slice(0, 3).map((e) => `<span class="mchip${e.partner ? ' partner' : ''}" style="--c:${esc(e.color || '#8b8a83')}">${e.allDay ? '' : `${e.time} `}${esc(e.title)}</span>`).join('')}${de.length > 3 ? `<span class="mmore">+${de.length - 3}</span>` : ''}${mo.map((x) => `<span class="mchip money">${esc(x.name)}</span>`).slice(0, de.length >= 3 ? 0 : 3 - de.length).join('')}${open.length ? `<span class="mtask">할일 ${open.length}</span>` : ''}</span>
+      <span class="mdots">${de.slice(0, 4).map((e) => `<i style="--c:${esc(e.color || '#8b8a83')}"></i>`).join('')}${mo.length ? '<i class="m">₩</i>' : ''}${open.length ? '<i class="t"></i>' : ''}</span>
+      <span class="mchips">${de.slice(0, 3).map((e) => `<span class="mchip${e.partner ? ' partner' : ''}" style="--c:${esc(e.color || '#8b8a83')}">${e.allDay ? '' : `${e.time} `}${esc(e.title)}</span>`).join('')}${de.length > 3 ? `<span class="mmore">+${de.length - 3}</span>` : ''}${mo.map((x) => `<span class="mchip money"><b class="won">₩</b>${esc(x.name)}</span>`).slice(0, de.length >= 3 ? 0 : 3 - de.length).join('')}${open.length ? `<span class="mtask">할일 ${open.length}</span>` : ''}</span>
     </button>`);
   }
   const a = state.agenda;
@@ -1307,7 +1307,7 @@ function monthBlock() {
   return section(`${y === now().getFullYear() ? '' : `${y}년 `}${m}월`, `<div class="panel mcal-wrap">
       <div class="mcal-head">${'일월화수목금토'.split('').map((w, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}</div>
       <div class="mcal">${cells.join('')}</div>
-      <div class="mlegend"><span><i style="--c:var(--text-secondary)"></i>일정(캘린더 색)</span><span><i class="t"></i>할일</span><span><i class="m"></i>고정지출·상환</span></div>
+      <div class="mlegend"><span><i style="--c:var(--text-secondary)"></i>일정(캘린더 색)</span><span><i class="t"></i>할일</span><span><i class="m">₩</i>고정지출·상환</span></div>
     </div>
     ${sel ? dayDetail(sel, evs, money.get(sel) || outflowsBetween(state.data, fromKey(sel), fromKey(sel), now()), tasks.get(sel) || []) : '<p class="hint">날짜를 누르면 그날 일정·할일·나가는 돈을 보여드려요.</p>'}
     ${outOfRange ? `<p class="hint">구글 일정은 ${mdw(fromKey(a.from))} ~ ${mdw(fromKey(agendaUntil(a)))}만 받아 둬요.</p>` : ''}
@@ -1321,7 +1321,7 @@ function dayDetail(key, evs, money, tasks) {
   const rows = [
     ...de.map((e) => eventRow(e, key)),
     ...tasks.map(taskRow),
-    ...money.map((x) => `<div class="row static ev"><span class="ev-time">${x.loan ? '상환' : '출금'}</span><span class="ev-dot money"></span><span class="row-main"><span class="row-title">${esc(x.name)}</span><span class="row-meta">${x.loan ? '대출 상환' : '고정지출'}</span></span><span class="row-side"><span class="row-value">${wonExact(x.amount)}</span></span></div>`),
+    ...money.map((x) => `<div class="row static ev"><span class="ev-time">${x.loan ? '상환' : '출금'}</span><b class="won">₩</b><span class="row-main"><span class="row-title">${esc(x.name)}</span><span class="row-meta">${x.loan ? '대출 상환' : '고정지출'}</span></span><span class="row-side"><span class="row-value">${wonExact(x.amount)}</span></span></div>`),
   ];
   return `<div class="panel list day-detail"><div class="mini-head">${key === today() ? '오늘 · ' : ''}${mdw(d)}${state.agenda ? `<button class="link-btn" data-action="cal-add" data-key="${key}">+ 일정</button>` : ''}</div>${rows.length ? rows.join('') : empty('이날은 일정·할일·출금이 없어요.')}</div>`;
 }
@@ -1397,11 +1397,12 @@ function googleSettings() {
     <div class="row static"><span class="row-main"><span class="row-title">${conn ? '연결됨' : a ? '저장된 일정·할일을 보여주는 중' : '아직 연결 전'}</span><span class="row-meta">${a?.syncedAt ? `마지막으로 받은 때 ${dateTime(a.syncedAt)}` : '구글 연결하기를 누르면 구글 화면에서 허용을 눌러 주세요'}${conn ? ' · 이 창에서 1시간 동안 연결돼요' : ''}</span></span>
       ${conn ? '<button class="link-btn" data-action="g-disconnect">연결 끊기</button>' : ''}</div>
     <div class="pad actions"><button class="btn primary" data-action="g-sync">${conn ? '지금 새로 받기' : '구글 연결하기'}</button></div>
-    ${cals.length ? `<div class="pad"><b class="mini-title">보여줄 캘린더</b><div class="cal-prefs">${cals.map((c) => { const p = calPref(c); return `<div class="cal-pref"><label><input type="checkbox" data-cal-show="${esc(c.id)}" ${p.show ? 'checked' : ''}><span class="ev-dot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</label><label class="hint"><input type="checkbox" data-cal-partner="${esc(c.id)}" ${p.partner ? 'checked' : ''}>반려자</label></div>`; }).join('')}</div>
+    ${cals.length ? `<div class="pad"><b class="mini-title">보여줄 캘린더</b><div class="cal-prefs">${cals.filter((c) => !calPref(c).hidden).map((c) => { const p = calPref(c); return `<div class="cal-pref"><label><input type="checkbox" data-cal-show="${esc(c.id)}" ${p.show ? 'checked' : ''}><span class="ev-dot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</label><span class="cal-opts"><label class="hint"><input type="checkbox" data-cal-partner="${esc(c.id)}" ${p.partner ? 'checked' : ''}>반려자</label><button class="link-btn" data-action="cal-hide" data-id="${esc(c.id)}">숨기기</button></span></div>`; }).join('')}</div>
+      ${cals.some((c) => calPref(c).hidden) ? details('cal-hidden', `숨긴 캘린더 ${cals.filter((c) => calPref(c).hidden).length}개`, `<div class="cal-prefs">${cals.filter((c) => calPref(c).hidden).map((c) => `<div class="cal-pref"><span class="hint"><span class="ev-dot" style="--c:${esc(c.color)}"></span> ${esc(c.name)}</span><button class="link-btn" data-action="cal-unhide" data-id="${esc(c.id)}">다시 보이기</button></div>`).join('')}</div>`) : ''}
       <p class="hint">반려자 캘린더 일정은 하루 일정 맨 뒤에 보여줘요. 새로 켠 캘린더는 다음에 받아올 때부터 보여요.</p></div>` : ''}
     ${autoSyncPanel()}
     ${naverPanel()}
-    ${a?.lists?.length ? `<div class="pad"><b class="mini-title">보여줄 할일 목록</b><div class="cal-prefs">${a.lists.map((l) => `<div class="cal-pref"><label><input type="checkbox" data-list-show="${esc(l.id)}" ${l.show !== false ? 'checked' : ''}>${esc(l.title)}</label><span class="hint">${l.show !== false && l.count != null ? `남은 할일 ${l.count}개` : ''}</span></div>`).join('')}</div>
+    ${a?.lists?.length ? `<div class="pad"><b class="mini-title">보여줄 할일 목록</b><div class="cal-prefs">${a.lists.map((l) => `<div class="cal-pref"><label><input type="checkbox" data-list-show="${esc(l.id)}" ${l.show !== false ? 'checked' : ''}>${esc(l.title)}</label><span class="hint">${l.show !== false && l.count != null ? `남은 할일 ${l.count}개${l.received != null ? ` (구글에서 받은 ${l.received}개, 완료 ${l.done}개)` : ''}` : ''}</span></div>`).join('')}</div>
       ${a.lists.length > 1 ? `<b class="mini-title" style="margin-top:14px">새 할일을 넣을 목록</b><select id="g-tasklist" class="select">${a.lists.map((l) => `<option value="${esc(l.id)}" ${l.id === a.listId ? 'selected' : ''}>${esc(l.title)}</option>`).join('')}</select>` : ''}</div>` : ''}
     ${guide}
   </div>`;
@@ -1982,6 +1983,13 @@ function bind() {
       toast(v ? '저장했어요. 이제 구글 연결하기를 눌러 주세요.' : '클라이언트 ID를 지웠어요.');
     }
     if (a === 'cal-more') { state.calDays = 31; render(); }
+    if (a === 'cal-hide' || a === 'cal-unhide') {
+      const c = state.agenda.calendars.find((x) => x.id === b.dataset.id);
+      const hide = a === 'cal-hide';
+      setGoogle({ cals: { ...(gset().cals || {}), [c.id]: { ...(gset().cals?.[c.id] || {}), hidden: hide, show: !hide } } });
+      toast(hide ? `‘${c.name}’을(를) 숨겼어요. 아래 ‘숨긴 캘린더’에서 다시 보이게 할 수 있어요.` : `‘${c.name}’을(를) 다시 보여줘요. 다음에 받아올 때부터 일정이 보여요.`);
+      if (!hide) { if (gConnected()) syncAgenda(false); else if (autoLinked()) requestAgendaSync(); }
+    }
     if (a === 'cal-day') { state.calSel = state.calSel === b.dataset.key ? '' : b.dataset.key; state.calMonth = b.dataset.key.slice(0, 7); render(); }
     if (a === 'cal-month') {
       const n = Number(b.dataset.key);
@@ -2148,7 +2156,7 @@ function bind() {
     if (cs) {
       const c = state.agenda.calendars.find((x) => x.id === cs);
       const key = e.target.dataset.calShow ? 'show' : 'partner';
-      setGoogle({ cals: { ...(gset().cals || {}), [cs]: { ...calPref(c), [key]: e.target.checked } } });
+      setGoogle({ cals: { ...(gset().cals || {}), [cs]: { ...(gset().cals?.[cs] || {}), ...calPref(c), [key]: e.target.checked } } });
       if (key === 'show' && e.target.checked) syncAgenda(false);
     }
     if (e.target.id === 'lock-after') { setLockAfter(Number(e.target.value)); toast('저장했어요.'); }

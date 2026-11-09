@@ -140,7 +140,11 @@ export function dueLabel(key, todayKey) {
 // ───── 보여줄 일정 (앱·아침 브리핑·비서 공통) ─────
 
 /** 캘린더별 보기·반려자 설정: 설정에서 바꾼 값(googleSettings.cals)이 우선 */
-export const calPref = (c, gs = {}) => ({ show: gs.cals?.[c.id]?.show ?? c.show, partner: gs.cals?.[c.id]?.partner ?? c.partner });
+export const calPref = (c, gs = {}) => {
+  const p = gs.cals?.[c.id] || {};
+  // 숨긴 캘린더는 설정 목록에서도 빠지고, 일정도 보여주지 않아요
+  return { show: p.hidden ? false : p.show ?? c.show, partner: p.partner ?? c.partner, hidden: !!p.hidden };
+};
 
 /** 저장해 둔 agenda에서 숨긴 캘린더는 빼고, 반려자 표시는 지금 설정대로 */
 export function visibleEvents(agenda, gs = {}) {
@@ -271,7 +275,8 @@ export async function fetchAgenda(g, gs = {}, now = new Date(), interactive = fa
   const tasks = perList.flat().filter((x) => !x.deleted && x.title !== '(제목 없음)').filter((x) => !x.done || !x.completedAt || x.completedAt >= old);
   return {
     calendars, listId,
-    lists: lists.map((l) => ({ id: l.id, title: l.title || '', show: !hidden.has(l.id), count: tasks.filter((x) => x.listId === l.id && !x.done).length })),
+    lists: lists.map((l, i) => ({ id: l.id, title: l.title || '', show: !hidden.has(l.id), count: tasks.filter((x) => x.listId === l.id && !x.done).length,
+      received: shownLists.includes(l) ? perList[shownLists.indexOf(l)].length : null, done: tasks.filter((x) => x.listId === l.id && x.done).length })),
     events: evs.flat(),
     tasks,
     from: dayKey(from), until: dayKey(addDays(to, -1)),

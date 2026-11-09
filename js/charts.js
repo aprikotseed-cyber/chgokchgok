@@ -1,5 +1,5 @@
 // Chart.js(전역 Chart)로 그리는 꺾은선그래프. 색은 CSS 변수에서 읽어 라이트/다크 모드를 따릅니다.
-import { won, wonShort, ymLabel } from './format.js?v=20261110n';
+import { won, wonShort, ymLabel } from './format.js?v=20261110o';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const charts = new Map();
