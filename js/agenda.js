@@ -104,7 +104,8 @@ export const toTaskDue = (key) => (key ? `${key}T00:00:00.000Z` : undefined);
  */
 export function parseQuickTask(text, now = new Date()) {
   const rep = parseRepeat(text, now);
-  let s = ` ${rep.rest} `;
+  // 쉼표·괄호는 띄어쓰기로 ('다음 주 화요일, 보고서', '17일(화)')
+  let s = ` ${rep.rest} `.replace(/[,，、()（）]/g, ' ');
   // '오후 3시', '15:30' 같은 시간은 제목에서 빼서 따로
   let time = '';
   const tm = s.match(TIME_RE);
@@ -123,19 +124,22 @@ export function parseQuickTask(text, now = new Date()) {
   take(/\s(오늘)(까지)?\s/, () => today);
   take(/\s(내일)(까지)?\s/, () => addDays(today, 1));
   take(/\s(모레)(까지)?\s/, () => addDays(today, 2));
-  take(/\s(다음\s?주|담주)\s?([월화수목금토일])(요일)?(까지|에)?\s/, (m) => addDays(monday, 7 + dayIdx(m[2])));
-  take(/\s(이번\s?주\s?)?([월화수목금토일])요일(까지|에)?\s/, (m) => addDays(monday, dayIdx(m[2])));
-  take(/\s(\d{1,2})월\s?(\d{1,2})일(까지|에)?\s/, (m) => nearest(today, Number(m[1]), Number(m[2])));
-  take(/\s(\d{1,2})[/.](\d{1,2})(까지|에)?\s/, (m) => nearest(today, Number(m[1]), Number(m[2])));
+  // 날짜를 콕 집은 말이 요일보다 먼저: '17일 화요일', '11월 17일 화요일까지'
+  const WD = '(?:\\s?[월화수목금토일](?:요일)?)?';
+  const UNTIL = '(까지|에|날)?';
+  take(new RegExp(`\\s(\\d{1,2})월\\s?(\\d{1,2})일${WD}${UNTIL}\\s`), (m) => nearest(today, Number(m[1]), Number(m[2])));
+  take(new RegExp(`\\s(\\d{1,2})[/.](\\d{1,2})${WD}${UNTIL}\\s`), (m) => nearest(today, Number(m[1]), Number(m[2])));
   // '3일 뒤', '10일 후'
   take(/\s(\d{1,3})일\s?(뒤|후)(에|까지)?\s/, (m) => addDays(today, Number(m[1])));
   // '26일'만 쓰면 이번 달 26일, 이미 지났으면 다음 달
-  take(/\s(\d{1,2})일(까지|에|날)?\s/, (m) => {
+  take(new RegExp(`\\s(\\d{1,2})일${WD}${UNTIL}\\s`), (m) => {
     const d = Number(m[1]);
     if (d < 1 || d > 31) return null;
     const x = new Date(today.getFullYear(), today.getMonth(), d);
     return x < today ? new Date(today.getFullYear(), today.getMonth() + 1, d) : x;
   });
+  take(/\s(다음\s?주|담주)\s?([월화수목금토일])(요일)?(까지|에)?\s/, (m) => addDays(monday, 7 + dayIdx(m[2])));
+  take(/\s(이번\s?주\s?)?([월화수목금토일])요일(까지|에)?\s/, (m) => addDays(monday, dayIdx(m[2])));
   const title = s.replace(/\s+/g, ' ').trim();
   const t = time ? { time } : {};
   if (!rep.rule) return { title, due, ...t };
@@ -189,7 +193,7 @@ export function agendaUntil(agenda) {
 
 // ───── 일정 빠른 입력: '금요일 7시 헬스', '다음주 수요일 3시~4시 반 상담', '11/20 병원' ─────
 const T = '(오전|오후|아침|낮|저녁|밤|새벽)?\\s?(\\d{1,2})(?::(\\d{2})|시(?:\\s?(\\d{1,2})분|\\s?(반))?)';
-const TIME_RE = new RegExp(`\\s${T}(?:\\s?(?:~|-|부터)\\s?${T}(?:까지)?)?(?:에|부터)?\\s`);
+const TIME_RE = new RegExp(`\\s${T}(?:\\s?(?:~|-|부터)\\s?${T}(?:까지)?)?(?:에|부터|으로|로|까지)?\\s`);
 
 /** '오후' 3, '30' → '15:30'. 오전·오후를 안 쓰면 1~7시는 오후로 봐요 (3시 상담 → 15시) */
 function toHM(ampm, h, colonMin, min, half, plain = true) {

@@ -164,3 +164,20 @@ import { ask as ask2, pickChoice, parseTime as pt } from '../js/assistant.js';
     assert2.match(a.text, /오늘 할일로/);
   });
 }
+
+// ───── 2026-11-10 개선 요청 (2) ─────
+{
+  const { ask: ask3, stripCommand: sc } = await import('../js/assistant.js');
+  const { test: t3 } = await import('node:test');
+  const assert3 = (await import('node:assert/strict')).default;
+  const now = new Date(2026, 10, 10, 9); // 화요일
+  const ag = { events: [], tasks: [], calendars: [{ name: 'Work' }], keywords: [] };
+  t3('할일 날짜: 쉼표, 날짜+요일, 명령 뒤에 덧붙인 날짜', () => {
+    for (const q of ['다음 주 화요일, 부서별 평가자료 제출 할일 추가', '17일 화요일 부서별 평가자료 제출 할일 추가', '부서별 평가자료 제출 할일 추가 11월 17일 화요일까지', '부서별 평가자료 제출 할일 추가해줘 11/17(화)']) {
+      const a = ask3(q, {}, {}, now, ag);
+      assert3.deepEqual(a.action, { kind: 'task', title: '부서별 평가자료 제출', due: '2026-11-17' }, q);
+    }
+    assert3.equal(sc('회의 일정 넣어줘 오후 2시로'), '회의 오후 2시로');
+    assert3.equal(ask3('다음주 수요일 회의 일정 넣어줘 오후 2시로', {}, {}, now, ag).action.ev.time, '14:00');
+  });
+}
