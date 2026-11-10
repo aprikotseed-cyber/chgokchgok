@@ -252,12 +252,14 @@ export function toGoogleEvent({ title, date, endDate, allDay, time, endTime, loc
   if (notes !== undefined) body.description = notes;
   if (allDay || !time) {
     const last = endDate && endDate > date ? endDate : date;
-    body.start = { date };
-    body.end = { date: dayKey(addDays(fromKey(last), 1)) }; // 구글은 끝 날짜를 '다음 날'로 받아요
+    // 고칠 때(PATCH)는 구글이 기존 값에 덧붙여서, 반대쪽 값(dateTime)을 null로 지워야 해요
+    body.start = { date, dateTime: null, timeZone: null };
+    body.end = { date: dayKey(addDays(fromKey(last), 1)), dateTime: null, timeZone: null }; // 구글은 끝 날짜를 '다음 날'로 받아요
   } else {
     let end = endTime && endTime > time ? endTime : hm(Math.min(Number(time.slice(0, 2)) * 60 + Number(time.slice(3)) + 60, 23 * 60 + 59));
-    body.start = { dateTime: `${date}T${time}:00`, timeZone: 'Asia/Seoul' };
-    body.end = { dateTime: `${date}T${end}:00`, timeZone: 'Asia/Seoul' };
+    // 종일 → 시간 지정으로 바꿀 때 기존 date가 남으면 'Invalid start time'이라서 null로 지워요
+    body.start = { date: null, dateTime: `${date}T${time}:00`, timeZone: 'Asia/Seoul' };
+    body.end = { date: null, dateTime: `${date}T${end}:00`, timeZone: 'Asia/Seoul' };
   }
   return body;
 }
