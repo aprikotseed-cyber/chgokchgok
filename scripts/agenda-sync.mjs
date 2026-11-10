@@ -172,7 +172,9 @@ for (const doc of docs) {
 
   // ② 일정·할일 받기
   try {
-    const { access_token: at } = await token({ refresh_token: refresh, client_id: gs.clientId, client_secret: SECRET, grant_type: 'refresh_token' });
+    const { access_token: at, expires_in: ttl } = await token({ refresh_token: refresh, client_id: gs.clientId, client_secret: SECRET, grant_type: 'refresh_token' });
+    // 앱이 일정·할일을 넣을 때 구글 창 없이 쓰도록, 1시간짜리 접근 토큰을 본인만 읽는 곳에 둬요 (로그에는 안 남겨요)
+    await doc.ref.set({ googleAccess: { token: at, exp: Date.now() + (Number(ttl) || 3600) * 1000 } }, { merge: true });
     let agenda = await fetchAgenda(serverApi(at), gs, new Date());
     if (NAVER_ID && NAVER_PW) {
       try {
@@ -192,7 +194,7 @@ for (const doc of docs) {
     console.log(`일정 ${agenda.events.length}개, 할일 ${agenda.tasks.length}개 저장`);
   } catch (e) {
     console.log('동기화 실패:', e.message);
-    if (e.code === 'invalid_grant') await doc.ref.set({ googleRefresh: FieldValue.delete(), googleLinkError: '구글 연결이 끊겼어요 (만료·해제). 설정에서 자동 동기화를 다시 켜 주세요' }, { merge: true });
+    if (e.code === 'invalid_grant') await doc.ref.set({ googleRefresh: FieldValue.delete(), googleAccess: FieldValue.delete(), googleLinkError: '구글 연결이 끊겼어요 (만료·해제). 설정에서 자동 동기화를 다시 켜 주세요' }, { merge: true });
     else await doc.ref.set({ googleLinkError: `마지막 동기화 실패: ${e.message}` }, { merge: true });
   }
 }

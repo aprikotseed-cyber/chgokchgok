@@ -19,3 +19,12 @@ test('작업 실행 요청: 주소·헤더·본문, 응답별 안내', async () 
   await assert.rejects(dispatchWorkflow({ owner: 'o', repo: 'r' }, 'x', 'q', async () => ({ status: 403 })), /Read and write/);
   await assert.rejects(dispatchWorkflow({ owner: 'o', repo: 'r' }, 'x', 'q', async () => { throw new Error('net'); }), /인터넷/);
 });
+
+import { freshServerToken } from '../js/google.js';
+test('서버가 받아 둔 구글 토큰: 1분 넘게 남았을 때만 써요', () => {
+  const now = 1_000_000;
+  assert.equal(freshServerToken({ token: 'a', exp: now + 30 * 60_000 }, now), 'a');
+  assert.equal(freshServerToken({ token: 'a', exp: now + 30_000 }, now), null);
+  assert.equal(freshServerToken(null, now), null);
+  assert.equal(freshServerToken({ exp: now + 9e9 }, now), null);
+});
