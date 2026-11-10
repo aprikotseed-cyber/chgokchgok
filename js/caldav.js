@@ -1,7 +1,7 @@
 // 네이버 캘린더(CalDAV) 읽기: GitHub 자동 동기화에서 반려자 캘린더를 받아 와요. 읽기만 해요.
 // CalDAV는 일정을 주고받는 표준 방식이에요. 네이버 아이디 + 애플리케이션 비밀번호로 접속해요.
 // 날짜·시간은 모두 한국 시간 기준으로 계산해요.
-import { normEvent } from './agenda.js?v=20261111j';
+import { normEvent } from './agenda.js?v=20261111k';
 
 const pad = (n) => String(n).padStart(2, '0');
 
