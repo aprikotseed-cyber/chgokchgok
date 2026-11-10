@@ -26,8 +26,9 @@ test('캘린더 고르기', () => {
 
 test('구글 캘린더로 보낼 모양', () => {
   assert.deepEqual(toGoogleEvent({ title: '연수', date: '2026-11-12', endDate: '2026-11-13', allDay: true }),
-    { summary: '연수', start: { date: '2026-11-12' }, end: { date: '2026-11-14' } });
+    { summary: '연수', start: { date: '2026-11-12', dateTime: null, timeZone: null }, end: { date: '2026-11-14', dateTime: null, timeZone: null } });
   assert.deepEqual(toGoogleEvent({ title: '헬스', date: '2026-11-13', time: '19:00', endTime: '', allDay: false }),
-    { summary: '헬스', start: { dateTime: '2026-11-13T19:00:00', timeZone: 'Asia/Seoul' }, end: { dateTime: '2026-11-13T20:00:00', timeZone: 'Asia/Seoul' } });
+    { summary: '헬스', start: { date: null, dateTime: '2026-11-13T19:00:00', timeZone: 'Asia/Seoul' }, end: { date: null, dateTime: '2026-11-13T20:00:00', timeZone: 'Asia/Seoul' } });
+  // 종일 ↔ 시간 지정으로 고칠 때(PATCH) 반대쪽 값을 null로 지워야 구글이 'Invalid start time'을 안 내요
   assert.equal(eventLine({ title: '헬스', date: '2026-11-13', time: '19:00', endTime: '20:00' }), '11월 13일 (금) 19:00~20:00 헬스');
 });
