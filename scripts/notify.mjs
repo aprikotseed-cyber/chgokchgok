@@ -1,4 +1,4 @@
-// GitHub Actions가 매일 오전 8시(한국 시간)에 실행: 아침 브리핑(오늘 일정·할일, 오늘이 상환일·출금일인 돈)을 등록된 기기로 보냅니다.
+// GitHub Actions가 매일 오전 7시 30분(한국 시간)에 실행 (cron-job.org가 깨우고, GitHub 예약은 예비): 아침 브리핑(오늘 일정·할일, 오늘이 상환일·출금일인 돈)을 등록된 기기로 보냅니다.
 // 필요한 GitHub Secret: FIREBASE_SERVICE_ACCOUNT
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';

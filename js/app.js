@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261111a';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111a';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111a';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111a';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111a';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111a';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111a';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111a';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261111a';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111a';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111a';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111a';
-import { createGoogle } from './google.js?v=20261111a';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111a';
-import { createDemoGoogle } from './google-demo.js?v=20261111a';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111a';
+import { connect, isDemo } from './store.js?v=20261111b';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111b';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111b';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111b';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111b';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111b';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111b';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111b';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261111b';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111b';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111b';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111b';
+import { createGoogle } from './google.js?v=20261111b';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111b';
+import { createDemoGoogle } from './google-demo.js?v=20261111b';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111b';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1002,7 +1002,7 @@ function viewSettings() {
   ${section('아이폰 단축어', shortcutPanel())}
   ${section('화면 잠금', lockSettings())}
   ${section('비서 알림', `<div class="panel">
-      <p class="pad">매일 오전 8시쯤 <b>아침 브리핑</b>을 보내 드려요: 오늘 일정, 오늘 마감 할일과 지난 할일, 그리고 <b>오늘이 상환일·출금일인</b> 대출 상환과 고정지출. 앱 화면(PC 알림 카드)에서는 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p>
+      <p class="pad">매일 오전 7시 30분에 <b>아침 브리핑</b>을 보내 드려요: 오늘 일정, 오늘 마감 할일과 지난 할일, 그리고 <b>오늘이 상환일·출금일인</b> 대출 상환과 고정지출. 앱 화면(PC 알림 카드)에서는 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p>
       ${pushBody}
       ${briefingClock()}
     </div>`)}
@@ -1354,13 +1354,13 @@ function autoSyncPanel() {
 function briefingClock() {
   const { owner, repo } = repoFromLocation(location);
   const code = (label, value, copy) => `<div class="sc-row"><span class="sc-label">${label}</span><code>${esc(value)}</code>${copy ? `<button class="link-btn" data-action="sc-copy" data-what="${copy}">복사</button>` : ''}</div>`;
-  return details('brief-clock', '아침 브리핑 8시 정각에 받기 (처음 한 번, 5분)', `<div class="pad">
-    <p class="hint">GitHub 무료 예약 실행은 붐비는 시간에 몇 시간씩 늦거나 건너뛰어요. 그래서 무료 알람 서비스가 매일 8시에 GitHub을 깨우게 해요. 같은 날 두 번 오지 않고, GitHub 예약이 늦게(10시 30분 넘어) 돌면 보내지 않아요.</p>
+  return details('brief-clock', '아침 브리핑 7시 30분 정각에 받기 (처음 한 번, 5분)', `<div class="pad">
+    <p class="hint">GitHub 무료 예약 실행은 붐비는 시간에 몇 시간씩 늦거나 건너뛰어요. 그래서 무료 알람 서비스가 매일 7시 30분에 GitHub을 깨우게 해요. 같은 날 두 번 오지 않고, GitHub 예약이 늦게(10시 30분 넘어) 돌면 보내지 않아요.</p>
     <ol class="steps">
       <li><a href="https://cron-job.org/en/signup/" target="_blank" rel="noopener">cron-job.org</a>에 무료로 가입하고 로그인해요.</li>
       <li>오른쪽 위 계정 메뉴 → <b>Settings</b> → <b>Timezone</b>을 <code>Asia/Seoul</code>로 바꾸고 저장해요.</li>
       <li><b>Dashboard</b> → <b>CREATE CRONJOB</b>
-        <br>Title: <code>차곡차곡 아침 브리핑</code> · URL: 아래 ① · Execution schedule: <b>Every day at 8 : 00</b></li>
+        <br>Title: <code>차곡차곡 아침 브리핑</code> · URL: 아래 ① · Execution schedule: <b>Every day at 7 : 30</b></li>
       <li>같은 화면 <b>ADVANCED</b> 탭: Request method <b>POST</b>, Request body는 아래 ③, Headers 세 개:
         <br><code>Authorization</code> = <code>Bearer </code>+ ②, <code>Accept</code> = <code>application/vnd.github+json</code>, <code>Content-Type</code> = <code>application/json</code></li>
       <li><b>CREATE</b>로 저장해요. <b>TEST RUN</b>을 눌러 결과가 <b>204</b>이고 1분쯤 뒤 브리핑 알림이 오면 끝이에요. (시험으로 보낸 날은 그날 아침 브리핑으로 쳐요)</li>
