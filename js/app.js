@@ -1,19 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261111l';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111l';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111l';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111l';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111l';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111l';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111l';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111l';
-import { ask, outflowsBetween } from './assistant.js?v=20261111l';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111l';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111l';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111l';
-import { createGoogle } from './google.js?v=20261111l';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111l';
-import { createDemoGoogle } from './google-demo.js?v=20261111l';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111l';
+import { connect, isDemo } from './store.js?v=20261111m';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111m';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111m';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111m';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111m';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111m';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111m';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111m';
+import { estimateMonths } from './estimate.js?v=20261111m';
+import { ask, outflowsBetween } from './assistant.js?v=20261111m';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111m';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111m';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111m';
+import { createGoogle } from './google.js?v=20261111m';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111m';
+import { createDemoGoogle } from './google-demo.js?v=20261111m';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111m';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -331,7 +332,7 @@ function viewMoney() {
   const isEmpty = !t.assets && !t.debts;
 
   const mode = d.settings?.trendMode || 'day';
-  const tr = trend(state.history, d.snapshots, mode, now());
+  const tr = trendOf(mode);
   const RANGE = { day: '최근 30일', month: '최근 12개월', year: '전체 기간' };
 
   const soon = upcoming(d, now(), 14);
@@ -373,11 +374,18 @@ function viewMoney() {
         : `<p class="empty">${tr.points.length ? '기록이 쌓이는 중이에요.' : '아직 기록이 없어요.'} 오늘부터 매일 총자산이 자동으로 기록돼서, 내일부터 그래프로 보여요.</p>`}
       ${tr.points.length ? details('trend-table', '표로 보기', `<div class="table-scroll"><table>
         <thead><tr><th>${{ day: '날짜', month: '월', year: '연도' }[mode]}</th><th>총자산</th><th>${{ day: '전일', month: '전월', year: '전년' }[mode]} 대비</th><th>저축액</th><th>주택</th><th>대출잔액</th></tr></thead>
-        <tbody>${tr.points.slice().reverse().map((p) => `<tr><th>${p.label}</th><td>${won(p.net)}</td><td class="${p.diff ? (p.diff.net >= 0 ? 'up' : 'down') : ''}">${p.diff ? `${p.diff.net >= 0 ? '+' : '−'}${won(Math.abs(p.diff.net))}` : '-'}</td><td>${p.savings == null ? '-' : won(p.savings)}</td><td>${p.homes == null ? '-' : won(p.homes)}</td><td>${won(p.debts)}</td></tr>`).join('')}</tbody>
+        <tbody>${tr.points.slice().reverse().map((p) => `<tr${p.est ? ' class="est"' : ''}><th>${p.label}${p.est ? ' <span class="est-tag">추정</span>' : ''}</th><td>${won(p.net)}</td><td class="${p.diff ? (p.diff.net >= 0 ? 'up' : 'down') : ''}">${p.diff ? `${p.diff.net >= 0 ? '+' : '−'}${won(Math.abs(p.diff.net))}` : '-'}</td><td>${p.savings == null ? '-' : won(p.savings)}</td><td>${p.homes == null ? '-' : won(p.homes)}</td><td>${won(p.debts)}</td></tr>`).join('')}</tbody>
       </table></div>`) : ''}
     </div>
-    <p class="hint">총자산 = 저축액(주식 포함) + 주택 − 대출잔액. 앱을 열 때와 시세를 받아올 때마다 그날 값으로 기록해요.</p>`)}
+    <p class="hint">총자산 = 저축액(주식 포함) + 주택 − 대출잔액. 앱을 열 때와 시세를 받아올 때마다 그날 값으로 기록해요.</p>
+    ${mode !== 'day' && tr.points.some((p) => p.est) ? '<p class="hint">점선 구간은 추정이에요. 매일 기록이 없던 달은 입력한 저축·상환·매매 기록으로 그 달 말 값을 거꾸로 계산했고, 주식은 주가 대신 넣어 둔 원금으로 셌어요.</p>' : ''}`)}
   </div></div>`;
+}
+
+/** 자산 추이: 매일 기록 + 그 전 달은 입력한 기록으로 거꾸로 계산한 추정 (월별·연도별) */
+function trendOf(mode) {
+  const est = mode === 'day' ? {} : estimateMonths(state.data, state.market, now());
+  return trend(state.history, state.data.snapshots, mode, now(), est);
 }
 
 /** 홈 맨 위 '어제 대비': 가장 최근 지난 기록과 비교하고, 무엇 때문에 움직였는지 */
@@ -1864,7 +1872,7 @@ function afterRender() {
   if (state.tab === 'money') {
     const c = $('#chart-trend');
     const mode = state.data.settings?.trendMode || 'day';
-    if (c) trendChart(c, trend(state.history, state.data.snapshots, mode, now()).points, mode);
+    if (c) trendChart(c, trendOf(mode).points, mode);
   }
   if (state.tab === 'assets') {
     for (const h of state.data.homes || []) {

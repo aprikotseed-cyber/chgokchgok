@@ -1,5 +1,5 @@
 // Chart.js(전역 Chart)로 그리는 꺾은선그래프. 색은 CSS 변수에서 읽어 라이트/다크 모드를 따릅니다.
-import { won, wonShort, ymLabel } from './format.js?v=20261111l';
+import { won, wonShort, ymLabel } from './format.js?v=20261111m';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const charts = new Map();
@@ -105,6 +105,11 @@ export function trendChart(canvas, points, mode = 'day') {
         borderColor: color, backgroundColor: `${color}1a`, pointBackgroundColor: color,
         pointRadius: points.length <= 14 ? 3 : 0, pointBorderColor: css('--surface-1'), pointBorderWidth: 2, tension: 0.2,
         fill: 'start', // 아래를 옅게 채워 증가 흐름이 잘 보이게
+        // 추정한 달: 흐린 점, 점선
+        ...(points.some((p) => p.est) ? {
+          pointBackgroundColor: points.map((p) => (p.est ? `${color}66` : color)),
+          segment: { borderDash: (c) => (points[c.p0DataIndex]?.est || points[c.p1DataIndex]?.est ? [5, 4] : undefined) },
+        } : {}),
       }],
     },
     options: {
@@ -115,7 +120,7 @@ export function trendChart(canvas, points, mode = 'day') {
         tooltip: {
           ...base().plugins.tooltip,
           callbacks: {
-            label: (c) => ` 총자산  ${won(c.parsed.y)}`,
+            label: (c) => ` 총자산${points[c.dataIndex]?.est ? '(추정)' : ''}  ${won(c.parsed.y)}`,
             afterBody: (c) => {
               const p = points[c[0].dataIndex];
               const lines = [];
@@ -124,7 +129,7 @@ export function trendChart(canvas, points, mode = 'day') {
                 lines.push(`${prevWord} 대비 ${sgn(p.diff.net)}`);
                 for (const [k, v] of [['  주식(환율 포함)', p.diff.stocks], ['  저축·현금', p.diff.cash], ['  주택', p.diff.homes], ['  대출잔액', p.diff.debts]]) if (v) lines.push(`${k} ${sgn(v)}`);
               }
-              if (p.savings != null) lines.push('', `저축액 ${won(p.savings)}`, `주택 ${won(p.homes)}`, `대출잔액 ${won(p.debts)}`);
+              if (p.savings != null) lines.push('', `저축액 ${won(p.savings)}${p.est && p.stocks ? ` (주식 원금 ${won(p.stocks)} 포함)` : ''}`, `주택 ${won(p.homes)}`, `대출잔액 ${won(p.debts)}`);
               return lines;
             },
           },
