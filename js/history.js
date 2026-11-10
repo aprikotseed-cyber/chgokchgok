@@ -18,14 +18,19 @@ const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
  * @param days {'YYYY-MM-DD': entry}
  * @param snapshots 예전 월별 기록 {'YYYY-MM': {net, assets, debts}} (그달 일별 기록이 없을 때만 써요)
  * @param mode 'day' | 'month' | 'year'
+ * @param estimates 기록으로 거꾸로 계산한 지난 달 {'YYYY-MM': entry(est)} (일별 기록·예전 기록이 없는 달만 써요)
  * @returns {points: [{key, label, net, savings, stocks, homes, debts}], change, rate}
  */
-export function trend(days = {}, snapshots = {}, mode = 'day', today = new Date()) {
+export function trend(days = {}, snapshots = {}, mode = 'day', today = new Date(), estimates = {}) {
   const all = { ...days };
   if (mode !== 'day') {
     for (const [ym, s] of Object.entries(snapshots || {})) {
       if (Object.keys(all).some((k) => k.startsWith(ym))) continue;
       all[`${ym}-28`] = { net: s.net, debts: s.debts, homes: null, savings: null };
+    }
+    for (const [ym, e] of Object.entries(estimates || {})) {
+      if (Object.keys(all).some((k) => k.startsWith(ym))) continue;
+      all[`${ym}-28`] = { ...e, est: true };
     }
   }
   const keys = Object.keys(all).sort();
