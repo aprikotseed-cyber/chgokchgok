@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261111k';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111k';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111k';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111k';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111k';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111k';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111k';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111k';
-import { ask, outflowsBetween } from './assistant.js?v=20261111k';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111k';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111k';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111k';
-import { createGoogle } from './google.js?v=20261111k';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111k';
-import { createDemoGoogle } from './google-demo.js?v=20261111k';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111k';
+import { connect, isDemo } from './store.js?v=20261111l';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111l';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111l';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111l';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111l';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111l';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111l';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111l';
+import { ask, outflowsBetween } from './assistant.js?v=20261111l';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111l';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111l';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111l';
+import { createGoogle } from './google.js?v=20261111l';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111l';
+import { createDemoGoogle } from './google-demo.js?v=20261111l';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111l';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1785,11 +1785,12 @@ async function refreshAll() {
   const jobs = [new Promise((r) => setTimeout(r, reduceMotion() ? 0 : 800))]; // 너무 빨리 끝나면 어색해서 잠깐은 돌아요
   if (gConnected()) jobs.push(syncAgenda(false));
   else if (autoLinked() && state.secrets?.githubToken && Date.now() - (state.agenda?.syncedAt || 0) > 2 * 60_000) {
-    jobs.push(dispatchWorkflow(repoFromLocation(location), state.secrets.githubToken, 'agenda-sync.yml').then(() => toast('구글 일정·할일은 1분 안에 새로 들어와요.')).catch(() => {}));
+    jobs.push(dispatchWorkflow(repoFromLocation(location), state.secrets.githubToken, 'agenda-sync.yml').catch(() => {}));
   }
   autoRefresh();
   await Promise.all(jobs);
   render();
+  toast('새로고침했어요.');
 }
 
 /** 입력창·비서 창: 닫힐 때도 살짝 가라앉으며 사라지게 */
