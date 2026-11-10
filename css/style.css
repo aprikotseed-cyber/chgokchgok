@@ -931,8 +931,44 @@ dialog.assistant, dialog.assistant[open] {
 .as-form input:focus { border-color: color-mix(in srgb, var(--im-line) 40%, var(--text-muted)); background: var(--im-bg); }
 
 /* 당겨서 새로고침 */
-.ptr { position: fixed; top: calc(env(safe-area-inset-top) + 10px); left: 50%; z-index: 30; width: 34px; height: 34px; opacity: 0; pointer-events: none; transform: translate(-50%, -44px); }
-.ptr img { display: block; width: 100%; height: 100%; }
-.ptr.spin img { animation: ptr-spin .9s linear infinite; }
-@keyframes ptr-spin { to { transform: rotate(360deg); } }
+.ptr { position: fixed; top: calc(env(safe-area-inset-top) + 10px); left: 50%; z-index: 30; width: 28px; height: 28px; opacity: 0; pointer-events: none; transform: translate(-50%, -44px); }
 .ptr-back { transition: transform .38s var(--ease), opacity .3s var(--ease); }
+
+/* 로딩 표시: 막대 12개 (아이폰과 같은 모양), 돌 때는 밝은 막대가 한 칸씩 돌아가요 */
+.spinner { position: relative; display: block; width: 100%; height: 100%; }
+.spinner i { position: absolute; left: 50%; top: 0; width: 8%; height: 28%; margin-left: -4%; border-radius: 999px; background: var(--text-secondary); transform-origin: 50% 178%; opacity: 0; }
+.spinner i:nth-child(1) { transform: rotate(0deg); } .spinner i:nth-child(2) { transform: rotate(30deg); } .spinner i:nth-child(3) { transform: rotate(60deg); }
+.spinner i:nth-child(4) { transform: rotate(90deg); } .spinner i:nth-child(5) { transform: rotate(120deg); } .spinner i:nth-child(6) { transform: rotate(150deg); }
+.spinner i:nth-child(7) { transform: rotate(180deg); } .spinner i:nth-child(8) { transform: rotate(210deg); } .spinner i:nth-child(9) { transform: rotate(240deg); }
+.spinner i:nth-child(10) { transform: rotate(270deg); } .spinner i:nth-child(11) { transform: rotate(300deg); } .spinner i:nth-child(12) { transform: rotate(330deg); }
+@keyframes spoke { from { opacity: 1; } to { opacity: .18; } }
+.ptr.spin .spinner i { animation: spoke 1s linear infinite; }
+.ptr.spin .spinner i:nth-child(1) { animation-delay: -1.000s; }
+.ptr.spin .spinner i:nth-child(2) { animation-delay: -0.917s; }
+.ptr.spin .spinner i:nth-child(3) { animation-delay: -0.833s; }
+.ptr.spin .spinner i:nth-child(4) { animation-delay: -0.750s; }
+.ptr.spin .spinner i:nth-child(5) { animation-delay: -0.667s; }
+.ptr.spin .spinner i:nth-child(6) { animation-delay: -0.583s; }
+.ptr.spin .spinner i:nth-child(7) { animation-delay: -0.500s; }
+.ptr.spin .spinner i:nth-child(8) { animation-delay: -0.417s; }
+.ptr.spin .spinner i:nth-child(9) { animation-delay: -0.333s; }
+.ptr.spin .spinner i:nth-child(10) { animation-delay: -0.250s; }
+.ptr.spin .spinner i:nth-child(11) { animation-delay: -0.167s; }
+.ptr.spin .spinner i:nth-child(12) { animation-delay: -0.083s; }
+
+/* 비서 확인 버튼: 테두리 없는 글자 버튼 */
+.as-log .as-chips { gap: 2px; margin: 6px 0 0 2px; }
+.as-act { border: 0; background: none; padding: 4px 9px; border-radius: 8px; font: inherit; font-size: 13px; font-weight: 500; color: var(--im-blue); cursor: pointer; }
+.as-act.primary { font-weight: 700; }
+.as-act:hover { background: color-mix(in srgb, var(--im-blue) 10%, transparent); }
+.as-log .as-chips + .fb, .as-log .fb-done + .fb { margin-top: 2px; }
+
+/* 말풍선: 안쪽 여백과 말풍선 사이를 조금 넉넉하게 */
+.as-log .msg { padding: 9px 15px; margin-top: 14px; line-height: 1.42; }
+.as-log .msg.cont { margin-top: 4px; }
+
+/* 휴대폰 비서 버튼: 회색, 살짝 비치게 */
+.fab { background: #8e8e93; color: #fff; opacity: .8; box-shadow: 0 4px 14px rgb(0 0 0 / .14); }
+
+/* 오늘 맨 위 비서 칸: 이름 대신 작은 로고 */
+.ask-label img { display: block; width: 22px; height: 22px; }

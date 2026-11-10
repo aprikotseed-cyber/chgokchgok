@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261111h';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111h';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111h';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111h';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111h';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111h';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111h';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111h';
-import { ask, outflowsBetween } from './assistant.js?v=20261111h';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111h';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111h';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111h';
-import { createGoogle } from './google.js?v=20261111h';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111h';
-import { createDemoGoogle } from './google-demo.js?v=20261111h';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111h';
+import { connect, isDemo } from './store.js?v=20261111i';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111i';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111i';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111i';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111i';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111i';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111i';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111i';
+import { ask, outflowsBetween } from './assistant.js?v=20261111i';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111i';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111i';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111i';
+import { createGoogle } from './google.js?v=20261111i';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111i';
+import { createDemoGoogle } from './google-demo.js?v=20261111i';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111i';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -311,7 +311,7 @@ const dday = (n) => (n === 0 ? '오늘' : `D-${n}`);
 function viewHome() {
   return `
   <form id="home-ask" class="ask-box" autocomplete="off">
-    <label for="home-ask-input" class="ask-label">비서</label>
+    <label for="home-ask-input" class="ask-label"><img src="assistant-mark.png" alt="비서" width="22" height="22"></label>
     <textarea id="home-ask-input" rows="3" enterkeyhint="send" aria-label="비서에게 메시지"></textarea>
     <button class="ask-send" type="submit">보내기</button>
   </form>
@@ -1721,7 +1721,9 @@ let lastTab = '';
 function pullToRefresh() {
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   if (!standalone || !matchMedia('(pointer: coarse)').matches) return;
-  const ind = Object.assign(document.createElement('div'), { className: 'ptr', innerHTML: '<img src="logo-mark.png" alt="">' });
+  // 아이폰처럼 가는 막대 12개가 둥글게 놓인 로딩 표시. 당길수록 막대가 하나씩 생기고, 놓으면 돌아요
+  const ind = Object.assign(document.createElement('div'), { className: 'ptr', innerHTML: `<span class="spinner">${'<i></i>'.repeat(12)}</span>` });
+  const spokes = ind.querySelectorAll('i');
   document.body.append(ind);
   const view = $('#view');
   const GO = 70;   // 이만큼 당기면 새로고침
@@ -1735,7 +1737,8 @@ function pullToRefresh() {
     view.style.transform = dist ? `translateY(${dist}px)` : '';
     const p = Math.min(1, dist / GO);
     ind.style.opacity = String(p);
-    ind.style.transform = `translate(-50%, ${dist - 44}px) rotate(${dist * 3}deg) scale(${0.6 + p * 0.4})`;
+    ind.style.transform = `translate(-50%, ${dist - 44}px)`;
+    if (!ind.classList.contains('spin')) spokes.forEach((s, i) => { s.style.opacity = i < Math.round(p * 12) ? String(0.25 + (i / 12) * 0.75) : '0'; });
   };
   document.addEventListener('touchstart', (e) => {
     y0 = null;
@@ -1761,6 +1764,7 @@ function pullToRefresh() {
     if (d < GO) { d = 0; draw(0, true); return; }
     busy = true;
     draw(GO * 0.8, true);
+    spokes.forEach((x) => { x.style.opacity = ''; }); // 이제 애니메이션이 맡아요
     ind.classList.add('spin');
     if (navigator.vibrate) navigator.vibrate(8);
     await refreshAll();
@@ -2222,8 +2226,7 @@ function chatHtml(m, i) {
     const verb = { move: '옮기', delete: '지우', memo: '저장하' }[m.action.kind] || '넣';
     const doneText = { move: '구글 캘린더에서 옮겼어요.', delete: '구글 캘린더에서 지웠어요.', task: '구글 태스크에 넣었어요.', memo: '메모에 저장했어요.' }[m.action.kind] || '구글 캘린더에 넣었어요.';
     if (m.done) act = `<p class="fb-done${after}">${{ ok: doneText, fail: `${verb}지 못했어요. 다시 해 볼까요?`, cancel: `${verb}지 않았어요.`, edit: '입력창에서 고쳐서 넣어 주세요.', busy: `${verb}는 중…` }[m.done]}</p>`;
-    if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="pill primary" data-act="do" data-i="${i}">${verb}기</button>${m.action.kind === 'event' ? `<button type="button" class="pill" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="pill" data-act="cancel" data-i="${i}">취소</button></div>`;
-    fb = '';
+    if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="as-act primary" data-act="do" data-i="${i}">${verb}기</button>${m.action.kind === 'event' ? `<button type="button" class="as-act" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="as-act" data-act="cancel" data-i="${i}">취소</button></div>`;
   }
   return `<div class="msg bot${grp}${pop}">${text}</div>${act}${fb ? fb.replace(/^<(\w+) class="/, `<$1 class="${after.trim()} `) : ''}`;
 }
