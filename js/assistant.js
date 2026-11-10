@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261111m';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261111m';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261111m';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261111m';
-import { won, wonExact, mdw, pct } from './format.js?v=20261111m';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261111m';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261111n';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261111n';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261111n';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261111n';
+import { won, wonExact, mdw, pct } from './format.js?v=20261111n';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261111n';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -81,6 +81,16 @@ export function parseTime(q, now) {
   if (mdm && Number(mdm[1]) <= 12) {
     let d = new Date(y, Number(mdm[1]) - 1, Number(mdm[2]));
     if (d < new Date(y, m, t.getDate() - 30)) d = new Date(y + 1, d.getMonth(), d.getDate());
+    return { ...day(d), label: md(d) };
+  }
+  // '3일 뒤', '10일 후'
+  const after = q.match(/(\d{1,3})일(뒤|후)/);
+  if (after) { const d = new Date(y, m, t.getDate() + Number(after[1])); return { ...day(d), label: md(d) }; }
+  // '26일'만 말하면 이번 달 26일, 이미 지났으면 다음 달 ('30일 동안'처럼 기간은 빼요)
+  const dm = q.match(/(?:^|[^\d월])(\d{1,2})일(?!동안|간|째|치|전)/);
+  if (dm && Number(dm[1]) >= 1 && Number(dm[1]) <= 31) {
+    let d = new Date(y, m, Number(dm[1]));
+    if (d < t) d = new Date(y, m + 1, Number(dm[1]));
     return { ...day(d), label: md(d) };
   }
   if (/이번주|금주/.test(q)) return { kind: 'range', start: t, end: new Date(y, m, t.getDate() + 6 - dow), label: '이번 주' };
@@ -205,6 +215,11 @@ export function ask(question, data, market = {}, now = new Date(), agenda = null
     return { it, score };
   }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
 
+  // '12월 2일 부장회식'처럼 날짜와 할 거리만 말하면: 일정인지 할일인지 물어봐요
+  if (!scored.length && !ctx.ents.length && ctx.time?.kind === 'day' && agenda) {
+    const r = chooseKind(ctx);
+    if (r) return r;
+  }
   // 시간만 있고 묻는 게 없으면: 일정을 연결했으면 그날 일정(나갈 돈 포함), 아니면 나갈 돈
   if (!scored.length && ctx.time && !ctx.ents.length) return agenda ? H.schedule(ctx) : H.upcoming(ctx);
   // 묻는 말 없이 항목 이름만 있으면 그 항목 요약
@@ -697,10 +712,12 @@ function addAnswer(ctx, now) {
   const isTask = /할일|투두|todo|해야/.test(ctx.q);
   const body = stripCommand(ctx.raw);
   if (isTask) {
-    const { title, due, repeat, time } = parseQuickTask(body, now);
+    const p = parseQuickTask(body, now);
+    const { title, repeat, time } = p;
     if (!title) return { text: '어떤 할일을 넣을까요? 예: ‘금요일까지 보고서 할일 추가해줘’' };
+    const due = p.due || ymd(ctx.now); // 날짜를 말하지 않으면 오늘 할일로
     return {
-      text: `이 할일을 넣을까요?\n· ${title}${due ? ` (${mdw(fromKey(due))}${time ? ` ${time}` : ''}까지)` : time ? ` (${time})` : ' (날짜 없음)'}${repeat ? `\n· 반복: ${repeatLabel(repeat, due)} (끝내면 다음 차례를 만들어요)` : ''}`,
+      text: `이 할일을 넣을까요?\n· ${title} (${mdw(fromKey(due))}${time ? ` ${time}` : ''}까지)${repeat ? `\n· 반복: ${repeatLabel(repeat, due)} (끝내면 다음 차례를 만들어요)` : ''}${p.due ? '' : '\n날짜를 말씀하지 않아서 오늘 할일로 넣을게요.'}`,
       action: { kind: 'task', title, due, ...(time ? { time } : {}), ...(repeat ? { repeat } : {}) },
     };
   }
@@ -713,6 +730,28 @@ function addAnswer(ctx, now) {
     text: `이 일정을 넣을까요?\n· ${eventLine(ev)}${p.repeat ? `\n· 반복: ${repeatLabel(p.repeat, ev.date)}` : ''}\n· 캘린더: ${cal?.name || want}${p.date ? '' : '\n날짜를 말씀하지 않아서 오늘로 넣을게요.'}${p.allDay ? '\n시간을 말씀하지 않아서 종일 일정이에요.' : ''}`,
     action: { kind: 'event', ev: { ...ev, calName: cal?.name || want } },
   };
+}
+
+/** 날짜 + 할 거리만 말했을 때: 일정으로 넣을지 할일로 넣을지 고르게 해요 */
+const ASKING = /뭐|무슨|무엇|언제|있어|있나|있니|있지|없어|몇|얼마|어때|알려|보여|일정|할일|스케줄|약속|\?/;
+function chooseKind(ctx) {
+  const body = stripCommand(ctx.raw);
+  const { title } = parseEventInput(body, ctx.now, ctx.agenda.calendars || [], ctx.agenda.keywords || []);
+  if (!title || norm(title).length < 2 || ASKING.test(title) || ASKING.test(ctx.raw)) return null;
+  const base = String(ctx.raw).trim().replace(/[.!~]+$/, '');
+  return {
+    text: `‘${title}’, ${ctx.time.label}에 넣을게요. 할일인가요, 일정인가요? 말씀해 주시면 제가 입력해드릴게요.`,
+    choose: [{ label: '일정', q: `${base} 일정 추가해줘` }, { label: '할일', q: `${base} 할일 추가해줘` }],
+  };
+}
+
+/** 앞에서 '일정인가요, 할일인가요?'라고 물었을 때 '일정'·'할일이야' 같은 짧은 대답 → 고른 쪽 질문 */
+export function pickChoice(answer, choose) {
+  if (!choose?.length) return null;
+  const a = norm(answer).replace(/(이야|이에요|예요|요|로|으로|로해줘|로넣어줘|넣어줘|해줘|입니다)+$/, '');
+  if (/^(일정|약속|스케줄|캘린더)$/.test(a)) return choose.find((c) => c.label === '일정')?.q || null;
+  if (/^(할일|할거|투두|todo)$/.test(a)) return choose.find((c) => c.label === '할일')?.q || null;
+  return null;
 }
 
 // ───── 일정 옮기기·지우기 ─────

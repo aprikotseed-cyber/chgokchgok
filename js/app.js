@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261111m';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111m';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111m';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111m';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111m';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111m';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111m';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111m';
-import { estimateMonths } from './estimate.js?v=20261111m';
-import { ask, outflowsBetween } from './assistant.js?v=20261111m';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111m';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111m';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111m';
-import { createGoogle } from './google.js?v=20261111m';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111m';
-import { createDemoGoogle } from './google-demo.js?v=20261111m';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111m';
+import { connect, isDemo } from './store.js?v=20261111n';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111n';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111n';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111n';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111n';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111n';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111n';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111n';
+import { estimateMonths } from './estimate.js?v=20261111n';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111n';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111n';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111n';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111n';
+import { createGoogle } from './google.js?v=20261111n';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111n';
+import { createDemoGoogle } from './google-demo.js?v=20261111n';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111n';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -2240,6 +2240,8 @@ function chatHtml(m, i) {
     if (m.done) act = `<p class="fb-done${after}">${{ ok: doneText, fail: `${verb}지 못했어요. 다시 해 볼까요?`, cancel: `${verb}지 않았어요.`, edit: '입력창에서 고쳐서 넣어 주세요.', busy: `${verb}는 중…` }[m.done]}</p>`;
     if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="as-act primary" data-act="do" data-i="${i}">${verb}기</button>${m.action.kind === 'event' ? `<button type="button" class="as-act" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="as-act" data-act="cancel" data-i="${i}">취소</button></div>`;
   }
+  // 일정인지 할일인지 고르기
+  if (m.choose && !m.chosen) act += `<div class="as-chips${after}">${m.choose.map((c) => `<button type="button" class="as-act" data-q="${esc(c.q)}" data-say="${esc(c.label)}">${esc(c.label)}</button>`).join('')}</div>`;
   return `<div class="msg bot${grp}${pop}">${text}</div>${act}${fb ? fb.replace(/^<(\w+) class="/, `<$1 class="${after.trim()} `) : ''}`;
 }
 
@@ -2267,9 +2269,13 @@ function askAssistant(q) {
   renderChat();
   // 일정·할일도 함께 (구글을 연결해 받아 둔 것)
   const ag = state.agenda ? { events: agendaEvents(), tasks: state.agenda.tasks || [], until: agendaUntil(state.agenda), calendars: writableCals(), keywords: gset().keywords || [] } : null;
-  const a = ask(q, state.data, state.market, new Date(), ag, state.memos);
+  // 바로 앞에서 '일정인가요, 할일인가요?'라고 물었으면 '일정'·'할일' 한마디로 대답할 수 있어요
+  const last = [...chat].reverse().find((m) => !m.me && !m.typing);
+  const picked = last?.choose && !last.chosen ? pickChoice(q, last.choose) : null;
+  if (last?.choose) last.chosen = true;
+  const a = ask(picked || q, state.data, state.market, new Date(), ag, state.memos);
   // 모르는 질문은 저절로 개선 목록에
-  if (a.unknown) saveFeedback({ q, kind: 'unknown' });
+  if (a.unknown) saveFeedback({ q: picked || q, kind: 'unknown' });
   replying = replying.then(async () => {
     if (!reduceMotion()) {
       await wait(180);
@@ -2279,7 +2285,7 @@ function askAssistant(q) {
       await wait(Math.min(1100, 450 + a.text.length * 6)); // 답이 길수록 조금 더 '쓰는' 시간
       chat.splice(chat.indexOf(typing), 1);
     }
-    const msg = { text: a.text, chips: a.chips, q, unknown: !!a.unknown, action: a.action };
+    const msg = { text: a.text, chips: a.chips, q: picked || q, unknown: !!a.unknown, action: a.action, choose: a.choose };
     chat.push(msg);
     renderChat();
     if (a.action?.kind === 'memo') doAction(msg, 'do'); // 메모는 확인 없이 바로 저장
@@ -2318,7 +2324,7 @@ function bind() {
   $('#assistant').addEventListener('click', (e) => {
     if (e.target === $('#assistant')) $('#assistant').close();
     const chip = e.target.closest('[data-q]');
-    if (chip) askAssistant(chip.dataset.q);
+    if (chip) askAssistant(chip.dataset.say || chip.dataset.q);
     const act = e.target.closest('[data-act]');
     if (act) doAction(chat[act.dataset.i], act.dataset.act);
     const fb = e.target.closest('button.fb');

@@ -70,7 +70,7 @@ test('비서: 일정·할일 넣기는 확인 카드로', () => {
   const b = ask('내일 학부모 상담 잡아 줘', data, {}, now, ag);
   assert.deepEqual([b.action.ev.title, b.action.ev.date, b.action.ev.allDay, b.action.ev.calName], ['학부모 상담', '2026-11-10', true, 'Work']);
   const c = ask('우유 사기 할일 추가해줘', data, {}, now, ag);
-  assert.deepEqual(c.action, { kind: 'task', title: '우유 사기', due: '' });
+  assert.deepEqual(c.action, { kind: 'task', title: '우유 사기', due: '2026-11-09' }); // 날짜를 말하지 않으면 오늘 할일로
   const d = ask('할일에 금요일까지 보고서 넣어줘', data, {}, now, ag);
   assert.deepEqual(d.action, { kind: 'task', title: '보고서', due: '2026-11-13' });
   assert.match(ask('헬스 넣어줘', data, {}, now, null).text, /연결되지 않았어요/);
@@ -123,3 +123,44 @@ test('비서: 메모 남기기·찾기', () => {
   assert.match(M('메모 보여줘').text, /메모 2개 중[\s\S]*읽을 책[\s\S]*와이파이/); // 고정 먼저
   assert.equal(M('내일 3시 상담 넣어줘').action.kind, 'event'); // 넣어줘는 그대로 일정
 });
+
+// ───── 2026-11-10 개선 요청 ─────
+import { ask as ask2, pickChoice, parseTime as pt } from '../js/assistant.js';
+{
+  const now = new Date(2026, 10, 10, 9);
+  const ag = { events: [], tasks: [], calendars: [{ name: 'Work' }, { name: 'Life' }], keywords: [] };
+  const { test: t2 } = await import('node:test');
+  const assert2 = (await import('node:assert/strict')).default;
+
+  t2('날짜 + 할 거리만 말하면 일정인지 할일인지 물어봐요', () => {
+    for (const [q, label] of [['12월 2일 부장회식', '12월 2일 (수)'], ['26일 동학년회식', '11월 26일 (목)']]) {
+      const a = ask2(q, {}, {}, now, ag);
+      assert2.match(a.text, /할일인가요, 일정인가요\?/);
+      assert2.ok(a.text.includes(label), a.text);
+      assert2.equal(a.choose.length, 2);
+      const ev = ask2(pickChoice('일정', a.choose), {}, {}, now, ag);
+      assert2.equal(ev.action.kind, 'event');
+      const tk = ask2(pickChoice('할일이야', a.choose), {}, {}, now, ag);
+      assert2.equal(tk.action.kind, 'task');
+    }
+    assert2.ok(!ask2('내일 일정 뭐야?', {}, {}, now, ag).choose);
+    assert2.ok(!ask2('12월 2일 뭐 있어?', {}, {}, now, ag).choose);
+    assert2.equal(pickChoice('음 글쎄', [{ label: '일정', q: 'x' }]), null);
+  });
+
+  t2("'26일', '3일 뒤'도 날짜로 알아들어요", () => {
+    assert2.equal(pt('26일', now).start.getDate(), 26);
+    assert2.equal(pt('5일', now).start.getMonth(), 11); // 지났으면 다음 달
+    assert2.equal(pt('3일뒤', now).start.getDate(), 13);
+    assert2.equal(pt('30일동안', now), null);
+  });
+
+  t2('날짜 없이 할일을 넣으면 오늘 할일로', () => {
+    const a = ask2('빼빼로 사기 할일 추가', {}, {}, now, ag);
+    assert2.equal(a.action.kind, 'task');
+    assert2.equal(a.action.title, '빼빼로 사기');
+    assert2.equal(a.action.due, '2026-11-10');
+    assert2.ok(!a.action.time);
+    assert2.match(a.text, /오늘 할일로/);
+  });
+}
