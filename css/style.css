@@ -876,3 +876,63 @@ dialog.lock.pin-mode .lock-logo { width: 52px; height: 52px; }
 .check-line { display: flex; justify-content: space-between; font-size: 14px; }
 .check-line .ok { color: #1a9a6c; }
 .check-line .bad { color: var(--danger); }
+
+/* ═════════ 비서: 아이메시지 ═════════ PC·휴대폰 같은 모양 */
+:root { --im-blue: #0a84ff; --im-gray: #e9e9eb; --im-bg: #ffffff; --im-text: #000000; --im-line: #d1d1d6; }
+@media (prefers-color-scheme: dark) { :root { --im-gray: #262629; --im-bg: #0d0d0d; --im-text: #ffffff; --im-line: #38383a; } }
+
+dialog.assistant, dialog.assistant[open] {
+  width: min(420px, calc(100% - 24px)); max-width: none; height: min(720px, calc(100dvh - 24px));
+  margin: auto; border-radius: 26px; background: var(--im-bg); transform-origin: 50% 60%;
+  box-shadow: 0 24px 60px rgb(0 0 0 / .18);
+}
+@media (max-width: 600px) {
+  dialog.assistant[open] { animation: pop-in .34s var(--ease) both; }
+  dialog.assistant.closing { animation: pop-out .19s var(--ease-in) forwards; }
+}
+.as-head {
+  position: relative; display: flex; justify-content: center; align-items: center; padding: 14px 16px 10px;
+  background: color-mix(in srgb, var(--im-bg) 88%, transparent); backdrop-filter: saturate(1.8) blur(20px); -webkit-backdrop-filter: saturate(1.8) blur(20px);
+  border-bottom: .5px solid var(--im-line);
+}
+.as-who { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.as-who img { width: 40px; height: 40px; padding: 7px; border-radius: 50%; background: var(--im-gray); }
+.as-who b { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+.as-head #assistant-close { position: absolute; right: 10px; top: 10px; }
+
+.as-log { gap: 0; padding: 12px 18px 16px; background: var(--im-bg); }
+.as-log .msg {
+  position: relative; isolation: isolate; max-width: 76%; margin-top: 10px; padding: 7px 13px;
+  border-radius: 18px; font-size: 16px; line-height: 1.36; letter-spacing: -0.012em;
+}
+.as-log .msg.cont { margin-top: 2px; }
+.as-log .msg.me { background: var(--im-blue); color: #fff; border-bottom-right-radius: 18px; }
+.as-log .msg.bot { background: var(--im-gray); color: var(--im-text); border-bottom-left-radius: 18px; }
+/* 꼬리: 말풍선 색 조각 위에 배경색 조각을 덮어 곡선을 만들어요 */
+.as-log .msg.tail::before, .as-log .msg.tail::after { content: ''; position: absolute; bottom: 0; height: 20px; z-index: -1; }
+.as-log .msg.me.tail::before { right: -7px; width: 20px; background: var(--im-blue); border-bottom-left-radius: 16px 14px; }
+.as-log .msg.me.tail::after { right: -10px; width: 10px; background: var(--im-bg); border-bottom-left-radius: 10px; }
+.as-log .msg.bot.tail::before { left: -7px; width: 20px; background: var(--im-gray); border-bottom-right-radius: 16px 14px; }
+.as-log .msg.bot.tail::after { left: -10px; width: 10px; background: var(--im-bg); border-bottom-right-radius: 10px; }
+.as-log .msg.typing { padding: 12px 14px; }
+.as-log .msg.typing i { background: color-mix(in srgb, var(--im-text) 40%, transparent); }
+
+.as-log .fb, .as-log .fb-done { align-self: flex-start; margin: 5px 0 0 12px; text-decoration: none; }
+.as-log .fb-form { margin: 6px 0 0; }
+.as-log .as-chips { margin: 8px 0 0 4px; gap: 6px; }
+.as-log .pill { padding: 6px 14px; border-radius: 16px; font-size: 14px; font-weight: 600; color: var(--im-blue); background: none; border: 1px solid color-mix(in srgb, var(--im-blue) 35%, transparent); }
+.as-log .pill.primary { color: #fff; background: var(--im-blue); border-color: var(--im-blue); }
+
+.as-form { padding: 8px 12px calc(10px + env(safe-area-inset-bottom)); background: var(--im-bg); border-top: .5px solid var(--im-line); }
+.as-form input {
+  height: 38px; padding: 0 15px; border-radius: 19px; font-size: 16px;
+  color: var(--im-text); background: var(--im-bg); border: 1px solid var(--im-line);
+}
+.as-form input:focus { border-color: color-mix(in srgb, var(--im-line) 40%, var(--text-muted)); background: var(--im-bg); }
+
+/* 당겨서 새로고침 */
+.ptr { position: fixed; top: calc(env(safe-area-inset-top) + 10px); left: 50%; z-index: 30; width: 34px; height: 34px; opacity: 0; pointer-events: none; transform: translate(-50%, -44px); }
+.ptr img { display: block; width: 100%; height: 100%; }
+.ptr.spin img { animation: ptr-spin .9s linear infinite; }
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
+.ptr-back { transition: transform .38s var(--ease), opacity .3s var(--ease); }

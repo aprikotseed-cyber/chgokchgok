@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261111f';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261111f';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261111f';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261111f';
-import { won, wonExact, mdw, pct } from './format.js?v=20261111f';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261111f';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261111h';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261111h';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261111h';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261111h';
+import { won, wonExact, mdw, pct } from './format.js?v=20261111h';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261111h';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -315,7 +315,7 @@ const H = {
     return { text, chips: [ask1('이번 달 남은 출금 얼마야?')] };
   },
 
-  hello: () => ({ text: '네, 덕준님. 자산·대출·고정지출·주식에 대해 물어보시면 입력해 두신 내용으로 바로 알려드릴게요.', chips: SUGGEST }),
+  hello: () => ({ text: '네, 덕준님. 일정·할일·메모부터 자산·대출까지 편하게 말씀해 주세요.' }),
 
   help: () => ({
     text: '입력해 두신 내용으로 이런 걸 알려드릴 수 있어요.\n· 일정: 오늘·내일·요일·이번 주 일정, 일정이 언제인지\n· 일정·할일 넣기: ‘금요일 7시 헬스 넣어줘’, ‘우유 사기 할일 추가해줘’\n· 할일: 오늘·이번 주·밀린 할일\n· 총자산, 저축액, 주택 시세\n· 대출: 다음 상환일과 금액, 남은 원금, 회차, 낸 이자, 다 갚는 날\n· 고정지출: 합계, 가장 먼저 빠져나가는 것, 항목별 출금일, 분류별 합계\n· 이번 달·이번 주·내일 나갈 돈\n· 주식: 묶음별·종목별 수익, 환율과 환율 효과\n· 연도별 저축·상환 기록',
