@@ -15,6 +15,7 @@ export const numEmoji = (n) => (n === 10 ? '🔟' : String(n).split('').map((d) 
  *  └ 할일 1️⃣ : 특별중도해지
  *  └ 지난 할일 : 1️⃣개 있어요. 참고!
  *  └ 오늘 출금 : 정수기
+ *  (없으면 '└ 일정 ❌', '└ 할일 ❌')
  */
 export function morningBriefing(data, agenda, today) {
   const key = dayKey(today);
@@ -24,11 +25,11 @@ export function morningBriefing(data, agenda, today) {
     if (agendaUntil(agenda) >= key) {
       const evs = eventsOn(visibleEvents(agenda, data.settings?.google), key)
         .map((e) => `${e.allDay ? '' : `${e.time} `}${e.title}${e.partner ? '(반려자)' : ''}`);
-      lines.push(`└ 일정 ${numEmoji(evs.length)} : ${evs.length ? list(evs) : '오늘은 없어요'}`);
+      lines.push(evs.length ? `└ 일정 ${numEmoji(evs.length)} : ${list(evs)}` : '└ 일정 ❌');
     } else lines.push('└ 일정 : 앱을 한 번 열면 새로 받아와요');
     const g = groupTasks(agenda.tasks || [], key);
     const todo = g.today.map((t) => `${t.time ? `${t.time} ` : ''}${t.title}`);
-    lines.push(`└ 할일 ${numEmoji(todo.length)} : ${todo.length ? list(todo) : '오늘 마감은 없어요'}`);
+    lines.push(todo.length ? `└ 할일 ${numEmoji(todo.length)} : ${list(todo)}` : '└ 할일 ❌');
     if (g.overdue.length) lines.push(`└ 지난 할일 : ${numEmoji(g.overdue.length)}개 있어요. 참고!`);
   }
   // 오늘이 출금일·상환일인 것만 (이름만)

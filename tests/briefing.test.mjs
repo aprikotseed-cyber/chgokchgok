@@ -38,6 +38,9 @@ test('아침 브리핑: 상환일 당일에는 상환도, 연결 전에는 돈 �
   assert.equal(morningBriefing(data, null, d14).body, '└ 오늘 상환 : 신용대출');
   assert.equal(morningBriefing(data, null, new Date(2026, 10, 12)), null);
   assert.match(morningBriefing(data, { ...agenda, syncedAt: new Date(2026, 8, 1).getTime() }, today).body, /앱을 한 번 열면/);
+  // 일정·할일이 없는 날
+  const empty = morningBriefing({ fixed: [], debts: [] }, { ...agenda, events: [], tasks: [] }, today);
+  assert.equal(empty.body, '└ 일정 ❌\n└ 할일 ❌');
 });
 
 test('숫자 이모지', async () => {
