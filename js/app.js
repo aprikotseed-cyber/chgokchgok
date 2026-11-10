@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110y';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110y';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110y';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110y';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110y';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110y';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110y';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110y';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110y';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110y';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110y';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110y';
-import { createGoogle } from './google.js?v=20261110y';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, disableLock, setLockAfter } from './lock.js?v=20261110y';
-import { createDemoGoogle } from './google-demo.js?v=20261110y';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110y';
+import { connect, isDemo } from './store.js?v=20261110z';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110z';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110z';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110z';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110z';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110z';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110z';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110z';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110z';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110z';
+import { addFeedback, feedbackText } from './feedback.js?v=20261110z';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110z';
+import { createGoogle } from './google.js?v=20261110z';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261110z';
+import { createDemoGoogle } from './google-demo.js?v=20261110z';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110z';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -976,7 +976,7 @@ function viewSettings() {
   <div class="cols"><div class="col-main">
   ${section('구글 캘린더·할일', googleSettings())}
   ${section('아이폰 단축어', shortcutPanel())}
-  ${section('Face ID 잠금', lockSettings())}
+  ${section('화면 잠금', lockSettings())}
   ${section('비서 알림', `<div class="panel">
       <p class="pad">매일 오전 8시쯤 <b>아침 브리핑</b>을 보내 드려요: 오늘 일정, 오늘 마감 할일과 지난 할일, 그리고 <b>오늘이 상환일·출금일인</b> 대출 상환과 고정지출. 앱 화면(PC 알림 카드)에서는 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p>
       ${pushBody}
@@ -1154,6 +1154,8 @@ function toggleTask(id) {
   if (!t || t.id.startsWith('tmp-')) return;
   const done = !t.done;
   const rule = taskRule(t);
+  state.justToggled = done ? id : '';
+  setTimeout(() => { state.justToggled = ''; }, 0);
   taskOp(() => Object.assign(t, { done, completedAt: done ? today() : '' }),
     (g, l) => g.patchTask(l, id, done ? { status: 'completed' } : { status: 'needsAction', completed: null }), listOf(id))
     .then((ok) => { if (ok && done && rule) makeNextTask(t, rule); });
@@ -1431,7 +1433,7 @@ function taskRow(t) {
   const rule = taskRule(t);
   const meta = [label ? `<span class="${late ? 'late' : ''}">${label}${t.time ? ` ${t.time}` : ''}</span>` : t.time ? t.time : '', rule ? esc(repeatLabel(rule, t.due)) : '', esc(list), esc(t.notes.split('\n')[0])].filter(Boolean).join(' · ');
   return `<div class="row task${t.done ? ' done' : ''}">
-    <button class="tcheck" data-action="task-toggle" data-id="${esc(t.id)}" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title)} ${t.done ? '완료 취소' : '완료'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
+    <button class="tcheck${state.justToggled === t.id ? ' just' : ''}" data-action="task-toggle" data-id="${esc(t.id)}" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title)} ${t.done ? '완료 취소' : '완료'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
     <button class="row-main" data-action="task-edit" data-id="${esc(t.id)}"><span class="row-title">${esc(t.title)}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</button>
   </div>`;
 }
@@ -1495,7 +1497,7 @@ function monthBlock() {
   </span>`;
   return section(`${y === now().getFullYear() ? '' : `${y}년 `}${m}월`, `<div class="panel mcal-wrap">
       <div class="mcal-head">${'일월화수목금토'.split('').map((w, i) => `<span class="${i === 0 ? 'sun' : i === 6 ? 'sat' : ''}">${w}</span>`).join('')}</div>
-      <div class="mcal">${cells.join('')}</div>
+      <div class="mcal${state.calAnim === 'next' || state.calAnim === 'prev' ? ` slide-${state.calAnim}` : ''}">${cells.join('')}</div>
       <div class="mlegend"><span><i style="--c:var(--text-secondary)"></i>일정</span><span><i class="t"></i>할일</span><span><i class="m">₩</i>고정지출·상환</span></div>
     </div>
     ${sel ? dayDetail(sel, evs, money.get(sel) || outflowsBetween(state.data, fromKey(sel), fromKey(sel), now()), tasks.get(sel) || []) : '<p class="hint">날짜를 누르면 그날 일정·할일·나가는 돈을 보여드려요.</p>'}
@@ -1512,7 +1514,7 @@ function dayDetail(key, evs, money, tasks) {
     ...tasks.map(taskRow),
     ...money.map((x) => `<div class="row static ev"><span class="ev-time">${x.loan ? '상환' : '출금'}</span><b class="won">₩</b><span class="row-main"><span class="row-title">${esc(x.name)}</span><span class="row-meta">${x.loan ? '대출 상환' : '고정지출'}</span></span><span class="row-side"><span class="row-value">${wonExact(x.amount)}</span></span></div>`),
   ];
-  return `<div class="panel list day-detail"><div class="mini-head">${key === today() ? '오늘 · ' : ''}${mdw(d)}${state.agenda ? `<button class="link-btn" data-action="cal-add" data-key="${key}">+ 일정</button>` : ''}</div>${rows.length ? rows.join('') : empty('이날은 일정·할일·출금이 없어요.')}</div>`;
+  return `<div class="panel list day-detail${state.calAnim === 'day' ? ' appear' : ''}"><div class="mini-head">${key === today() ? '오늘 · ' : ''}${mdw(d)}${state.agenda ? `<button class="link-btn" data-action="cal-add" data-key="${key}">+ 일정</button>` : ''}</div>${rows.length ? rows.join('') : empty('이날은 일정·할일·출금이 없어요.')}</div>`;
 }
 
 function viewCalendar() {
@@ -1550,16 +1552,20 @@ function viewTasks() {
 function lockSettings() {
   const c = lockConfig();
   if (state.lockOk == null) return '<div class="panel"><p class="hint pad">확인 중…</p></div>';
-  if (!window.PublicKeyCredential && !c) return '<div class="panel"><p class="pad">이 브라우저에서는 생체 인증 잠금을 쓸 수 없어요.</p></div>';
-  // 아이폰 홈 화면 앱은 '지원함'을 제대로 알려주지 않을 때가 있어서, 버튼은 그대로 두고 직접 시도해 봐요
-  if (!c) return `<div class="panel"><p class="pad">앱을 열 때 Face ID를 통과해야 화면이 보이게 해요. 이 기기에만 적용되고, 기기마다 따로 켜요.</p>
-    <div class="pad"><button class="btn primary" data-action="lock-on">이 기기에서 잠금 켜기</button></div>
-    ${state.lockOk ? '' : '<p class="hint pad">이 기기가 생체 인증 지원 여부를 알려주지 않았어요. 버튼을 눌러 시도해 보세요. 아이폰은 설정 → 내 이름 → iCloud → 암호(키체인)가 켜져 있어야 해요.</p>'}</div>`;
+  // 아이폰 홈 화면 앱은 '지원함'을 제대로 알려주지 않을 때가 있어서, Face ID 버튼은 그대로 두고 직접 시도해 봐요
+  if (!c) return `<div class="panel"><p class="pad">앱을 열 때 잠금을 풀어야 화면이 보이게 해요. 이 기기에만 적용되고, 기기마다 따로 켜요.</p>
+    <div class="pad lock-choices">
+      ${window.PublicKeyCredential ? '<button class="btn primary" data-action="lock-on">Face ID·지문으로 잠그기</button>' : ''}
+      <button class="btn${window.PublicKeyCredential ? '' : ' primary'}" data-action="lock-pin">PIN 4자리로 잠그기</button>
+    </div>
+    <p class="hint pad">PC처럼 생체 인증이 없는 기기는 PIN을 쓰세요. 키보드 숫자나 숫자패드로 바로 입력할 수 있어요.${window.PublicKeyCredential && !state.lockOk ? ' 아이폰 Face ID는 설정 → 내 이름 → iCloud → 암호(키체인)가 켜져 있어야 해요.' : ''}</p></div>`;
   const opts = [[0, '바로'], [1, '1분 뒤'], [5, '5분 뒤'], [15, '15분 뒤']];
+  const pin = c.method === 'pin';
   return `<div class="panel list">
-    <div class="row static"><span class="row-main"><span class="row-title">켜짐 · 이 기기</span><span class="row-meta">앱을 열 때, 그리고 다른 앱에 다녀오면 다시 잠가요</span></span><button class="link-btn" data-action="lock-off">끄기</button></div>
-    <div class="pad"><b class="mini-title">다른 앱에 다녀오면 다시 잠그기</b><select id="lock-after" class="select">${opts.map(([v, l]) => `<option value="${v}" ${Number(c.after ?? 1) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-    <p class="hint pad">아이폰 ‘암호’ 앱에 이 사이트의 패스키로 저장돼요. 지우면 잠금을 풀 수 없으니, 그럴 땐 잠금 화면의 ‘다시 로그인하기’를 눌러 주세요.</p>
+    <div class="row static"><span class="row-main"><span class="row-title">${pin ? 'PIN 잠금' : 'Face ID 잠금'} 켜짐 · 이 기기</span><span class="row-meta">앱을 열 때, 그리고 다른 앱·창에 다녀오면 다시 잠가요</span></span>
+      <span class="head-actions">${pin ? '<button class="link-btn" data-action="lock-pin">PIN 바꾸기</button>' : ''}<button class="link-btn" data-action="lock-off">끄기</button></span></div>
+    <div class="pad"><b class="mini-title">다른 앱·창에 다녀오면 다시 잠그기</b><select id="lock-after" class="select">${opts.map(([v, l]) => `<option value="${v}" ${Number(c.after ?? 1) === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    <p class="hint pad">${pin ? 'PIN은 이 기기에만, 알아볼 수 없게 바꿔서 저장해요. 잊으면 잠금 화면의 ‘다시 로그인하기’로 풀 수 있어요.' : '아이폰 ‘암호’ 앱에 이 사이트의 패스키로 저장돼요. 지우면 잠금을 풀 수 없으니, 그럴 땐 잠금 화면의 ‘다시 로그인하기’를 눌러 주세요.'}</p>
   </div>`;
 }
 
@@ -1623,7 +1629,56 @@ function render() {
   renderAlerts();
   const money = navTab(state.tab) === 'money';
   $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : state.tab === 'debts' ? debtsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
+  // 메뉴를 옮겼을 때만 새 화면이 살짝 떠오르며 나타나요 (실시간 갱신 때는 그대로)
+  if (lastTab !== state.tab) {
+    const v = $('#view');
+    v.classList.remove('enter', 'sub');
+    if (lastTab && !reduceMotion()) {
+      void v.offsetWidth;
+      v.classList.add('enter');
+      if (money && navTab(lastTab) === 'money') v.classList.add('sub'); // 자산 안 작은 탭끼리는 탭 줄은 그대로
+      clearTimeout(v._t);
+      v._t = setTimeout(() => v.classList.remove('enter', 'sub'), 700);
+    }
+    lastTab = state.tab;
+  }
   afterRender();
+}
+let lastTab = '';
+
+// ───── 부드러운 움직임 ─────
+/** 입력창·비서 창: 닫힐 때도 살짝 가라앉으며 사라지게 */
+function smoothDialog(d) {
+  const close = d.close.bind(d);
+  d.close = (v) => {
+    if (!d.open || d.classList.contains('closing')) return;
+    if (reduceMotion()) return close(v);
+    d.classList.add('closing');
+    setTimeout(() => { d.classList.remove('closing'); close(v); }, 190);
+  };
+  d.addEventListener('cancel', (e) => { e.preventDefault(); d.close(); });
+}
+
+/** 펼치기·접기: 높이가 부드럽게 늘고 줄어요 */
+function smoothDetails(e) {
+  const sum = e.target.closest('details > summary');
+  if (!sum || reduceMotion() || sum.closest('dialog.lock')) return;
+  const det = sum.parentElement;
+  e.preventDefault();
+  det._anim?.cancel();
+  const from = det.offsetHeight;
+  const opening = !det.open;
+  if (opening) det.open = true;
+  const to = opening ? det.offsetHeight : sum.offsetHeight;
+  det.style.overflow = 'hidden';
+  det.classList.toggle('opening', opening);
+  det._anim = det.animate({ height: [`${from}px`, `${to}px`] }, { duration: 300, easing: 'cubic-bezier(.22,.8,.24,1)' });
+  det._anim.onfinish = () => {
+    if (!opening) det.open = false;
+    det.style.overflow = '';
+    det.classList.remove('opening');
+    det._anim = null;
+  };
 }
 
 // ───────────────────────── PC 알림 카드 ─────────────────────────
@@ -1659,6 +1714,7 @@ function renderSync() {
 }
 
 function afterRender() {
+  state.calAnim = ''; // 달력 움직임은 한 번만
   if (state.tab === 'money') {
     const c = $('#chart-trend');
     const mode = state.data.settings?.trendMode || 'day';
@@ -1903,9 +1959,17 @@ function deleteItem() {
 function toast(msg) {
   const t = $('#toast');
   t.textContent = msg;
+  t.classList.remove('out');
   t.hidden = false;
+  t.style.animation = 'none';
+  void t.offsetWidth;
+  t.style.animation = '';
   clearTimeout(t._t);
-  t._t = setTimeout(() => (t.hidden = true), 3200);
+  clearTimeout(t._o);
+  t._t = setTimeout(() => {
+    t.classList.add('out');
+    t._o = setTimeout(() => { t.hidden = true; t.classList.remove('out'); }, reduceMotion() ? 0 : 220);
+  }, 3200);
 }
 
 /** 날짜가 바뀌면 D-day·남은 금액이 맞도록 다시 그리기 */
@@ -2190,7 +2254,8 @@ function bind() {
       catch (err) { toast(err.name === 'NotAllowedError' ? 'Face ID 등록이 취소됐거나 허용되지 않았어요. iCloud 암호(키체인)가 켜져 있는지 확인해 주세요.' : `잠금을 켜지 못했어요 (${err.name}): ${err.message}`); }
       render();
     }
-    if (a === 'lock-off' && confirm('이 기기에서 Face ID 잠금을 끌까요?')) { disableLock(); toast('잠금을 껐어요.'); render(); }
+    if (a === 'lock-pin') { if (await enablePin()) toast('PIN 잠금을 켰어요. 다음에 앱을 열 때 PIN을 입력해 주세요.'); render(); }
+    if (a === 'lock-off' && confirm('이 기기에서 잠금을 끌까요?')) { disableLock(); toast('잠금을 껐어요.'); render(); }
     if (a === 'g-disconnect' && confirm('이 기기에서 구글 연결을 끊을까요? 저장해 둔 일정·할일은 계속 보여요.')) { gapi()?.disconnect(); render(); }
     if (a === 'g-client-save') {
       const v = $('#g-client').value.trim();
@@ -2222,7 +2287,7 @@ function bind() {
       toast(hide ? `‘${c.name}’을(를) 숨겼어요. 아래 ‘숨긴 캘린더’에서 다시 보이게 할 수 있어요.` : `‘${c.name}’을(를) 다시 보여줘요. 다음에 받아올 때부터 일정이 보여요.`);
       if (!hide) { if (gConnected()) syncAgenda(false); else if (autoLinked()) requestAgendaSync(); }
     }
-    if (a === 'cal-day') { state.calSel = state.calSel === b.dataset.key ? '' : b.dataset.key; state.calMonth = b.dataset.key.slice(0, 7); render(); }
+    if (a === 'cal-day') { state.calSel = state.calSel === b.dataset.key ? '' : b.dataset.key; state.calMonth = b.dataset.key.slice(0, 7); state.calAnim = 'day'; render(); }
     if (a === 'cal-month') {
       const n = Number(b.dataset.key);
       if (!n) { state.calMonth = today().slice(0, 7); state.calSel = ''; } else {
@@ -2230,6 +2295,7 @@ function bind() {
         const d = new Date(yy, mm - 1 + n, 1);
         state.calMonth = ymd(d).slice(0, 7);
         state.calSel = '';
+        state.calAnim = n > 0 ? 'next' : 'prev';
       }
       render();
     }
@@ -2434,6 +2500,9 @@ function bind() {
     }
   });
 
+  smoothDialog($('#editor'));
+  smoothDialog($('#assistant'));
+  document.addEventListener('click', smoothDetails);
   const dlg = $('#editor');
   $('#editor-form').addEventListener('submit', (e) => { e.preventDefault(); if (saveForm() !== false) dlg.close(); });
   $('#editor-cancel').addEventListener('click', () => dlg.close());

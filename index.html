@@ -14,9 +14,9 @@
   <link rel="icon" href="favicon-48.png?v=2" sizes="48x48" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261110y">
+  <link rel="stylesheet" href="css/style.css?v=20261110z">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
-  <script type="module" src="js/app.js?v=20261110y"></script>
+  <script type="module" src="js/app.js?v=20261110z"></script>
 </head>
 <body>
   <div id="boot" class="boot">불러오는 중</div>
@@ -84,7 +84,20 @@
   </div>
 
   <dialog id="lock" class="lock" aria-label="화면 잠금">
-    <img src="logo-mark.png" alt="차곡차곡" width="96" height="96">
+    <img class="lock-logo" src="logo-mark.png" alt="차곡차곡" width="96" height="96">
+    <div class="pin" hidden>
+      <p class="pin-title" aria-live="polite">PIN을 입력하세요</p>
+      <div class="pin-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="pin-pad" role="group" aria-label="숫자 키패드">
+        <button type="button" data-d="1">1</button><button type="button" data-d="2">2</button><button type="button" data-d="3">3</button>
+        <button type="button" data-d="4">4</button><button type="button" data-d="5">5</button><button type="button" data-d="6">6</button>
+        <button type="button" data-d="7">7</button><button type="button" data-d="8">8</button><button type="button" data-d="9">9</button>
+        <button type="button" class="pin-cancel quiet">취소</button><button type="button" data-d="0">0</button>
+        <button type="button" class="quiet" data-back aria-label="지우기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h11v14H9l-6-7z"/><path d="m12 9 6 6M18 9l-6 6"/></svg></button>
+      </div>
+      <p class="pin-hint">키보드 숫자로도 입력할 수 있어요</p>
+      <button type="button" class="link-btn pin-forgot">PIN을 잊었나요? 다시 로그인하기</button>
+    </div>
     <div class="lock-actions" hidden>
       <button type="button" class="btn primary" id="lock-retry">잠금 해제</button>
       <button type="button" class="link-btn" id="lock-forgot">잠금을 풀 수 없나요? 다시 로그인하기</button>
