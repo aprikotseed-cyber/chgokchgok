@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261111q';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111q';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111q';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111q';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111q';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111q';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111q';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111q';
-import { estimateMonths } from './estimate.js?v=20261111q';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111q';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111q';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111q';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111q';
-import { createGoogle, freshServerToken } from './google.js?v=20261111q';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111q';
-import { createDemoGoogle } from './google-demo.js?v=20261111q';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111q';
+import { connect, isDemo } from './store.js?v=20261111r';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111r';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111r';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111r';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111r';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111r';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111r';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111r';
+import { estimateMonths } from './estimate.js?v=20261111r';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111r';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111r';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111r';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111r';
+import { createGoogle, freshServerToken } from './google.js?v=20261111r';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111r';
+import { createDemoGoogle } from './google-demo.js?v=20261111r';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111r';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1612,12 +1612,17 @@ function monthBlock() {
 function dayDetail(key, evs, money, tasks) {
   const d = fromKey(key);
   const de = eventsOn(evs, key);
-  const rows = [
-    ...de.map((e) => eventRow(e, key)),
-    ...tasks.map(taskRow),
-    ...money.map((x) => `<div class="row static ev"><span class="ev-time">${x.loan ? '상환' : '출금'}</span><b class="won">₩</b><span class="row-main"><span class="row-title">${esc(x.name)}</span><span class="row-meta">${x.loan ? '대출 상환' : '고정지출'}</span></span><span class="row-side"><span class="row-value">${wonExact(x.amount)}</span></span></div>`),
-  ];
-  return `<div class="panel list day-detail${state.calAnim === 'day' ? ' appear' : ''}"><div class="mini-head">${key === today() ? '오늘 · ' : ''}${mdw(d)}${state.agenda ? `<button class="link-btn" data-action="cal-add" data-key="${key}">+ 일정</button>` : ''}</div>${rows.length ? rows.join('') : empty('이날은 일정·할일·출금이 없어요.')}</div>`;
+  // 일정(+ 출금)과 할일을 나눠 둬요: 넓은 화면에선 좌우 두 칸, 좁으면 지금처럼 한 줄로 이어서
+  const moneyRow = (x, cls) => `<div class="row static ev ${cls}"><span class="ev-time">${x.loan ? '상환' : '출금'}</span><b class="won">₩</b><span class="row-main"><span class="row-title">${esc(x.name)}</span><span class="row-meta">${x.loan ? '대출 상환' : '고정지출'}</span></span><span class="row-side"><span class="row-value">${wonExact(x.amount)}</span></span></div>`;
+  // 출금은 넓을 땐 일정 칸 아래, 좁을 땐 지금처럼 맨 뒤에 (같은 줄을 두 곳에 두고 화면 폭에 따라 하나만 보여요)
+  const left = [...de.map((e) => eventRow(e, key)), ...money.map((x) => moneyRow(x, 'wide-only'))];
+  const right = tasks.map(taskRow);
+  const col = (cls, rows, none) => `<div class="list dd-col ${cls}">${rows.length ? rows.join('') : `<p class="empty dd-none">${none}</p>`}</div>`;
+  const body = left.length || right.length
+    ? `<div class="dd-cols">${col('dd-ev', left, '이날은 일정이 없어요.')}${col('dd-task', right, '이날은 할일이 없어요.')}${money.length ? `<div class="list dd-col dd-money">${money.map((x) => moneyRow(x, '')).join('')}</div>` : ''}</div>`
+    : empty('이날은 일정·할일·출금이 없어요.');
+  const adds = state.agenda ? `<span class="head-actions"><button class="link-btn" data-action="cal-add" data-key="${key}">+ 일정</button><button class="link-btn" data-action="cal-add-task" data-key="${key}">+ 할일</button></span>` : '';
+  return `<div class="panel list day-detail${state.calAnim === 'day' ? ' appear' : ''}"><div class="mini-head">${key === today() ? '오늘 · ' : ''}${mdw(d)}${adds}</div>${body}</div>`;
 }
 
 function viewCalendar() {
@@ -2469,6 +2474,7 @@ function bind() {
       render();
     }
     if (a === 'cal-add') openForm('event', null, { date: b.dataset.key, title: '' });
+    if (a === 'cal-add-task') openForm('task', null, { due: b.dataset.key, title: '' });
     if (a === 'task-toggle') toggleTask(id);
     if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openForm('memo', m); }
     if (a === 'event-edit') { const ev = state.agenda?.events.find((x) => x.id === id && x.calId === b.dataset.cal); if (ev) openForm('event', ev); }
