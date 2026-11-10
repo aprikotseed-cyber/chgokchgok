@@ -31,7 +31,7 @@ if (process.env.TEST === 'true') {
     if (!devices.length) continue;
     const r = await messaging.sendEachForMulticast({
       tokens: devices.map((x) => x.token),
-      webpush: { notification: { title: '차곡차곡 알림 시험', body: `${hm}에 보낸 시험 알림이에요. 이 알림이 보이면 아침 브리핑도 받을 수 있어요.`, icon: `${APP_URL}icon-192.png`, tag: `chgok-test-${Date.now()}`, renotify: true }, fcmOptions: { link: `${APP_URL}#settings` } },
+      webpush: { notification: { title: '알림 시험', body: `${hm}에 보낸 시험 알림이에요. 이 알림이 보이면 아침 브리핑도 받을 수 있어요.`, icon: `${APP_URL}icon-192.png`, tag: `chgok-test-${Date.now()}`, renotify: true }, fcmOptions: { link: `${APP_URL}#settings` } },
     });
     console.log(`시험 알림: 보냄 ${r.successCount}, 실패 ${r.failureCount}`, r.responses.map((x) => x.error?.code).filter(Boolean));
   }

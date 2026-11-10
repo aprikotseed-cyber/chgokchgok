@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261111e';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111e';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111e';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111e';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111e';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111e';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111e';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111e';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261111e';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111e';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111e';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111e';
-import { createGoogle } from './google.js?v=20261111e';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111e';
-import { createDemoGoogle } from './google-demo.js?v=20261111e';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111e';
+import { connect, isDemo } from './store.js?v=20261111f';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111f';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111f';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111f';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111f';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111f';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111f';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111f';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261111f';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111f';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111f';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111f';
+import { createGoogle } from './google.js?v=20261111f';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111f';
+import { createDemoGoogle } from './google-demo.js?v=20261111f';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111f';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
