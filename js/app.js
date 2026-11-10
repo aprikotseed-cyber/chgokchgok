@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261111f';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111f';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111f';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111f';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111f';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111f';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111f';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111f';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261111f';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111f';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111f';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111f';
-import { createGoogle } from './google.js?v=20261111f';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111f';
-import { createDemoGoogle } from './google-demo.js?v=20261111f';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111f';
+import { connect, isDemo } from './store.js?v=20261111h';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111h';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111h';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111h';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111h';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111h';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111h';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111h';
+import { ask, outflowsBetween } from './assistant.js?v=20261111h';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111h';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111h';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111h';
+import { createGoogle } from './google.js?v=20261111h';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111h';
+import { createDemoGoogle } from './google-demo.js?v=20261111h';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111h';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -312,7 +312,7 @@ function viewHome() {
   return `
   <form id="home-ask" class="ask-box" autocomplete="off">
     <label for="home-ask-input" class="ask-label">비서</label>
-    <textarea id="home-ask-input" rows="3" enterkeyhint="send" aria-label="비서에게 물어보기"></textarea>
+    <textarea id="home-ask-input" rows="3" enterkeyhint="send" aria-label="비서에게 메시지"></textarea>
     <button class="ask-send" type="submit">보내기</button>
   </form>
   ${todayBlock()}
@@ -1713,6 +1713,78 @@ function render() {
 let lastTab = '';
 
 // ───── 부드러운 움직임 ─────
+/**
+ * 당겨서 새로고침 (홈 화면에 추가한 앱에서만, 브라우저는 자체 기능이 있어요)
+ * 맨 위에서 아래로 당기면 로고가 따라 내려오며 돌고, 충분히 당긴 뒤 놓으면 새로 받아요.
+ * 페이지를 다시 불러오지 않아서 잠금 화면이 다시 뜨지 않아요.
+ */
+function pullToRefresh() {
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (!standalone || !matchMedia('(pointer: coarse)').matches) return;
+  const ind = Object.assign(document.createElement('div'), { className: 'ptr', innerHTML: '<img src="logo-mark.png" alt="">' });
+  document.body.append(ind);
+  const view = $('#view');
+  const GO = 70;   // 이만큼 당기면 새로고침
+  const MAX = 110;
+  let x0 = 0;
+  let y0 = null;
+  let d = 0;
+  let busy = false;
+  const draw = (dist, anim) => {
+    for (const el of [view, ind]) el.classList.toggle('ptr-back', !!anim);
+    view.style.transform = dist ? `translateY(${dist}px)` : '';
+    const p = Math.min(1, dist / GO);
+    ind.style.opacity = String(p);
+    ind.style.transform = `translate(-50%, ${dist - 44}px) rotate(${dist * 3}deg) scale(${0.6 + p * 0.4})`;
+  };
+  document.addEventListener('touchstart', (e) => {
+    y0 = null;
+    if (busy || window.scrollY > 0 || e.touches.length > 1 || !state.user || document.querySelector('dialog[open]')) return;
+    const field = e.target.closest('textarea, input, select');
+    if ((field && field === document.activeElement) || e.target.closest('.as-log')) return; // 글 쓰는 중에는 당기지 않아요
+    x0 = e.touches[0].clientX;
+    y0 = e.touches[0].clientY;
+    d = 0;
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (y0 == null) return;
+    const dy = e.touches[0].clientY - y0;
+    const dx = Math.abs(e.touches[0].clientX - x0);
+    if (dy <= 0 || window.scrollY > 0 || (d === 0 && dx > dy)) { if (d) draw(0, true); y0 = d ? y0 : null; d = 0; return; }
+    if (e.cancelable) e.preventDefault(); // 아이폰 고무줄 튕김 대신 우리 효과
+    d = Math.min(MAX, dy * 0.5);
+    draw(d);
+  }, { passive: false });
+  document.addEventListener('touchend', async () => {
+    if (y0 == null) return;
+    y0 = null;
+    if (d < GO) { d = 0; draw(0, true); return; }
+    busy = true;
+    draw(GO * 0.8, true);
+    ind.classList.add('spin');
+    if (navigator.vibrate) navigator.vibrate(8);
+    await refreshAll();
+    ind.classList.remove('spin');
+    d = 0;
+    draw(0, true);
+    busy = false;
+  });
+}
+
+/** 새로고침: 새 버전이면 다시 불러오고, 아니면 일정·할일·시세를 새로 받아요 */
+async function refreshAll() {
+  await checkVersion();
+  if (newVersion) { location.reload(); return; }
+  const jobs = [new Promise((r) => setTimeout(r, reduceMotion() ? 0 : 800))]; // 너무 빨리 끝나면 어색해서 잠깐은 돌아요
+  if (gConnected()) jobs.push(syncAgenda(false));
+  else if (autoLinked() && state.secrets?.githubToken && Date.now() - (state.agenda?.syncedAt || 0) > 2 * 60_000) {
+    jobs.push(dispatchWorkflow(repoFromLocation(location), state.secrets.githubToken, 'agenda-sync.yml').then(() => toast('구글 일정·할일은 1분 안에 새로 들어와요.')).catch(() => {}));
+  }
+  autoRefresh();
+  await Promise.all(jobs);
+  render();
+}
+
 /** 입력창·비서 창: 닫힐 때도 살짝 가라앉으며 사라지게 */
 function smoothDialog(d) {
   const close = d.close.bind(d);
@@ -2127,9 +2199,14 @@ const chat = [];
 function chatHtml(m, i) {
   // 처음 그려지는 말풍선만 튀어 오르게 (이미 본 말풍선은 다시 움직이지 않아요)
   const pop = m.shown ? '' : ' pop';
-  if (m.typing) return `<div class="msg bot typing${pop}" aria-label="비서가 답을 쓰는 중"><i></i><i></i><i></i></div>`;
+  // 아이메시지처럼: 같은 사람이 이어 보내면 붙여 쓰고, 묶음의 마지막 말풍선에만 꼬리
+  const side = (x) => (x ? (x.me ? 'me' : 'bot') : '');
+  const cur = side(m);
+  const extra = !m.me && (m.action || (m.q && !m.typing));
+  const grp = `${side(chat[i - 1]) === cur && !(chat[i - 1]?.action || chat[i - 1]?.q) ? ' cont' : ''}${side(chat[i + 1]) !== cur || extra ? ' tail' : ''}`;
+  if (m.typing) return `<div class="msg bot typing tail${grp.includes('cont') ? ' cont' : ''}${pop}" aria-label="비서가 답을 쓰는 중"><i></i><i></i><i></i></div>`;
   const text = esc(m.text).replace(/\n/g, '<br>');
-  if (m.me) return `<div class="msg me${pop}">${text}</div>`;
+  if (m.me) return `<div class="msg me${grp}${pop}">${text}</div>`;
   // 질문에 대한 답이면 아래에 '이 답이 맞지 않았나요?'
   let fb = '';
   if (m.q && !m.unknown) {
@@ -2148,7 +2225,7 @@ function chatHtml(m, i) {
     if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="pill primary" data-act="do" data-i="${i}">${verb}기</button>${m.action.kind === 'event' ? `<button type="button" class="pill" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="pill" data-act="cancel" data-i="${i}">취소</button></div>`;
     fb = '';
   }
-  return `<div class="msg bot${pop}">${text}</div>${act}${fb ? fb.replace(/^<(\w+) class="/, `<$1 class="${after.trim()} `) : ''}${m.chips?.length ? `<div class="as-chips${after}">${m.chips.map((c) => `<button type="button" class="pill" data-q="${esc(c.q)}">${esc(c.label)}</button>`).join('')}</div>` : ''}`;
+  return `<div class="msg bot${grp}${pop}">${text}</div>${act}${fb ? fb.replace(/^<(\w+) class="/, `<$1 class="${after.trim()} `) : ''}`;
 }
 
 function renderChat() {
@@ -2214,7 +2291,7 @@ async function doAction(m, what) {
 }
 
 function openAssistant() {
-  if (!chat.length) chat.push({ text: '무엇이 궁금하세요? 일정·할일, 자산·대출·고정지출·주식 내용으로 바로 알려드릴게요.', chips: SUGGEST });
+  if (!chat.length) chat.push({ text: '제가 무엇을 도와드릴까요?' });
   renderChat();
   $('#assistant').showModal();
   if (matchMedia('(hover: hover)').matches) $('#as-input').focus();
@@ -2251,28 +2328,6 @@ function bind() {
     if (!state.user || typing) return;
     if (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) { e.preventDefault(); openAssistant(); }
   });
-  // 말로 물어보기 (브라우저가 음성 인식을 지원할 때만 마이크가 보여요)
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (SR) {
-    const mic = $('#as-mic');
-    mic.hidden = false;
-    let rec = null;
-    mic.addEventListener('click', () => {
-      if (rec) { rec.stop(); return; }
-      rec = new SR();
-      rec.lang = 'ko-KR';
-      rec.interimResults = true;
-      rec.onresult = (ev) => {
-        const text = [...ev.results].map((r) => r[0].transcript).join('');
-        $('#as-input').value = text;
-        if (ev.results[ev.results.length - 1].isFinal) { askAssistant(text); $('#as-input').value = ''; }
-      };
-      rec.onerror = (ev) => { if (ev.error !== 'aborted' && ev.error !== 'no-speech') toast(ev.error === 'not-allowed' ? '마이크 권한을 허용해 주세요.' : '음성을 알아듣지 못했어요.'); };
-      rec.onend = () => { rec = null; mic.classList.remove('on'); };
-      mic.classList.add('on');
-      rec.start();
-    });
-  }
   $('#as-form').addEventListener('submit', (e) => {
     e.preventDefault();
     askAssistant($('#as-input').value);
@@ -2581,6 +2636,7 @@ function bind() {
     }
   });
 
+  pullToRefresh();
   smoothDialog($('#editor'));
   smoothDialog($('#assistant'));
   document.addEventListener('click', smoothDetails);
