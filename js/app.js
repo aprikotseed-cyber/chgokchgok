@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261111j';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111j';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111j';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111j';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111j';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111j';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111j';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111j';
-import { ask, outflowsBetween } from './assistant.js?v=20261111j';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111j';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111j';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111j';
-import { createGoogle } from './google.js?v=20261111j';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111j';
-import { createDemoGoogle } from './google-demo.js?v=20261111j';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111j';
+import { connect, isDemo } from './store.js?v=20261111k';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111k';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111k';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111k';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111k';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111k';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111k';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111k';
+import { ask, outflowsBetween } from './assistant.js?v=20261111k';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111k';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111k';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111k';
+import { createGoogle } from './google.js?v=20261111k';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111k';
+import { createDemoGoogle } from './google-demo.js?v=20261111k';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111k';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -2519,10 +2519,15 @@ function bind() {
     }
     if (a === 'push-local') {
       try {
-        const reg = await navigator.serviceWorker.getRegistration('firebase-messaging-sw.js') || await navigator.serviceWorker.ready;
+        if (!('Notification' in window)) throw new Error('이 브라우저는 알림을 지원하지 않아요');
         if (Notification.permission !== 'granted') throw new Error('알림 권한이 허용되지 않았어요');
-        await reg.showNotification('차곡차곡', { body: '이 기기에서 바로 띄운 알림이에요. 이게 보이면 기기 설정은 괜찮아요.', icon: 'icon-192.png', tag: `local-${Date.now()}` });
-        toast('알림을 띄웠어요. 화면 위나 알림 센터를 확인해 주세요.');
+        const opts = { body: '이 기기에서 바로 띄운 알림이에요. 이게 보이면 기기 설정은 괜찮아요.', icon: 'icon-192.png', tag: `local-${Date.now()}` };
+        // 알림 담당(서비스 워커)이 2초 안에 준비되지 않으면 브라우저에 바로 띄워요
+        const reg = await navigator.serviceWorker?.getRegistration('firebase-messaging-sw.js')
+          || await Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(() => r(null), 2000))]);
+        if (reg) await reg.showNotification('알림 시험', opts);
+        else new Notification('알림 시험', opts);
+        toast(reg ? '알림을 띄웠어요. 안 보이면 윈도우 알림 설정(방해 금지)과 알림 센터를 확인해 주세요.' : '알림을 띄웠어요. 이 기기는 아직 알림 받을 기기로 등록되지 않았어요. 위에서 등록해 주세요.');
       } catch (err) { toast(`띄우지 못했어요: ${err.message}`); }
     }
     if (a === 'push-test') {
