@@ -664,7 +664,19 @@ dialog.lock .lock-logo { width: 96px; height: 96px; transition: width .4s var(--
 .mchips { display: none; }
 .mlegend { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 10px 10px 0; font-size: 12px; color: var(--text-muted); }
 .mlegend span { display: inline-flex; align-items: center; gap: 5px; }
-.day-detail { margin-top: 12px; }
+.day-detail { margin-top: 12px; container-type: inline-size; }
+/* 날짜 상세: 좁으면 일정 → 할일을 한 줄로, 넓으면(가운데 기준) 왼쪽 일정 · 오른쪽 할일. 가운데 구분선은 없어요 */
+.dd-col .dd-none, .dd-col > .wide-only { display: none; }
+.dd-ev:has(> .row:not(.wide-only)) + .dd-task > .row:first-child,
+.dd-ev:has(> .row:not(.wide-only)) ~ .dd-money > .row:first-child,
+.dd-task:has(> .row) + .dd-money > .row:first-child { border-top: 1px solid var(--border); }
+@container (min-width: 880px) {
+  .dd-cols { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  .dd-col .dd-none, .dd-col > .wide-only { display: flex; }
+  .dd-col .dd-none { display: block; }
+  .dd-money { display: none; }
+  .dd-ev:has(> .row:not(.wide-only)) + .dd-task > .row:first-child { border-top: 0; }
+}
 @media (min-width: 900px) {
   .mcal-wrap { padding: 10px 12px 14px; }
   .mday { align-items: stretch; min-height: 128px; padding: 8px; border-radius: 10px; }
