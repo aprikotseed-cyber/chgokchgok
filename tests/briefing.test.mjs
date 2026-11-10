@@ -24,18 +24,26 @@ const data = {
 
 test('아침 브리핑: 오늘 일정·할일, 오늘 나가는 돈만', () => {
   const n = morningBriefing(data, agenda, today);
-  assert.equal(n.title, '11월 9일 월요일 아침 브리핑');
+  assert.equal(n.title, '🗓️ 오늘의 아침 브리핑');
   const [ev, todo, late, money, ...rest] = n.body.split('\n');
-  assert.equal(ev, '일정 2개: 15:00 학년 협의회, 20:00 야근(반려자)');
-  assert.equal(todo, '할일 1개: 채점');
-  assert.equal(late, '지난 할일 1개: 공문 회신');
-  assert.equal(money, '오늘 출금: 넷플릭스 17,000원 (신용카드)');
+  assert.equal(ev, '└ 일정 2️⃣ : 15:00 학년 협의회, 20:00 야근(반려자)');
+  assert.equal(todo, '└ 할일 1️⃣ : 채점');
+  assert.equal(late, '└ 지난 할일 : 1️⃣개 있어요. 참고!');
+  assert.equal(money, '└ 오늘 출금 : 넷플릭스');
   assert.deepEqual(rest, []); // 관리비(내일)·대출(5일 뒤)은 넣지 않아요
 });
 
 test('아침 브리핑: 상환일 당일에는 상환도, 연결 전에는 돈 나가는 날만 보내요', () => {
   const d14 = new Date(2026, 10, 14);
-  assert.match(morningBriefing(data, null, d14).body, /오늘 상환: 신용대출 약 /);
+  assert.equal(morningBriefing(data, null, d14).body, '└ 오늘 상환 : 신용대출');
   assert.equal(morningBriefing(data, null, new Date(2026, 10, 12)), null);
   assert.match(morningBriefing(data, { ...agenda, syncedAt: new Date(2026, 8, 1).getTime() }, today).body, /앱을 한 번 열면/);
+  // 일정·할일이 없는 날
+  const empty = morningBriefing({ fixed: [], debts: [] }, { ...agenda, events: [], tasks: [] }, today);
+  assert.equal(empty.body, '└ 일정 ❌\n└ 할일 ❌');
+});
+
+test('숫자 이모지', async () => {
+  const { numEmoji } = await import('../js/briefing.js');
+  assert.deepEqual([0, 3, 10, 12].map(numEmoji), ['0️⃣', '3️⃣', '🔟', '1️⃣2️⃣']);
 });

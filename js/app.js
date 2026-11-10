@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261111d';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111d';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111d';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111d';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111d';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111d';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111d';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111d';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261111d';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111d';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111d';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111d';
-import { createGoogle } from './google.js?v=20261111d';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111d';
-import { createDemoGoogle } from './google-demo.js?v=20261111d';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111d';
+import { connect, isDemo } from './store.js?v=20261111f';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111f';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111f';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111f';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111f';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111f';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111f';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111f';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261111f';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111f';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111f';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111f';
+import { createGoogle } from './google.js?v=20261111f';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111f';
+import { createDemoGoogle } from './google-demo.js?v=20261111f';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111f';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -990,7 +990,8 @@ function viewSettings() {
   else if (!p.supported) pushBody = `<p class="hint pad">${standaloneIOS ? '아이폰·아이패드는 Safari 공유 버튼 → 홈 화면에 추가한 뒤, 그 앱에서 알림을 켤 수 있어요.' : '이 브라우저는 푸시 알림을 지원하지 않아요.'}</p>`;
   else pushBody = `
     ${p.devices.length ? `<div class="list">${p.devices.map((x) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(x.device || '기기')}${x.token === mine ? ' <span class="badge">이 기기</span>' : ''}</span><span class="row-meta">${dateTime(x.addedAt)} 등록</span></span><button class="link-btn" data-action="push-remove" data-token="${esc(x.token)}">해제</button></div>`).join('')}</div>` : ''}
-    ${p.devices.length && state.secrets?.githubToken ? '<div class="pad"><button class="btn" data-action="push-test">알림 시험 보내기</button></div>' : ''}
+    ${pushCheck(p, mine)}
+    ${p.devices.length && state.secrets?.githubToken ? '<div class="pad"><button class="btn" data-action="push-test">알림 시험 보내기 (서버에서 모든 기기로)</button></div>' : ''}
     ${vapid ? `<div class="pad"><button class="btn primary" data-action="push-enable">${p.devices.some((x) => x.token === mine) ? '이 기기 다시 등록' : '이 기기에서 알림 받기'}</button></div>` : ''}
     ${details('vapid', vapid ? '웹 푸시 키 바꾸기' : '처음 한 번: 웹 푸시 키 넣기', `<div class="pad">
       <p class="hint">Firebase 콘솔 → 프로젝트 설정 → 클라우드 메시징 → 웹 푸시 인증서에서 <b>키 쌍 생성</b> 후 나온 키를 붙여 넣으세요. 공개용 키라 저장해도 안전해요.</p>
@@ -1040,6 +1041,21 @@ function viewSettings() {
       <div class="row static"><span class="row-main"><span class="row-title">${esc(state.user?.email || '')}</span><span class="row-meta">앱 버전 ${esc(APP_VERSION)} · <a href="privacy.html" target="_blank" rel="noopener">개인정보처리방침</a></span></span><button class="link-btn" data-action="logout">${isDemo() ? '체험 끝내기' : '로그아웃'}</button></div>
     </div>`)}
   </div></div>`;
+}
+
+/** 이 기기 알림 점검: 권한·등록 상태와, 서버를 거치지 않고 바로 띄워 보기 */
+function pushCheck(p, mine) {
+  const perm = 'Notification' in window ? Notification.permission : 'unsupported';
+  const registered = p.devices.some((x) => x.token === mine);
+  const PERM = { granted: '허용됨', denied: '차단됨', default: '아직 묻지 않음', unsupported: '지원 안 함' };
+  const ok = perm === 'granted' && registered;
+  return `<div class="pad push-check">
+    <b class="mini-title">이 기기 알림 점검</b>
+    <div class="check-line"><span>알림 권한</span><b class="${perm === 'granted' ? 'ok' : 'bad'}">${PERM[perm]}</b></div>
+    <div class="check-line"><span>알림 받을 기기로 등록</span><b class="${registered ? 'ok' : 'bad'}">${registered ? '등록됨' : '안 됨'}</b></div>
+    <div class="actions"><button class="btn" data-action="push-local">이 기기에서 바로 띄워 보기</button></div>
+    <p class="hint">바로 띄운 알림은 보이는데 ‘알림 시험 보내기’는 안 오면 → 위 <b>이 기기 다시 등록</b>을 눌러 주세요. 바로 띄운 알림도 안 보이면 → 기기 설정에서 이 앱(브라우저)의 알림이 꺼져 있거나 방해 금지·집중 모드가 켜져 있어요.${ok ? '' : ' 권한이 허용되고 등록돼야 알림을 받을 수 있어요.'}</p>
+  </div>`;
 }
 
 async function loadPush() {
@@ -2439,6 +2455,14 @@ function bind() {
         toast(`알림을 켜지 못했어요: ${err.message}`);
         b.disabled = false;
       }
+    }
+    if (a === 'push-local') {
+      try {
+        const reg = await navigator.serviceWorker.getRegistration('firebase-messaging-sw.js') || await navigator.serviceWorker.ready;
+        if (Notification.permission !== 'granted') throw new Error('알림 권한이 허용되지 않았어요');
+        await reg.showNotification('차곡차곡', { body: '이 기기에서 바로 띄운 알림이에요. 이게 보이면 기기 설정은 괜찮아요.', icon: 'icon-192.png', tag: `local-${Date.now()}` });
+        toast('알림을 띄웠어요. 화면 위나 알림 센터를 확인해 주세요.');
+      } catch (err) { toast(`띄우지 못했어요: ${err.message}`); }
     }
     if (a === 'push-test') {
       try {

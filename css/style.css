@@ -872,3 +872,7 @@ dialog.lock.pin-mode .lock-logo { width: 52px; height: 52px; }
   *, *::before, *::after, ::backdrop { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
 }
 .login-privacy { font-size: 12px; opacity: .8; }
+.push-check { display: grid; gap: 8px; }
+.check-line { display: flex; justify-content: space-between; font-size: 14px; }
+.check-line .ok { color: #1a9a6c; }
+.check-line .bad { color: var(--danger); }

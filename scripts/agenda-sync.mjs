@@ -139,8 +139,8 @@ for (const { userRef, items } of byUser.values()) {
     }
   }
   console.log(`받은편지함: 넣음 ${done.length}개, 실패 ${failed.length}개`);
-  if (done.length) await notify(userRef, '차곡차곡에 넣었어요', done.join('\n'));
-  if (failed.length) await notify(userRef, '차곡차곡에 넣지 못했어요', [...new Set(failed)].join('\n'));
+  if (done.length) await notify(userRef, '넣었어요', done.join('\n'));
+  if (failed.length) await notify(userRef, '넣지 못했어요', [...new Set(failed)].join('\n'));
   if (ctx.warn) await notify(userRef, '단축어 설정을 확인해 주세요', ctx.warn);
 }
 
