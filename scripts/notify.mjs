@@ -15,16 +15,24 @@ const messaging = getMessaging();
 const k = new Date(Date.now() + 9 * 3600_000);
 const today = new Date(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate());
 console.log(`기준일(한국): ${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`);
+const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+// GitHub 예약 실행은 몇 시간씩 늦을 때가 있어요. 예약으로 늦게(10시 30분 넘어) 돌았으면 '아침' 브리핑은 보내지 않아요.
+// 외부 알람(cron-job.org)·직접 실행(workflow_dispatch)은 시각과 관계없이 보내요.
+const late = process.env.GITHUB_EVENT_NAME === 'schedule' && k.getUTCHours() * 60 + k.getUTCMinutes() > 10 * 60 + 30;
+if (late) console.log('예약 실행이 늦게 돌아서 아침 브리핑은 건너뛰어요');
 
 const mains = (await db.collectionGroup('data').get()).docs.filter((d) => d.id === 'main');
 for (const doc of mains) {
+  if (late) break;
+  const pushRef = doc.ref.parent.doc('push');
+  // 하루에 한 번만 (외부 알람과 GitHub 예약이 둘 다 돌아도)
+  if ((await pushRef.get()).data()?.lastBriefing === todayKey) { console.log('오늘 브리핑은 이미 보냈어요'); continue; }
   // 앱에서 구글 캘린더·태스크를 받아 저장해 둔 일정·할일
   const agenda = (await doc.ref.parent.doc('agenda').get()).data() || null;
   const n = morningBriefing(doc.data(), agenda, today);
   console.log(n ? `브리핑 ${n.body.split('\n').length}줄` : '보낼 내용 없음');
   if (!n) continue;
 
-  const pushRef = doc.ref.parent.doc('push');
   const devices = (await pushRef.get()).data()?.devices || [];
   const tokens = devices.map((x) => x.token);
   if (!tokens.length) { console.log('알림 받을 기기가 등록되지 않았어요'); continue; }
@@ -38,6 +46,7 @@ for (const doc of mains) {
     },
   });
   console.log(`보냄 ${res.successCount}, 실패 ${res.failureCount}`);
+  if (res.successCount) await pushRef.set({ lastBriefing: todayKey }, { merge: true });
 
   // 앱을 지웠거나 알림을 끈 기기는 목록에서 정리
   const dead = new Set();

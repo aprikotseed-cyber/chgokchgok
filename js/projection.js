@@ -1,4 +1,4 @@
-import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261110z';
+import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261111a';
 // 자산·부채 계산과 연도별 예측. 화면(app.js)과 테스트가 함께 쓰는 순수 함수만 둡니다.
 // 금액 단위는 모두 '원'입니다.
 

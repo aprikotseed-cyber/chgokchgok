@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261110z';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261110z';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261110z';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261110z';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261110z';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261110z';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261110z';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261110z';
-import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261110z';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261110z';
-import { addFeedback, feedbackText } from './feedback.js?v=20261110z';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS } from './github.js?v=20261110z';
-import { createGoogle } from './google.js?v=20261110z';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261110z';
-import { createDemoGoogle } from './google-demo.js?v=20261110z';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261110z';
+import { connect, isDemo } from './store.js?v=20261111a';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111a';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111a';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111a';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111a';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111a';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111a';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111a';
+import { ask, SUGGEST, outflowsBetween } from './assistant.js?v=20261111a';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111a';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111a';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111a';
+import { createGoogle } from './google.js?v=20261111a';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111a';
+import { createDemoGoogle } from './google-demo.js?v=20261111a';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111a';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -933,6 +933,30 @@ function refreshBtn(m) {
   return `<button class="link-btn" data-action="refresh" data-kind="quotes" ${waiting ? 'disabled' : ''} title="주가·환율 지금 받아오기">${waiting ? '업데이트 중…' : '업데이트'}</button>`;
 }
 
+// ───── 앱을 열 때 알아서 업데이트 ─────
+// GitHub 예약 실행은 몇 시간씩 늦거나 건너뛰어서, 앱을 열었을 때 오래된 게 있으면 앱이 대신 요청해요.
+const tsMs = (x) => (x?.toMillis ? x.toMillis() : x?.seconds ? x.seconds * 1000 : Number(x) || 0);
+function autoRefresh() {
+  if (isDemo() || !state.user || !state.marketLoaded || !state.secrets?.githubToken || document.visibilityState !== 'visible') return;
+  const repo = repoFromLocation(location);
+  const token = state.secrets.githubToken;
+  const recently = (key) => Date.now() - Number(localStorage.getItem(key) || 0) < 20 * 60_000; // 실패해도 20분에 한 번만
+  const kind = autoRefreshPlan(Date.now(), tsMs(state.marketRaw.quotesAt), tsMs(state.marketRaw.updatedAt));
+  if (kind && !recently('chgok-auto-market')) {
+    localStorage.setItem('chgok-auto-market', String(Date.now()));
+    dispatchWorkflow(repo, token, WORKFLOWS[kind].file).then(() => {
+      const q = state.market.quotesAt;
+      state.refresh = { at: Date.now(), kind, quotesAt: String(q?.seconds || q) }; // 자산 탭에 '업데이트 중…'
+      if (navTab(state.tab) === 'money') render();
+    }).catch(() => {});
+  }
+  // 일정·할일: 자동 동기화를 켰고 1시간 넘게 지났으면
+  if (autoLinked() && !gConnected() && Date.now() - (state.agenda?.syncedAt || 0) > 60 * 60_000 && !recently('chgok-auto-agenda')) {
+    localStorage.setItem('chgok-auto-agenda', String(Date.now()));
+    dispatchWorkflow(repo, token, 'agenda-sync.yml').catch(() => {});
+  }
+}
+
 async function requestRefresh(kind) {
   if (isDemo()) return toast('체험 모드에서는 실제 업데이트를 실행하지 않아요.');
   const token = state.secrets?.githubToken;
@@ -980,6 +1004,7 @@ function viewSettings() {
   ${section('비서 알림', `<div class="panel">
       <p class="pad">매일 오전 8시쯤 <b>아침 브리핑</b>을 보내 드려요: 오늘 일정, 오늘 마감 할일과 지난 할일, 그리고 <b>오늘이 상환일·출금일인</b> 대출 상환과 고정지출. 앱 화면(PC 알림 카드)에서는 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p>
       ${pushBody}
+      ${briefingClock()}
     </div>`)}
   ${section('비서 개선 목록', `<div class="panel list">${(state.data.assistantMisses || []).length
       ? `${state.data.assistantMisses.map((m, i) => ({ m, i })).reverse().map(({ m, i }) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(m.q)}</span><span class="row-meta">${[m.kind === 'wrong' || m.a ? '엉뚱한 답' : '모른다고 답함', m.want ? `원래 원한 것: ${esc(m.want)}` : '', dateTime(m.at)].filter(Boolean).join(' · ')}</span></span><button class="link-btn" data-action="fb-del" data-i="${i}">지우기</button></div>`).join('')}
@@ -1004,7 +1029,7 @@ function viewSettings() {
         <div class="inline"><input id="gh-token" type="password" placeholder="github_pat_…" autocomplete="off"><button class="btn" data-action="token-save">저장</button></div>
       </div>`)}
     </div>`)}
-  ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">국내 주가와 환율은 평일 장중에 1시간마다 (오전 9시 13분~오후 3시 43분), 미국 주가는 매일 아침 6시 17분에 미국장 마감 가격으로, 주택 실거래가도 아침 6시 17분에 가져와요. GitHub 예약 실행이라 몇 분~십여 분 늦을 수 있어요. 지금 바로 받으려면 GitHub 저장소의 Actions → 주가·환율 장중 업데이트(또는 시세 자동 업데이트) → Run workflow를 누르세요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 주택 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
+  ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">앱을 열 때 시세가 오래됐으면 알아서 새로 받아요. 아침 6시 20분이 지나 처음 열면 미국 주가 마감가·주택 실거래가까지, 평일 장중(9시~3시 50분)에는 주가·환율이 1시간 넘게 지났으면, 장 마감 뒤에는 마감가를 받아요. 1분쯤 뒤 저절로 반영돼요. GitHub 예약 실행도 그대로 두지만 몇 시간씩 늦을 수 있어요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 주택 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
   </div><div class="col-side">
   ${section('백업', `<div class="panel"><div class="pad actions">
       <button class="btn" data-action="export">백업 파일 받기</button>
@@ -1323,6 +1348,30 @@ function autoSyncPanel() {
     <p class="hint">보안 비밀번호는 GitHub Secrets에만 들어가고 공개 코드나 앱에는 들어가지 않아요. 앱 안 업데이트 버튼에 쓰는 GitHub 토큰이 필요해요${state.secrets?.githubToken ? ' (저장돼 있어요)' : ' (아래 ‘지금 업데이트 버튼’에서 먼저 넣어 주세요)'}.</p>
     <button class="btn primary" data-action="g-auto-on">자동 동기화 켜기</button>
   </div>`)}`;
+}
+
+/** 아침 브리핑을 8시 정각에: GitHub 예약은 몇 시간씩 늦어서 외부 알람(cron-job.org)이 깨워요 */
+function briefingClock() {
+  const { owner, repo } = repoFromLocation(location);
+  const code = (label, value, copy) => `<div class="sc-row"><span class="sc-label">${label}</span><code>${esc(value)}</code>${copy ? `<button class="link-btn" data-action="sc-copy" data-what="${copy}">복사</button>` : ''}</div>`;
+  return details('brief-clock', '아침 브리핑 8시 정각에 받기 (처음 한 번, 5분)', `<div class="pad">
+    <p class="hint">GitHub 무료 예약 실행은 붐비는 시간에 몇 시간씩 늦거나 건너뛰어요. 그래서 무료 알람 서비스가 매일 8시에 GitHub을 깨우게 해요. 같은 날 두 번 오지 않고, GitHub 예약이 늦게(10시 30분 넘어) 돌면 보내지 않아요.</p>
+    <ol class="steps">
+      <li><a href="https://cron-job.org/en/signup/" target="_blank" rel="noopener">cron-job.org</a>에 무료로 가입하고 로그인해요.</li>
+      <li>오른쪽 위 계정 메뉴 → <b>Settings</b> → <b>Timezone</b>을 <code>Asia/Seoul</code>로 바꾸고 저장해요.</li>
+      <li><b>Dashboard</b> → <b>CREATE CRONJOB</b>
+        <br>Title: <code>차곡차곡 아침 브리핑</code> · URL: 아래 ① · Execution schedule: <b>Every day at 8 : 00</b></li>
+      <li>같은 화면 <b>ADVANCED</b> 탭: Request method <b>POST</b>, Request body는 아래 ③, Headers 세 개:
+        <br><code>Authorization</code> = <code>Bearer </code>+ ②, <code>Accept</code> = <code>application/vnd.github+json</code>, <code>Content-Type</code> = <code>application/json</code></li>
+      <li><b>CREATE</b>로 저장해요. <b>TEST RUN</b>을 눌러 결과가 <b>204</b>이고 1분쯤 뒤 브리핑 알림이 오면 끝이에요. (시험으로 보낸 날은 그날 아침 브리핑으로 쳐요)</li>
+    </ol>
+    <div class="sc-codes">
+      ${code('①', `https://api.github.com/repos/${owner}/${repo}/actions/workflows/notify.yml/dispatches`, 'notify-url')}
+      ${code('②', state.secrets?.githubToken ? 'GitHub 토큰 (저장된 것)' : '아래 ‘지금 업데이트 버튼’에서 먼저 넣어 주세요', state.secrets?.githubToken ? 'gh-token' : '')}
+      ${code('③', '{"ref":"main"}', 'ref-body')}
+    </div>
+    <p class="hint">GitHub 토큰은 이 저장소의 작업 실행 권한만 있어요. 그만 쓰려면 cron-job.org에서 이 알람을 지우면 돼요.</p>
+  </div>`);
 }
 
 /** 아이폰 단축어: 일정·할일·메모를 앱을 열지 않고 넣기 */
@@ -2269,7 +2318,8 @@ function bind() {
       const { owner, repo } = repoFromLocation(location);
       const v = { 'token-url': `https://securetoken.googleapis.com/v1/token?key=${store.apiKey}`, key: store.shortcutKey(),
         'inbox-url': 'https://firestore.googleapis.com/v1/projects/chgokchgok/databases/(default)/documents/users/[user_id]/inbox',
-        'gh-url': `https://api.github.com/repos/${owner}/${repo}/actions/workflows/agenda-sync.yml/dispatches`, 'gh-token': state.secrets?.githubToken || '' }[b.dataset.what];
+        'gh-url': `https://api.github.com/repos/${owner}/${repo}/actions/workflows/agenda-sync.yml/dispatches`, 'gh-token': state.secrets?.githubToken || '',
+        'notify-url': `https://api.github.com/repos/${owner}/${repo}/actions/workflows/notify.yml/dispatches`, 'ref-body': '{"ref":"main"}' }[b.dataset.what];
       try { await navigator.clipboard.writeText(v); toast('복사했어요. 단축어에 붙여 넣어 주세요.'); } catch { prompt('길게 눌러 복사해 주세요', v); }
     }
     if (a === 'kw-add') {
@@ -2625,6 +2675,7 @@ function bind() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
       checkDay(); checkVersion();
+      autoRefresh();
       if (Date.now() - (state.agenda?.syncedAt || 0) > 10 * 60_000) syncAgenda(false);
     }
     else if (newVersion && !$('#editor').open) location.reload();
@@ -2640,8 +2691,8 @@ async function main() {
   store = await connect({
     onAuth: (u) => { state.user = u; state.push.loaded = false; if (!u) { state.agenda = null; agendaLoaded = false; } lockNow(); render(); },
     onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
-    onMarket: (m) => { state.marketRaw = m || {}; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
-    onSecrets: (sc) => { state.secrets = sc || {}; if (['settings', 'home', 'calendar', 'tasks'].includes(state.tab)) render(); },
+    onMarket: (m) => { state.marketRaw = m || {}; const first = !state.marketLoaded; state.marketLoaded = true; if (first) setTimeout(autoRefresh, 1500); refreshMarket(); render(); recordSnapshot(); recordDaily(); },
+    onSecrets: (sc) => { const first = !state.secretsLoaded; state.secretsLoaded = true; state.secrets = sc || {}; if (first) setTimeout(autoRefresh, 1500); if (['settings', 'home', 'calendar', 'tasks'].includes(state.tab)) render(); },
     onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'money') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
     onMemos: (list) => { state.memos = list || []; if (state.tab === 'memo') render(); },
