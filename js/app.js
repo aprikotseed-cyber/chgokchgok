@@ -1,19 +1,19 @@
-import { connect, isDemo } from './store.js?v=20261111i';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111i';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111i';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111i';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111i';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111i';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111i';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111i';
-import { ask, outflowsBetween } from './assistant.js?v=20261111i';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111i';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111i';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111i';
-import { createGoogle } from './google.js?v=20261111i';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111i';
-import { createDemoGoogle } from './google-demo.js?v=20261111i';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111i';
+import { connect, isDemo } from './store.js?v=20261111j';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111j';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111j';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111j';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111j';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111j';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111j';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111j';
+import { ask, outflowsBetween } from './assistant.js?v=20261111j';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111j';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111j';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111j';
+import { createGoogle } from './google.js?v=20261111j';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111j';
+import { createDemoGoogle } from './google-demo.js?v=20261111j';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111j';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1476,12 +1476,15 @@ function connectCta(what) {
 }
 
 function eventRow(e, dayKey) {
-  const multi = e.startKey !== e.endKey;
-  const md = (k) => `${Number(k.slice(5, 7))}.${Number(k.slice(8))}`;
-  const span = multi ? `${md(e.startKey)}~${md(e.endKey)}` : '';
-  const when = e.allDay ? '종일' : (e.startKey < dayKey ? '계속' : e.time);
+  // 왼쪽: '종일' 또는 '10:30 - 12:00' (가운데 정렬), 일정명 아래에는 캘린더 이름만
+  let when = '종일';
+  if (!e.allDay) {
+    const starts = e.startKey === dayKey;
+    const ends = e.endKey === dayKey;
+    when = starts ? `${e.time}${ends && e.endTime && e.endTime !== e.time ? ` - ${e.endTime}` : ''}` : ends ? `- ${e.endTime}` : '계속';
+  }
   // 반려자 일정은 캘린더 이름 대신 '반려자'만
-  const meta = [e.partner ? '반려자' : e.calName, !e.allDay && e.endTime && e.endKey === dayKey ? `~${e.endTime}` : '', span, e.recurring ? '반복' : '', e.location].filter(Boolean).map(esc).join(' · ');
+  const meta = esc(e.partner ? '반려자' : e.calName);
   const inner = `<span class="ev-time">${when}</span><span class="ev-dot${e.money ? ' money' : ''}" style="${e.color ? `--c:${esc(e.color)}` : ''}"></span>
     <span class="row-main"><span class="row-title">${esc(e.title)}</span><span class="row-meta">${meta}</span></span>`;
   const cls = `row ev${e.partner ? ' partner' : ''}`;
