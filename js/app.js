@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261111n';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111n';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111n';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111n';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111n';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111n';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111n';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111n';
-import { estimateMonths } from './estimate.js?v=20261111n';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111n';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111n';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111n';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111n';
-import { createGoogle } from './google.js?v=20261111n';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111n';
-import { createDemoGoogle } from './google-demo.js?v=20261111n';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111n';
+import { connect, isDemo } from './store.js?v=20261111p';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111p';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111p';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111p';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111p';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111p';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111p';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111p';
+import { estimateMonths } from './estimate.js?v=20261111p';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111p';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111p';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111p';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111p';
+import { createGoogle, freshServerToken } from './google.js?v=20261111p';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111p';
+import { createDemoGoogle } from './google-demo.js?v=20261111p';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111p';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -958,6 +958,8 @@ function autoRefresh() {
       if (navTab(state.tab) === 'money') render();
     }).catch(() => {});
   }
+  // 구글 토큰(일정·할일 넣기용)이 10분 안에 끝나면 미리 새로 받아 둬요
+  if (autoLinked() && !freshServerToken(state.secrets?.googleAccess, Date.now() + 10 * 60_000) && renewServerToken()) localStorage.setItem('chgok-auto-agenda', String(Date.now())); // 같은 작업이 일정도 받아요
   // 일정·할일: 자동 동기화를 켰고 1시간 넘게 지났으면
   if (autoLinked() && !gConnected() && Date.now() - (state.agenda?.syncedAt || 0) > 60 * 60_000 && !recently('chgok-auto-agenda')) {
     localStorage.setItem('chgok-auto-agenda', String(Date.now()));
@@ -1084,8 +1086,32 @@ function gapi() {
   if (isDemo()) return (googleApi ||= createDemoGoogle());
   const id = gset().clientId || '';
   if (!id) return null;
-  if (id !== googleFor) { googleApi = createGoogle(id); googleFor = id; }
+  if (id !== googleFor) { googleApi = createGoogle(id, serverGoogleToken); googleFor = id; }
   return googleApi;
+}
+
+/**
+ * 자동 동기화를 켰으면 서버(GitHub)가 1시간짜리 구글 토큰을 받아 둬요. 그걸 쓰면 일정·할일을 넣을 때 구글 창이 안 떠요.
+ * 토큰이 지났으면 새로 받아 달라고 하고, 넣는 중(interactive)이면 1분 남짓 기다려요.
+ */
+let gTokenAsked = 0;
+function renewServerToken() {
+  if (isDemo() || !autoLinked() || !state.secrets?.githubToken || Date.now() - gTokenAsked < 3 * 60_000) return false;
+  gTokenAsked = Date.now();
+  dispatchWorkflow(repoFromLocation(location), state.secrets.githubToken, 'agenda-sync.yml').catch(() => { gTokenAsked = 0; });
+  return true;
+}
+async function serverGoogleToken(interactive) {
+  const t = freshServerToken(state.secrets?.googleAccess);
+  if (t || !interactive || !autoLinked() || !state.secrets?.githubToken) return t;
+  renewServerToken();
+  toast('구글 연결을 새로 받는 중이에요. 1분쯤 걸려요.');
+  for (let i = 0; i < 60; i++) { // 최대 2분: 서버가 새 토큰을 저장하면 바로 이어서 넣어요
+    await new Promise((r) => setTimeout(r, 2000));
+    const x = freshServerToken(state.secrets?.googleAccess);
+    if (x) return x;
+  }
+  return null;
 }
 const gConnected = () => !!gapi()?.connected();
 
@@ -2790,6 +2816,10 @@ function bind() {
   });
   setInterval(checkDay, 30_000);
   setInterval(checkVersion, 5 * 60_000);
+  // 앱을 오래 켜 두어도 구글 토큰이 끊기지 않게 (일정·할일 넣을 때 구글 창이 안 뜨도록)
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && state.user && autoLinked() && !freshServerToken(state.secrets?.googleAccess, Date.now() + 10 * 60_000)) renewServerToken();
+  }, 5 * 60_000);
 }
 
 let agendaLoaded = false;

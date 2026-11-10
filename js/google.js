@@ -46,8 +46,16 @@ export function listApi(all) {
   };
 }
 
-/** 구글 연결 도우미. clientId는 구글 클라우드 콘솔에서 만든 'OAuth 클라이언트 ID'(공개값) */
-export function createGoogle(clientId) {
+/** 서버(자동 동기화)가 받아 둔 접근 토큰이 아직 쓸 만한지 ({token, exp}) */
+export function freshServerToken(t, now = Date.now()) {
+  return t?.token && Number(t.exp) > now + 60_000 ? t.token : null;
+}
+
+/**
+ * 구글 연결 도우미. clientId는 구글 클라우드 콘솔에서 만든 'OAuth 클라이언트 ID'(공개값)
+ * serverToken(): 자동 동기화를 켰으면 서버가 받아 둔 토큰 (있으면 구글 창을 띄우지 않아요)
+ */
+export function createGoogle(clientId, serverToken = async () => null) {
   let client = null;
   let pending = null;
 
@@ -72,6 +80,8 @@ export function createGoogle(clientId) {
   async function token(interactive) {
     const t = cachedToken();
     if (t) return t;
+    const st = await serverToken(interactive).catch(() => null);
+    if (st) return st;
     if (!interactive) return null;
     return requestToken(localStorage.getItem('chgok-gconsented') === SCOPE_VER ? '' : 'consent').then((x) => { localStorage.setItem('chgok-gconsented', SCOPE_VER); return x; });
   }

@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261111n';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261111n';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261111n';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261111n';
-import { won, wonExact, mdw, pct } from './format.js?v=20261111n';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261111n';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261111p';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261111p';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261111p';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261111p';
+import { won, wonExact, mdw, pct } from './format.js?v=20261111p';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261111p';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -696,15 +696,17 @@ function tasksAnswer(ctx) {
 
 // ───── 일정·할일 넣기 ─────
 const ADD_RE = /(추가|넣어|넣기|넣자|잡아줘|잡아줄|잡자|등록|저장해줘|적어줘|기록해줘|메모해줘)/;
-const CMD_RE = /\s*(을|를)?\s*(일정|할일|할 일|약속|스케줄|투두)?\s*(을|를|으로|로|에)?\s*(캘린더|구글|달력|목록)?(에|에다)?\s*(좀\s*)?(추가|넣어|넣기|넣자|잡아|잡자|등록|저장|적어|기록|메모)[\s\S]*$/;
+const CMD_RE = /\s*(을|를)?\s*(일정|할일|할 일|약속|스케줄|투두)?\s*(을|를|으로|로|에)?\s*(캘린더|구글|달력|목록)?(에|에다)?\s*(좀\s*)?(추가|넣어|넣기|넣자|잡아|잡자|등록|저장|적어|기록|메모)(해|하|줘|줄래|주세요|줘요|주라|요|좀|\s)*/;
 
-/** 질문에서 넣을 내용만: '내일 3시 상담 일정 잡아 줘' → '내일 3시 상담' */
+/**
+ * 질문에서 넣을 내용만: '내일 3시 상담 일정 잡아 줘' → '내일 3시 상담'
+ * 명령 뒤에 덧붙인 말도 살려요: '보고서 할일 추가 11월 17일까지' → '보고서 11월 17일까지'
+ */
 export function stripCommand(raw) {
-  return String(raw).trim()
-    .replace(/^(일정|할일|할 일|투두)(에|으로|로)?\s+/, '')
-    .replace(CMD_RE, '')
-    .replace(/[.!?~]+$/, '')
-    .trim();
+  const s = String(raw).trim().replace(/^(일정|할일|할 일|투두)(에|으로|로)?\s+/, '');
+  const m = s.match(CMD_RE);
+  const out = m ? `${s.slice(0, m.index)} ${s.slice(m.index + m[0].length)}` : s;
+  return out.replace(/[.!?~]+\s*$/, '').replace(/\s+/g, ' ').trim();
 }
 
 function addAnswer(ctx, now) {

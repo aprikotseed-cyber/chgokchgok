@@ -1,7 +1,7 @@
 // 아침 브리핑 알림 (GitHub Actions가 매일 아침 보내요): 오늘 일정 · 할일 · 오늘 나가는 돈.
 // 대출 상환과 고정지출은 '오늘'이 상환일·출금일일 때만 넣어요.
-import { upcoming } from './reminders.js?v=20261111n';
-import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261111n';
+import { upcoming } from './reminders.js?v=20261111p';
+import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261111p';
 
 const WEEK = '일월화수목금토';
 const list = (items, n = 4) => items.slice(0, n).join(', ') + (items.length > n ? ` 외 ${items.length - n}개` : '');
