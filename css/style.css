@@ -576,7 +576,7 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .mini-head + .empty { padding-top: 8px; }
 .mini-title { display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; }
 .row.ev { gap: 12px; color: inherit; text-decoration: none; }
-.ev-time { width: 3.2em; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.ev-time { width: 6.6em; flex-shrink: 0; text-align: center; font-size: 13px; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ev-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--c, var(--text-muted)); }
 .ev-dot.money { border-radius: 2px; background: var(--hot-ink); }
 .row.ev.partner .row-title { color: var(--text-secondary); font-weight: 400; }
