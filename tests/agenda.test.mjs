@@ -68,3 +68,10 @@ test('할일 시간: 제목에서 빼고 메모 첫 줄로 (구글 태스크는 
   const g = groupTasks([{ id: '1', title: 'B', due: '2026-11-09', time: '' }, { id: '2', title: 'A', due: '2026-11-09', time: '09:00' }], '2026-11-09');
   assert.deepEqual(g.today.map((x) => x.id), ['2', '1']); // 시간 있는 것 먼저
 });
+
+test('날짜: 일만 쓰면 이번 달(지났으면 다음 달), N일 뒤', () => {
+  assert.deepEqual(parseQuickTask('26일 동학년회식', now), { title: '동학년회식', due: '2026-11-26' });
+  assert.deepEqual(parseQuickTask('5일 관리비', now), { title: '관리비', due: '2026-12-05' });
+  assert.deepEqual(parseQuickTask('3일 뒤 서류 제출', now), { title: '서류 제출', due: '2026-11-12' });
+  assert.deepEqual(parseQuickTask('3일간 연수 정리', now), { title: '3일간 연수 정리', due: '' });
+});

@@ -127,6 +127,15 @@ export function parseQuickTask(text, now = new Date()) {
   take(/\s(이번\s?주\s?)?([월화수목금토일])요일(까지|에)?\s/, (m) => addDays(monday, dayIdx(m[2])));
   take(/\s(\d{1,2})월\s?(\d{1,2})일(까지|에)?\s/, (m) => nearest(today, Number(m[1]), Number(m[2])));
   take(/\s(\d{1,2})[/.](\d{1,2})(까지|에)?\s/, (m) => nearest(today, Number(m[1]), Number(m[2])));
+  // '3일 뒤', '10일 후'
+  take(/\s(\d{1,3})일\s?(뒤|후)(에|까지)?\s/, (m) => addDays(today, Number(m[1])));
+  // '26일'만 쓰면 이번 달 26일, 이미 지났으면 다음 달
+  take(/\s(\d{1,2})일(까지|에|날)?\s/, (m) => {
+    const d = Number(m[1]);
+    if (d < 1 || d > 31) return null;
+    const x = new Date(today.getFullYear(), today.getMonth(), d);
+    return x < today ? new Date(today.getFullYear(), today.getMonth() + 1, d) : x;
+  });
   const title = s.replace(/\s+/g, ' ').trim();
   const t = time ? { time } : {};
   if (!rep.rule) return { title, due, ...t };
