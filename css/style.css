@@ -610,7 +610,7 @@ dialog.lock {
 }
 dialog.lock[open] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; }
 dialog.lock::backdrop { background: var(--bg); }
-dialog.lock img { width: 96px; height: 96px; }
+dialog.lock .lock-logo { width: 96px; height: 96px; transition: width .4s var(--ease), height .4s var(--ease); }
 .lock-actions { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .lock-actions[hidden] { display: none; }
 
@@ -757,3 +757,117 @@ pre.debug { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-
 .sc-label { font-weight: 700; color: var(--text-secondary); }
 .sc-row code, .steps code { font-size: 12px; background: var(--surface-2); padding: 2px 6px; border-radius: 6px; overflow-wrap: anywhere; }
 .sc-row code { padding: 8px 10px; }
+
+/* ═════════ 움직임 ═════════
+   한 가지 곡선으로 통일: 빠르게 시작해 부드럽게 멈춰요. 움직임 줄이기 설정이면 모두 꺼요. */
+:root { --ease: cubic-bezier(.22, .8, .24, 1); --ease-in: cubic-bezier(.45, 0, .7, .3); }
+
+/* 눌리고 바뀌는 것들: 색은 스르륵, 누르면 살짝 들어가요 */
+.btn, .link-btn, .pill, .icon-btn, .row, .memo, .mday, .tabs a, .side-link, .segment button, .subnav a,
+.tcheck, .ask-send, .fab, .check, .mchip, .ev-dot, summary {
+  transition: background-color .22s var(--ease), color .22s var(--ease), border-color .22s var(--ease),
+    box-shadow .22s var(--ease), opacity .22s var(--ease), transform .18s var(--ease);
+}
+.btn:active, .pill:active, .icon-btn:active, .memo:active, .mday:active, .tcheck:active, .fab:active, .ask-send:active { transform: scale(.97); }
+.tabs a svg, .side-link svg { transition: transform .3s var(--ease); }
+.tabs a[aria-current="page"] svg { transform: translateY(-1px) scale(1.06); }
+
+/* 메뉴를 옮기면 새 화면이 살짝 떠오르며, 위에서부터 차례로 */
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+#view.enter > * { animation: rise .42s var(--ease) both; }
+#view.enter > :nth-child(2) { animation-delay: .03s; }
+#view.enter > :nth-child(3) { animation-delay: .06s; }
+#view.enter > :nth-child(4) { animation-delay: .09s; }
+#view.enter > :nth-child(5) { animation-delay: .12s; }
+#view.enter > :nth-child(n+6) { animation-delay: .15s; }
+#view.enter.sub > .subnav, #view.enter.sub > .page-title { animation: none; }
+
+/* 입력창·비서 창: 떠오르며 열리고, 가라앉으며 닫혀요. 뒤는 천천히 어두워져요 */
+@keyframes pop-in { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+@keyframes pop-out { to { opacity: 0; transform: translateY(10px) scale(.985); } }
+@keyframes sheet-in { from { transform: translateY(100%); } }
+@keyframes sheet-out { to { transform: translateY(100%); } }
+@keyframes dim-in { from { opacity: 0; } }
+@keyframes dim-out { to { opacity: 0; } }
+dialog:not(.lock)[open] { animation: pop-in .34s var(--ease) both; }
+dialog:not(.lock)[open]::backdrop { animation: dim-in .3s var(--ease) both; }
+dialog:not(.lock).closing { animation: pop-out .19s var(--ease-in) forwards; }
+dialog:not(.lock).closing::backdrop { animation: dim-out .19s var(--ease-in) forwards; }
+dialog.assistant { transform-origin: bottom right; }
+@media (max-width: 600px) {
+  dialog:not(.lock)[open] { animation: sheet-in .42s var(--ease) both; }
+  dialog:not(.lock).closing { animation: sheet-out .22s var(--ease-in) forwards; }
+}
+dialog::backdrop { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+
+/* 펼치기: 높이는 스크립트가, 안쪽 내용은 살짝 늦게 떠올라요 */
+details > summary::after { transition: transform .3s var(--ease); }
+details.opening > :not(summary) { animation: rise .34s var(--ease) both; }
+
+/* 알림 띠 */
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px) scale(.98); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes toast-out { to { opacity: 0; transform: translate(-50%, 6px); } }
+.toast:not([hidden]) { animation: toast-in .34s var(--ease) both; }
+.toast.out { animation: toast-out .22s var(--ease-in) forwards; }
+.alert-card { animation: rise .4s var(--ease) both; }
+
+/* 달력: 달 넘기기는 넘기는 쪽으로, 고른 날 목록은 떠오르며 */
+@keyframes slide-next { from { opacity: 0; transform: translateX(18px); } }
+@keyframes slide-prev { from { opacity: 0; transform: translateX(-18px); } }
+.mcal.slide-next { animation: slide-next .36s var(--ease) both; }
+.mcal.slide-prev { animation: slide-prev .36s var(--ease) both; }
+.day-detail.appear { animation: rise .34s var(--ease) both; }
+
+/* 할일 완료: 동그라미가 톡 차오르고 체크가 그려져요 */
+@keyframes check-pop { 0% { transform: scale(.8); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes check-draw { from { stroke-dashoffset: 22; } to { stroke-dashoffset: 0; } }
+.tcheck.just { animation: check-pop .38s var(--ease); }
+.tcheck.just svg path { stroke-dasharray: 22; animation: check-draw .34s var(--ease) .06s both; }
+
+/* ═════════ 잠금 화면 · PIN ═════════ */
+@keyframes lock-in { from { opacity: 0; } }
+@keyframes lock-out { to { opacity: 0; transform: scale(1.02); filter: blur(6px); } }
+dialog.lock[open] { animation: lock-in .3s var(--ease) both; }
+dialog.lock.leaving { animation: lock-out .32s var(--ease-in) forwards; }
+dialog.lock.leaving::backdrop { animation: dim-out .32s var(--ease-in) forwards; }
+dialog.lock.pin-mode { gap: 26px; }
+dialog.lock.pin-mode .lock-logo { width: 52px; height: 52px; }
+
+.pin { display: flex; flex-direction: column; align-items: center; gap: 22px; animation: rise .45s var(--ease) both; }
+.pin[hidden] { display: none; }
+.pin-title { min-height: 1.5em; font-size: 16px; font-weight: 600; letter-spacing: -.01em; color: var(--text-secondary); text-align: center; }
+.pin-dots { display: flex; gap: 18px; padding: 4px 0 6px; }
+.pin-dots i {
+  width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--text-muted);
+  transition: background-color .18s var(--ease), border-color .18s var(--ease), transform .26s var(--ease);
+}
+.pin-dots i.on { background: var(--ink); border-color: var(--ink); transform: scale(1.1); }
+@keyframes pin-shake { 15% { transform: translateX(-9px); } 30% { transform: translateX(8px); } 45% { transform: translateX(-6px); } 60% { transform: translateX(4px); } 75% { transform: translateX(-2px); } 100% { transform: none; } }
+@keyframes pin-ok { 50% { transform: scale(1.06); } }
+.pin-dots.bad { animation: pin-shake .42s var(--ease); }
+.pin-dots.bad i { background: var(--danger); border-color: var(--danger); }
+.pin-dots.ok { animation: pin-ok .3s var(--ease); }
+
+.pin-pad { display: grid; grid-template-columns: repeat(3, 76px); gap: 14px 24px; margin-top: 6px; }
+.pin-pad button {
+  width: 76px; height: 76px; border: 0; border-radius: 50%; cursor: pointer;
+  background: var(--surface-1); color: var(--text-primary); font: inherit; font-size: 28px; font-weight: 500; font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .04), inset 0 0 0 1px var(--border);
+  transition: background-color .2s var(--ease), transform .16s var(--ease);
+}
+.pin-pad button:hover { background: var(--surface-2); }
+@keyframes key-hit { 35% { transform: scale(.9); background: var(--surface-2); } }
+.pin-pad button.hit { animation: key-hit .26s var(--ease); }
+.pin-pad .quiet { background: none; box-shadow: none; font-size: 15px; color: var(--text-secondary); }
+.pin-pad .quiet:hover { background: var(--surface-2); }
+.pin-pad .quiet[hidden] { display: block !important; visibility: hidden; }
+.pin-pad svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.pin-hint { font-size: 12px; color: var(--text-muted); }
+@media (hover: none) { .pin-hint { display: none; } }
+.pin-forgot[hidden] { display: none; }
+@media (max-height: 700px) { .pin-pad { grid-template-columns: repeat(3, 66px); gap: 10px 20px; } .pin-pad button { width: 66px; height: 66px; } }
+.lock-choices { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, ::backdrop { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
+}
