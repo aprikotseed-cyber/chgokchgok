@@ -972,3 +972,11 @@ dialog.assistant, dialog.assistant[open] {
 
 /* 오늘 맨 위 비서 칸: 이름 대신 작은 로고 */
 .ask-label img { display: block; width: 22px; height: 22px; }
+
+/* 글을 쓸 수 없는 곳에는 깜빡이는 커서가 보이지 않게 (입력칸에서만 보여요) */
+html { caret-color: transparent; }
+input, textarea, select, [contenteditable="true"] { caret-color: auto; }
+/* 버튼·메뉴·달력 칸은 눌러도 글자가 선택되지 않게 (메모·일정 내용 글자는 그대로 복사할 수 있어요) */
+button, summary, .tabs, .side-link, .segment, .subnav, .mday, .mcal-head, .pin-pad, .fab, .as-act, .tcheck, label.field.check {
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
