@@ -871,3 +871,4 @@ dialog.lock.pin-mode .lock-logo { width: 52px; height: 52px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after, ::backdrop { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
 }
+.login-privacy { font-size: 12px; opacity: .8; }
