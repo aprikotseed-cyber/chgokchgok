@@ -3,7 +3,12 @@ name: 비서 알림
 on:
   schedule:
     - cron: '33 22 * * *' # 매일 오전 7시 33분 (한국 시간). 예비용: 제시간은 cron-job.org가 7시 30분에 실행해요
-  workflow_dispatch: {}   # Actions 탭에서 'Run workflow'로 바로 실행 가능
+  workflow_dispatch:      # Actions 탭 'Run workflow' 또는 cron-job.org·앱에서 실행
+    inputs:
+      test:
+        description: '브리핑 대신 시험 알림만 보내기'
+        type: boolean
+        default: false
 
 jobs:
   notify:
@@ -27,3 +32,4 @@ jobs:
       - run: node scripts/notify.mjs
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          TEST: ${{ inputs.test }}

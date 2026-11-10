@@ -55,7 +55,7 @@ async function notify(userRef, title, body) {
   if (!devices.length) return;
   await getMessaging().sendEachForMulticast({
     tokens: devices.map((x) => x.token),
-    webpush: { notification: { title, body, icon: `${APP_URL}icon-192.png`, tag: `chgok-inbox-${Date.now()}` }, fcmOptions: { link: `${APP_URL}#home` } },
+    webpush: { notification: { title, body, icon: `${APP_URL}icon-192.png`, tag: `chgok-inbox-${Date.now()}`, renotify: true }, fcmOptions: { link: `${APP_URL}#home` } },
   }).catch((e) => console.log('알림 실패:', e.message));
 }
 

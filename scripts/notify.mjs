@@ -22,6 +22,21 @@ const late = process.env.GITHUB_EVENT_NAME === 'schedule' && k.getUTCHours() * 6
 if (late) console.log('예약 실행이 늦게 돌아서 아침 브리핑은 건너뛰어요');
 
 const mains = (await db.collectionGroup('data').get()).docs.filter((d) => d.id === 'main');
+
+// 설정의 '알림 시험 보내기': 브리핑 대신 짧은 시험 알림을 모든 기기에 (오늘 브리핑 기록에는 영향 없어요)
+if (process.env.TEST === 'true') {
+  const hm = `${k.getUTCHours()}시 ${String(k.getUTCMinutes()).padStart(2, '0')}분`;
+  for (const doc of mains) {
+    const devices = (await doc.ref.parent.doc('push').get()).data()?.devices || [];
+    if (!devices.length) continue;
+    const r = await messaging.sendEachForMulticast({
+      tokens: devices.map((x) => x.token),
+      webpush: { notification: { title: '차곡차곡 알림 시험', body: `${hm}에 보낸 시험 알림이에요. 이 알림이 보이면 아침 브리핑도 받을 수 있어요.`, icon: `${APP_URL}icon-192.png`, tag: `chgok-test-${Date.now()}`, renotify: true }, fcmOptions: { link: `${APP_URL}#settings` } },
+    });
+    console.log(`시험 알림: 보냄 ${r.successCount}, 실패 ${r.failureCount}`, r.responses.map((x) => x.error?.code).filter(Boolean));
+  }
+  process.exit(0);
+}
 for (const doc of mains) {
   if (late) break;
   const pushRef = doc.ref.parent.doc('push');
@@ -41,7 +56,7 @@ for (const doc of mains) {
     tokens,
     webpush: {
       // requireInteraction: PC(Chrome·Edge)에서는 닫을 때까지 화면에 남아 있어요 (아이폰은 원래 알림센터에 남아요)
-      notification: { title: n.title, body: n.body, icon: `${APP_URL}icon-192.png`, tag: `chgok-${today.toISOString().slice(0, 10)}`, requireInteraction: true },
+      notification: { title: n.title, body: n.body, icon: `${APP_URL}icon-192.png`, tag: `chgok-brief-${Date.now()}`, renotify: true, requireInteraction: true },
       fcmOptions: { link: `${APP_URL}#home` },
     },
   });

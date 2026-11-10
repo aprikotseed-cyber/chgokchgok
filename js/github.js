@@ -16,7 +16,7 @@ export const WORKFLOWS = {
 };
 
 /** 작업 실행 요청. 성공하면 true, 실패하면 알기 쉬운 오류 */
-export async function dispatchWorkflow({ owner, repo }, token, file, fetchImpl = fetch) {
+export async function dispatchWorkflow({ owner, repo }, token, file, fetchImpl = fetch, inputs = null) {
   if (!token) throw new Error('먼저 설정에서 GitHub 토큰을 넣어 주세요');
   let res;
   try {
@@ -24,7 +24,7 @@ export async function dispatchWorkflow({ owner, repo }, token, file, fetchImpl =
       method: 'POST',
       // 브라우저에서 바로 부르므로 GitHub이 허용하는 기본 헤더만 써요
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ref: 'main' }),
+      body: JSON.stringify({ ref: 'main', ...(inputs ? { inputs } : {}) }),
     });
   } catch {
     throw new Error('GitHub에 연결하지 못했어요. 인터넷 연결을 확인해 주세요');
