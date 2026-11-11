@@ -590,8 +590,8 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .row.task { gap: 12px; padding-top: 10px; padding-bottom: 10px; cursor: default; }
 .row.task:hover { background: none; }
 .row.task .row-main { background: none; border: 0; padding: 4px 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-.tcheck { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; padding: 0; border: 1px solid var(--text-muted); border-radius: 0; background: none; cursor: pointer; color: transparent; }
-.tcheck svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.tcheck { width: 19px; height: 19px; flex-shrink: 0; display: grid; place-items: center; padding: 0; border: 1px solid var(--text-muted); border-radius: 0; background: none; cursor: pointer; color: transparent; }
+.tcheck svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 .tcheck:hover { border-color: var(--text-primary); }
 .row.task.done .tcheck { background: var(--down); border-color: var(--down); color: #fff; } /* 끝낸 할일: 하늘색 정사각형 */
 .row.task.done .row-title { color: var(--text-muted); font-weight: 400; } /* 끝낸 할일: 취소선 없이 연회색 */
