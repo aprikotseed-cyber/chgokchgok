@@ -1,5 +1,5 @@
 // Chart.js(전역 Chart)로 그리는 꺾은선그래프. 색은 CSS 변수에서 읽어 라이트/다크 모드를 따릅니다.
-import { won, wonShort, ymLabel } from './format.js?v=20261111w';
+import { won, wonShort, ymLabel } from './format.js?v=20261111x';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const charts = new Map();
@@ -95,16 +95,15 @@ export function projectionChart(canvas, points) {
 export function trendChart(canvas, points, mode = 'day') {
   const prevWord = { day: '전일', month: '전월', year: '전년' }[mode];
   const sgn = (v) => `${v >= 0 ? '+' : '−'}${won(Math.abs(v))}`;
-  const color = css('--series-3');
+  const color = css('--series-1'); // 주택 실거래가 추이와 같은 모양 (같은 색·점·직선, 채우기 없음)
   draw(canvas, {
     type: 'line',
     data: {
       labels: points.map((p) => p.label),
       datasets: [{
-        label: '총자산', data: points.map((p) => p.net),
-        borderColor: color, backgroundColor: `${color}1a`, pointBackgroundColor: color,
-        pointRadius: points.length <= 14 ? 3 : 0, pointBorderColor: css('--surface-1'), pointBorderWidth: 2, tension: 0.2,
-        fill: 'start', // 아래를 옅게 채워 증가 흐름이 잘 보이게
+        label: '총자산', data: points.map((p) => p.net), spanGaps: true,
+        borderColor: color, backgroundColor: color, pointBackgroundColor: color,
+        pointRadius: 3, pointBorderColor: css('--surface-1'), pointBorderWidth: 2,
         // 추정한 달: 흐린 점, 점선
         ...(points.some((p) => p.est) ? {
           pointBackgroundColor: points.map((p) => (p.est ? `${color}66` : color)),
@@ -114,7 +113,6 @@ export function trendChart(canvas, points, mode = 'day') {
     },
     options: {
       ...base(),
-      scales: { ...base().scales, y: { ...base().scales.y, grace: '5%' } },
       plugins: {
         ...base().plugins,
         tooltip: {

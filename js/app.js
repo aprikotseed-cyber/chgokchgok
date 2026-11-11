@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261111w';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111w';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111w';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111w';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111w';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111w';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111w';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111w';
-import { estimateMonths } from './estimate.js?v=20261111w';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111w';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111w';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111w';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111w';
-import { createGoogle, freshServerToken } from './google.js?v=20261111w';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111w';
-import { createDemoGoogle } from './google-demo.js?v=20261111w';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111w';
+import { connect, isDemo } from './store.js?v=20261111x';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111x';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111x';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111x';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111x';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111x';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111x';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111x';
+import { estimateMonths } from './estimate.js?v=20261111x';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111x';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111x';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111x';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111x';
+import { createGoogle, freshServerToken } from './google.js?v=20261111x';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111x';
+import { createDemoGoogle } from './google-demo.js?v=20261111x';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111x';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -430,7 +430,7 @@ function viewAssets() {
         meta: [r.kind, r.applied === false ? '잔액 미반영' : '', esc(r.memo || '')].filter(Boolean).join(' · '),
         value: `<span class="${r.type === 'saving' ? 'up' : 'down'}">${r.type === 'saving' ? '+' : '−'}${won(r.amount)}</span>`,
       })).join('')}${recs.length > 12 ? '<div class="pad"><a class="link-btn" href="#records">기록 탭에서 전체 보기</a></div>' : ''}</div>`) : '';
-    return `<div class="stock">
+    return `<div class="stock"><div class="stock-head">
       ${row({
         kind: 'savings', id: s.id, title: esc(s.name),
         meta: [s.kind, s.monthly ? `매달 ${won(s.monthly)}` : '', s.rate ? `연 ${pct(s.rate)}` : ''].filter(Boolean).join(' · '),
@@ -439,7 +439,7 @@ function viewAssets() {
       <div class="trade-bar">
         <button class="pill buy" data-action="deposit" data-type="saving" data-id="${esc(s.id)}">입금</button>
         <button class="pill sell" data-action="deposit" data-type="withdraw" data-id="${esc(s.id)}">출금</button>
-      </div>
+      </div></div>
       ${hist}
     </div>`;
   }).join('');
@@ -598,7 +598,7 @@ function stockSection(d, m) {
         <thead><tr><th>날짜</th><th>구분</th><th>수량</th><th>단가</th><th>원화</th><th>실현 손익</th></tr></thead>
         <tbody>${trades.slice().reverse().map((t) => `<tr><th>${t.date.slice(2).replaceAll('-', '.')}</th><td class="${t.type === 'buy' ? 'up' : 'down'}">${t.type === 'buy' ? '매수' : '매도'}</td><td>${Number(t.qty).toLocaleString('ko-KR', { maximumFractionDigits: 6 })}</td><td>${t.cur === 'USD' ? usd(t.price) : wonExact(t.price)}</td><td>${t.krw ? wonExact(t.krw) : '-'}${t.fx ? `<small class="muted sub">환율 ${wonExact(t.fx)}</small>` : ''}</td><td>${t.realizedKrw != null ? `<span class="${tone(t.realizedKrw)}">${signed(t.realizedKrw)}</span>` : '-'}</td></tr>`).join('')}</tbody>
       </table></div><div class="pad"><button class="link-btn" data-action="trade-undo" data-id="${esc(s.id)}">마지막 거래 취소</button></div>`) : '';
-    return `<div class="stock ${held ? '' : 'sold'}">
+    return `<div class="stock ${held ? '' : 'sold'}"><div class="stock-head">
       <button class="row" data-action="edit" data-kind="stocks" data-id="${esc(s.id)}">
         <span class="row-main"><span class="row-title">${esc(s.name)}${held ? '' : ' <span class="badge">전량 매도</span>'}</span><span class="row-meta">${meta}</span>${fxNote}</span>
         <span class="row-side"><span class="row-value">${won(x.valueKrw)}</span>${sub ? `<span class="row-meta">${sub}</span>` : ''}</span>
@@ -606,7 +606,7 @@ function stockSection(d, m) {
       <div class="trade-bar">
         <button class="pill buy" data-action="trade" data-type="buy" data-id="${esc(s.id)}">매수</button>
         <button class="pill sell" data-action="trade" data-type="sell" data-id="${esc(s.id)}" ${held ? '' : 'disabled'}>매도</button>
-      </div>
+      </div></div>
       ${history}
     </div>`;
   }).join('');

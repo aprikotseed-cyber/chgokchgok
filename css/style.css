@@ -440,13 +440,13 @@ dialog.assistant[open] { display: flex; }
 /* ───── 주식 매수·매도 ───── */
 .gap-b { margin-bottom: 10px; }
 .stock + .stock, .list > .row + .stock { border-top: 1px solid var(--border); }
-.stock > .row { padding-bottom: 8px; }
+.stock-head > .row { padding-bottom: 8px; }
 .trade-bar { display: flex; justify-content: flex-end; gap: 6px; padding: 0 18px 12px; }
 .trade-bar .pill { min-width: 56px; font-weight: 600; }
 .trade-bar .pill.buy { color: var(--up); }
 .trade-bar .pill.sell { color: var(--down); }
 .trade-bar .pill:disabled { opacity: .4; cursor: default; }
-.stock.sold > .row { opacity: .55; }
+.stock.sold .stock-head > .row { opacity: .55; }
 .stock > details { border-top: 1px solid var(--border); }
 td.up { color: var(--up); }
 td.down { color: var(--down); }
@@ -507,10 +507,12 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .hint.update-time { text-align: left; padding: 12px 4px 0; }
 
 /* 종목·계좌 줄과 그 아래 매수·매도(입금·출금) 버튼 칸을 한 덩어리로: 마우스를 올리면 함께 색이 바뀌어요 */
-.stock > .row:hover { background: none; }
-.stock:has(> .row:hover) > .row, .stock:has(> .row:hover) > .trade-bar,
-.stock:has(> .trade-bar:hover) > .row, .stock:has(> .trade-bar:hover) > .trade-bar { background: var(--surface-2); }
-.stock > .trade-bar .pill { background: var(--surface-1); }
+/* 계좌·종목: 이름 줄과 입금·출금(매수·매도) 줄을 한 덩어리로, 올리면 함께 같은 속도로 */
+.stock-head { transition: background-color .22s var(--ease); }
+.stock-head > .row, .stock-head > .row:hover { background: none; }
+.stock-head:hover { background: var(--surface-2); }
+.stock-head .trade-bar .pill { background: var(--surface-2); transition: background-color .22s var(--ease); }
+.stock-head:hover .trade-bar .pill { background: var(--surface-1); }
 
 /* ───── 지금 업데이트 ───── */
 .update-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-top: 12px; }
@@ -588,10 +590,10 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .row.task { gap: 12px; padding-top: 10px; padding-bottom: 10px; cursor: default; }
 .row.task:hover { background: none; }
 .row.task .row-main { background: none; border: 0; padding: 4px 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }
-.tcheck { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; padding: 0; border: 2px solid var(--text-muted); border-radius: 6px; background: none; cursor: pointer; color: transparent; }
-.tcheck svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.tcheck { width: 24px; height: 24px; flex-shrink: 0; display: grid; place-items: center; padding: 0; border: 2px solid var(--text-muted); border-radius: 0; background: none; cursor: pointer; color: transparent; }
+.tcheck svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 .tcheck:hover { border-color: var(--text-primary); }
-.row.task.done .tcheck { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.row.task.done .tcheck { background: var(--down); border-color: var(--down); color: #fff; } /* 끝낸 할일: 하늘색 정사각형 */
 .row.task.done .row-title { color: var(--text-muted); font-weight: 400; } /* 끝낸 할일: 취소선 없이 연회색 */
 .late { color: var(--danger); font-weight: 600; }
 .quick-add { display: flex; gap: 8px; padding: 8px; }
@@ -656,7 +658,7 @@ dialog.lock .lock-logo { width: 96px; height: 96px; transition: width .4s var(--
 .mday.sel { background: color-mix(in srgb, var(--ink) 12%, var(--surface-1)); }
 .mday.out { opacity: .35; }
 .mday .num { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font-size: 14px; font-weight: 600; }
-.mday.today .num { background: var(--ink); color: var(--on-ink); }
+.mday.today .num { background: none; color: var(--down); font-weight: 800; } /* 오늘: 동그라미 없이 하늘색 글씨 */
 .mdots { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; max-width: 100%; }
 .mdots i, .mlegend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
 .mdots i.m, .mlegend i.m { width: 13px; height: 13px; border-radius: 50%; background: var(--hot-bg); color: var(--hot-ink); font-size: 9px; font-style: normal; font-weight: 800; line-height: 13px; text-align: center; }
@@ -1007,7 +1009,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible, [role="button"]:fo
 .quick-add input:focus, .fb-form input:focus, .memo-search:focus { border-color: transparent; background: var(--surface-2); }
 .as-form input:focus { border-color: var(--im-line); background: var(--im-bg); }
 .tcheck:hover { border-color: var(--text-muted); background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
-.row.task.done .tcheck:hover { background: var(--ink); }
+.row.task.done .tcheck:hover { background: var(--down); }
 
 /* 입력칸 (오늘 비서·새 일정·새 할일·새 메모·메모 고치기·메모 찾기): 테두리 없이, 올리거나 쓰는 중엔 연한 그림자 */
 .ask-box, .ask-bar, .memo-search { border: 0; transition: box-shadow .25s var(--ease); }
