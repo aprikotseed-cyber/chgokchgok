@@ -574,7 +574,8 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .gsync { display: inline-flex; align-items: baseline; gap: 10px; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .gsync .warn { color: var(--warn); white-space: normal; }
 .today { display: grid; gap: 12px; }
-@media (min-width: 900px) { .today { grid-template-columns: 1fr 1fr; align-items: stretch; } }
+/* 일정·할일 칸은 각자 내용만큼만 높이를 가져요 (한쪽이 길어도 다른 쪽이 늘어나지 않게) */
+@media (min-width: 900px) { .today { grid-template-columns: 1fr 1fr; align-items: start; } }
 .mini-head { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 18px 4px; font-size: 13px; font-weight: 700; color: var(--text-secondary); }
 .list > .mini-head + .row, .list > .mini-head + .empty { border-top: 0; }
 .mini-head + .empty { padding-top: 8px; }
