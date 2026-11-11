@@ -592,7 +592,7 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .tcheck svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .tcheck:hover { border-color: var(--text-primary); }
 .row.task.done .tcheck { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
-.row.task.done .row-title { color: var(--text-muted); text-decoration: line-through; font-weight: 400; }
+.row.task.done .row-title { color: var(--text-muted); font-weight: 400; } /* 끝낸 할일: 취소선 없이 연회색 */
 .late { color: var(--danger); font-weight: 600; }
 .quick-add { display: flex; gap: 8px; padding: 8px; }
 .quick-add input { flex: 1; min-width: 0; height: 46px; padding: 0 12px; font: inherit; font-size: 16px; color: var(--text-primary); background: var(--surface-2); border: 1px solid transparent; border-radius: 10px; }
