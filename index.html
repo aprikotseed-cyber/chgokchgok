@@ -14,9 +14,9 @@
   <link rel="icon" href="favicon-48.png?v=2" sizes="48x48" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261111v">
+  <link rel="stylesheet" href="css/style.css?v=20261111w">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
-  <script type="module" src="js/app.js?v=20261111v"></script>
+  <script type="module" src="js/app.js?v=20261111w"></script>
 </head>
 <body>
   <div id="boot" class="boot">불러오는 중</div>
@@ -112,6 +112,20 @@
         <span class="spacer"></span>
         <button type="button" id="editor-cancel" class="btn">취소</button>
         <button type="submit" class="btn primary">저장</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="memo-editor" class="memo-dialog" aria-label="메모 수정">
+    <form id="memo-edit-form" class="ask-box memo-capture" autocomplete="off">
+      <label for="memo-edit-text" class="ask-label">메모</label>
+      <textarea id="memo-edit-text" rows="8" aria-label="메모"></textarea>
+      <div class="memo-capture-foot">
+        <span class="hint" id="memo-edit-stamp"></span>
+        <span class="memo-edit-acts">
+          <button type="button" class="text-btn danger" id="memo-edit-delete">삭제</button>
+          <button type="button" class="text-btn" id="memo-edit-cancel">취소</button>
+          <button type="submit" class="ask-send">저장</button>
+        </span>
       </div>
     </form>
   </dialog>

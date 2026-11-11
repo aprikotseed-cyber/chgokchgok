@@ -4,7 +4,7 @@
 //  - 주택: 그 달의 실거래 중앙값 (없으면 그 전 달, 자동 시세를 안 쓰면 직접 넣은 값)
 //  - 대출: 상환스케줄이 있으면 그 날짜의 잔액, 없으면 지금 잔액 + 그 뒤에 갚은 원금
 // 기록·매매가 처음 있는 달부터 지난달까지 만들어요. 결과에는 est: true가 붙어요.
-import { scheduleBalanceAt } from './schedule.js?v=20261111v';
+import { scheduleBalanceAt } from './schedule.js?v=20261111w';
 
 const pad = (n) => String(n).padStart(2, '0');
 const num = (v) => Number(v) || 0;
