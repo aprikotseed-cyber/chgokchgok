@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261112d';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112d';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112d';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112d';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112d';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112d';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112d';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112d';
-import { estimateMonths } from './estimate.js?v=20261112d';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112d';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112d';
-import { addFeedback, feedbackText } from './feedback.js?v=20261112d';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112d';
-import { createGoogle, freshServerToken } from './google.js?v=20261112d';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112d';
-import { createDemoGoogle } from './google-demo.js?v=20261112d';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112d';
+import { connect, isDemo } from './store.js?v=20261112e';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112e';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112e';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112e';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112e';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112e';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112e';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112e';
+import { estimateMonths } from './estimate.js?v=20261112e';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112e';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112e';
+import { addFeedback, feedbackText } from './feedback.js?v=20261112e';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112e';
+import { createGoogle, freshServerToken } from './google.js?v=20261112e';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112e';
+import { createDemoGoogle } from './google-demo.js?v=20261112e';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112e';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -225,7 +225,24 @@ function commit() {
   render();
   recordDaily();
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => store.save(JSON.parse(JSON.stringify(state.data))).catch((e) => toast(`저장하지 못했어요: ${e.message}`)), 300);
+  saveTimer = setTimeout(saveChanges, 300);
+}
+
+/**
+ * 서버에서 마지막으로 받은 내용(serverBase)과 비교해서 바뀐 칸만 저장해요.
+ * 예전에는 전체를 통째로 저장해서, 오래 켜 둔 휴대폰이 PC에서 고친 자산을 덮어쓸 수 있었어요.
+ */
+let serverBase = null;
+function saveChanges() {
+  const cur = JSON.parse(JSON.stringify(state.data));
+  const fail = (e) => toast(`저장하지 못했어요: ${e.message}`);
+  if (!serverBase || !store.update) { store.save(cur).catch(fail); serverBase = cur; return; }
+  const changes = {};
+  for (const k of new Set([...Object.keys(cur), ...Object.keys(serverBase)])) {
+    if (JSON.stringify(cur[k]) !== JSON.stringify(serverBase[k])) changes[k] = cur[k];
+  }
+  serverBase = cur;
+  store.update(changes, cur).catch(fail);
 }
 
 /** 오늘의 자산 기록 (값이 바뀌었을 때만 저장) */
@@ -2888,7 +2905,7 @@ async function main() {
   initLock({ active: () => !!state.user, onForgot: () => store.logout() });
   store = await connect({
     onAuth: (u) => { state.user = u; state.push.loaded = false; if (!u) { state.agenda = null; agendaLoaded = false; } lockNow(); render(); },
-    onData: (d) => { state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
+    onData: (d) => { serverBase = JSON.parse(JSON.stringify(d || {})); state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onMarket: (m) => { state.marketRaw = m || {}; const first = !state.marketLoaded; state.marketLoaded = true; if (first) setTimeout(autoRefresh, 1500); refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onSecrets: (sc) => { const first = !state.secretsLoaded; state.secretsLoaded = true; state.secrets = sc || {}; if (first) setTimeout(autoRefresh, 1500); if (['settings', 'home', 'calendar', 'tasks'].includes(state.tab)) render(); },
     onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'money') render(); recordDaily(); },
