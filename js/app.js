@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261111r';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111r';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111r';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111r';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111r';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111r';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111r';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111r';
-import { estimateMonths } from './estimate.js?v=20261111r';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111r';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111r';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111r';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111r';
-import { createGoogle, freshServerToken } from './google.js?v=20261111r';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111r';
-import { createDemoGoogle } from './google-demo.js?v=20261111r';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111r';
+import { connect, isDemo } from './store.js?v=20261111s';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111s';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111s';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111s';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111s';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111s';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111s';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111s';
+import { estimateMonths } from './estimate.js?v=20261111s';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111s';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111s';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111s';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111s';
+import { createGoogle, freshServerToken } from './google.js?v=20261111s';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111s';
+import { createDemoGoogle } from './google-demo.js?v=20261111s';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111s';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1550,7 +1550,7 @@ function todayBlock() {
   const key = today();
   const evs = eventsOn([...agendaEvents(), ...moneyEvents(0)], key);
   const g = groupTasks(a.tasks, key);
-  const due = [...g.overdue, ...g.today];
+  const due = todayTasks(a.tasks, key); // 오늘 끝낸 할일도 체크된 채로 남아요
   return section(title, `<div class="today">
       <div class="panel list"><div class="mini-head">일정 <a class="link-btn" href="#calendar">전체</a></div>${evs.length ? evs.map((e) => eventRow(e, key)).join('') : empty('오늘은 일정이 없어요.')}</div>
       <div class="panel list"><div class="mini-head">할일 <a class="link-btn" href="#tasks">전체</a></div>${due.length ? due.map(taskRow).join('') : empty(g.tomorrow.length ? `오늘 할일은 끝! 내일 할일이 ${g.tomorrow.length}개 있어요.` : '오늘 할일이 없어요.')}</div>
