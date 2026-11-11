@@ -995,3 +995,69 @@ input, textarea, select, [contenteditable="true"] { caret-color: auto; }
 button, summary, .tabs, .side-link, .segment, .subnav, .mday, .mcal-head, .pin-pad, .fab, .as-act, .tcheck, label.field.check {
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
 }
+
+/* ═════════ 간결한 디자인 (마지막에 두어 앞의 규칙을 덮어요) ═════════
+   - 입력칸을 눌러도 테두리가 바뀌지 않아요. 입력칸 테두리도 없어요.
+   - 마우스를 올리면 연한 배경·그림자만, 까만 바탕 버튼은 없어요. */
+:focus-visible { outline: none; }
+button:focus-visible, a:focus-visible, summary:focus-visible, [role="button"]:focus-visible, select:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-primary) 9%, transparent);
+}
+.field input:focus, .field select:focus, .inline input:focus, .field textarea:focus,
+.quick-add input:focus, .fb-form input:focus, .memo-search:focus { border-color: transparent; background: var(--surface-2); }
+.as-form input:focus { border-color: var(--im-line); background: var(--im-bg); }
+.tcheck:hover { border-color: var(--text-muted); background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+.row.task.done .tcheck:hover { background: var(--ink); }
+
+/* 입력칸 (오늘 비서·새 일정·새 할일·새 메모·메모 고치기·메모 찾기): 테두리 없이, 올리거나 쓰는 중엔 연한 그림자 */
+.ask-box, .ask-bar, .memo-search { border: 0; transition: box-shadow .25s var(--ease); }
+.ask-box:hover, .ask-box:focus-within, .ask-bar:hover, .ask-bar:focus-within, .memo-search:hover, .memo-search:focus {
+  box-shadow: 0 2px 14px rgb(0 0 0 / .06);
+}
+
+/* 버튼: 테두리 없이 연한 회색 바탕, 주요 버튼도 까만 바탕 대신 굵은 글씨 */
+.btn { border-color: transparent; background: var(--surface-2); transition: background-color .2s var(--ease), opacity .2s var(--ease); }
+.btn:hover { background: color-mix(in srgb, var(--text-primary) 7%, var(--surface-2)); }
+.btn.primary, .pill.primary { background: var(--surface-2); border-color: transparent; color: var(--text-primary); font-weight: 700; }
+.btn.primary:hover, .pill.primary:hover { opacity: 1; background: color-mix(in srgb, var(--text-primary) 7%, var(--surface-2)); }
+.btn.danger, .btn.danger:hover { background: none; }
+.pill { border-color: transparent; background: var(--surface-2); }
+.pill:hover { background: color-mix(in srgb, var(--text-primary) 7%, var(--surface-2)); }
+.login-form .btn.primary { color: #fff; }
+.cur button[aria-pressed="true"] { background: var(--surface-2); color: var(--text-primary); }
+/* 입력창 아래 삭제·취소·저장: 글자 버튼 */
+.dialog-actions .btn { height: 38px; padding: 0 8px; background: none; font-size: 15px; color: var(--text-secondary); }
+.dialog-actions .btn:hover { background: none; opacity: .65; }
+.dialog-actions .btn.primary { color: var(--text-primary); font-weight: 700; }
+.dialog-actions .btn.danger { color: var(--danger); }
+.text-btn { border: 0; background: none; padding: 6px 4px; font: inherit; font-size: 15px; font-weight: 600; color: var(--text-secondary); cursor: pointer; transition: opacity .2s var(--ease); }
+.text-btn:hover { opacity: .65; }
+.text-btn.danger { color: var(--danger); }
+
+/* 메모 카드: 오른쪽 위 작은 핀, 올리면 연한 그림자 */
+.memo { position: relative; border: 0; transition: box-shadow .25s var(--ease), background-color .25s var(--ease); }
+.memo:hover { box-shadow: 0 2px 14px rgb(0 0 0 / .06); }
+.memo-title { padding-right: 26px; }
+.memo-pin {
+  position: absolute; top: 9px; right: 9px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px;
+  display: grid; place-items: center; background: none; color: var(--text-muted); opacity: .45; cursor: pointer;
+  transition: opacity .2s var(--ease), color .2s var(--ease), transform .18s var(--ease);
+}
+.memo-pin svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.memo-pin:hover { opacity: .9; }
+.memo-pin:active { transform: scale(.9); }
+.memo.pinned .memo-pin { opacity: .85; color: var(--hot-ink); }
+.memo.pinned .memo-pin svg { fill: currentColor; }
+
+/* 메모 고치기 창: 새 메모 칸과 같은 모양 */
+dialog.memo-dialog { width: min(640px, calc(100% - 24px)); background: none; overflow: visible; }
+dialog.memo-dialog form { padding: 14px 16px 12px; }
+.memo-dialog .ask-box { box-shadow: 0 24px 60px rgb(0 0 0 / .18); }
+.memo-dialog textarea { min-height: 220px; }
+.memo-dialog .memo-capture-foot { flex-wrap: wrap; }
+.memo-edit-acts { display: inline-flex; align-items: center; gap: 14px; margin-left: auto; }
+@media (max-width: 600px) {
+  dialog.memo-dialog { width: 100%; margin: auto 0 0; }
+  .memo-dialog .ask-box { border-radius: 20px 20px 0 0; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .memo-dialog textarea { min-height: 180px; }
+}

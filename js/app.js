@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261111v';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111v';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111v';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111v';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111v';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111v';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111v';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111v';
-import { estimateMonths } from './estimate.js?v=20261111v';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111v';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111v';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111v';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111v';
-import { createGoogle, freshServerToken } from './google.js?v=20261111v';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111v';
-import { createDemoGoogle } from './google-demo.js?v=20261111v';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111v';
+import { connect, isDemo } from './store.js?v=20261111w';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111w';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111w';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111w';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111w';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111w';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111w';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111w';
+import { estimateMonths } from './estimate.js?v=20261111w';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111w';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111w';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111w';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111w';
+import { createGoogle, freshServerToken } from './google.js?v=20261111w';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111w';
+import { createDemoGoogle } from './google-demo.js?v=20261111w';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111w';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -809,14 +809,40 @@ function memoGroup(t) {
   return `${d.getFullYear() === n.getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월`;
 }
 
+const PIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></svg>';
 function memoCard(m) {
   const [first, ...rest] = String(m.text || '').split('\n');
   const body = rest.join('\n').trim();
-  return `<button class="memo${m.pinned ? ' pinned' : ''}" data-action="memo-edit" data-id="${esc(m.id)}" data-text="${esc(String(m.text || '').toLowerCase())}">
+  // 카드 전체를 누르면 고치기, 오른쪽 위 핀을 누르면 '중요'로 맨 위에 (다시 누르면 해제)
+  return `<div class="memo${m.pinned ? ' pinned' : ''}" role="button" tabindex="0" data-action="memo-edit" data-id="${esc(m.id)}" data-text="${esc(String(m.text || '').toLowerCase())}">
+    <button type="button" class="memo-pin" data-action="memo-pin" data-id="${esc(m.id)}" aria-pressed="${!!m.pinned}" aria-label="${m.pinned ? '중요 해제' : '중요로 맨 위에'}" title="${m.pinned ? '중요 해제' : '중요'}">${PIN_SVG}</button>
     <span class="memo-title">${esc(first)}</span>
     ${body ? `<span class="memo-body">${esc(body)}</span>` : ''}
-    <span class="memo-meta">${m.pinned ? '<svg viewBox="0 0 24 24" aria-label="고정"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></svg>' : ''}${esc(memoTime(m.createdAt))}</span>
-  </button>`;
+    <span class="memo-meta">${esc(memoTime(m.createdAt))}</span>
+  </div>`;
+}
+
+/** 메모 고치기: 새 메모 칸과 같은 모양의 창 */
+let memoEditing = null;
+function openMemoEditor(m) {
+  memoEditing = m;
+  $('#memo-edit-text').value = m.text || '';
+  $('#memo-edit-stamp').textContent = memoStamp(m);
+  $('#memo-editor').showModal();
+  if (matchMedia('(hover: hover)').matches) { const t = $('#memo-edit-text'); t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+}
+function saveMemoEdit() {
+  const old = memoEditing && state.memos.find((x) => x.id === memoEditing.id);
+  const text = $('#memo-edit-text').value.trim();
+  if (!text) { toast('내용을 적어 주세요.'); return false; }
+  if (!old || old.text === text) return true;
+  store.saveMemo({ ...old, text, updatedAt: Date.now() }).catch((e) => toast(`저장하지 못했어요: ${e.message}`));
+  return true;
+}
+function toggleMemoPin(id) {
+  const m = state.memos.find((x) => x.id === id);
+  if (!m) return;
+  store.saveMemo({ ...m, pinned: !m.pinned }).catch((e) => toast(`바꾸지 못했어요: ${e.message}`));
 }
 
 function viewMemo() {
@@ -836,7 +862,7 @@ function viewMemo() {
     <div class="memo-capture-foot"><span class="hint pc-only">Ctrl+Enter로 저장</span><button class="ask-send" type="submit">저장</button></div>
   </form>
   ${list.length > 5 ? '<input id="memo-search" class="memo-search" type="search" placeholder="메모에서 찾기" aria-label="메모에서 찾기" autocomplete="off">' : ''}
-  ${list.length ? `${pinned.length ? block('고정', pinned) : ''}${groups.map((g) => block(g.name, g.items)).join('')}<p class="empty memo-none" hidden>찾는 메모가 없어요.</p>`
+  ${list.length ? `${pinned.length ? block('중요', pinned) : ''}${groups.map((g) => block(g.name, g.items)).join('')}<p class="empty memo-none" hidden>찾는 메모가 없어요.</p>`
     : '<p class="empty memo-empty">아직 메모가 없어요. 떠오른 것을 위 칸에 바로 적어 두세요.</p>'}`;
 }
 
@@ -2478,7 +2504,8 @@ function bind() {
     if (a === 'cal-add') openForm('event', null, { date: b.dataset.key, title: '' });
     if (a === 'cal-add-task') openForm('task', null, { due: b.dataset.key, title: '' });
     if (a === 'task-toggle') toggleTask(id);
-    if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openForm('memo', m); }
+    if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openMemoEditor(m); }
+    if (a === 'memo-pin') toggleMemoPin(id);
     if (a === 'event-edit') { const ev = state.agenda?.events.find((x) => x.id === id && x.calId === b.dataset.cal); if (ev) openForm('event', ev); }
     if (a === 'task-edit') { const t = state.agenda?.tasks.find((x) => x.id === id); if (t && !t.id.startsWith('tmp-')) openForm('task', t); }
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
@@ -2621,6 +2648,8 @@ function bind() {
     if (e.target.id === 'home-ask-input' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
     // 메모는 여러 줄이라 Enter는 줄바꿈, Ctrl(⌘)+Enter로 저장
     if (e.target.id === 'memo-input' && e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
+    // 메모 카드: Enter·스페이스로 열기
+    if (e.target.classList?.contains('memo') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.target.click(); }
     // 일정·할일은 한 줄이라 Enter로 바로 넣어요
     if ((e.target.id === 'event-input' || e.target.id === 'task-input') && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
   });
@@ -2698,6 +2727,18 @@ function bind() {
   pullToRefresh();
   smoothDialog($('#editor'));
   smoothDialog($('#assistant'));
+  // 메모 고치기 창
+  const md = $('#memo-editor');
+  smoothDialog(md);
+  $('#memo-edit-form').addEventListener('submit', (e) => { e.preventDefault(); if (saveMemoEdit()) md.close(); });
+  $('#memo-edit-cancel').addEventListener('click', () => md.close());
+  $('#memo-edit-delete').addEventListener('click', () => {
+    if (!memoEditing || !confirm('이 메모를 지울까요?')) return;
+    store.deleteMemo(memoEditing.id).catch((e) => toast(`지우지 못했어요: ${e.message}`));
+    md.close();
+  });
+  md.addEventListener('click', (e) => { if (e.target === md) md.close(); });
+  $('#memo-edit-text').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); $('#memo-edit-form').requestSubmit(); } });
   document.addEventListener('click', smoothDetails);
   const dlg = $('#editor');
   $('#editor-form').addEventListener('submit', (e) => { e.preventDefault(); if (saveForm() !== false) dlg.close(); });
