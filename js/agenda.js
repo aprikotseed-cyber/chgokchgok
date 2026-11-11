@@ -94,9 +94,12 @@ export function groupTasks(tasks, todayKey) {
   return g;
 }
 
-/** 홈 '오늘' 할일: 오늘까지 해야 할 일 + 오늘 끝낸 일(체크된 채로 남겨 둬요). 끝내도 자리가 바뀌지 않게 마감 순서대로 */
+/**
+ * 홈 '오늘' 할일: 오늘까지 해야 할 일 + 그중 끝낸 일(체크된 채로 남겨 둬요). 끝내도 자리가 바뀌지 않게 마감 순서대로.
+ * 마감이 앞으로인 할일을 미리 끝냈으면 오늘 목록엔 넣지 않아요 (그 마감일에만 보여요).
+ */
 export function todayTasks(tasks, todayKey) {
-  const keep = (t) => (t.done ? t.completedAt === todayKey || t.due === todayKey : !!t.due && t.due <= todayKey);
+  const keep = (t) => !!t.due && (t.done ? t.due === todayKey || (t.due < todayKey && t.completedAt === todayKey) : t.due <= todayKey);
   return (tasks || []).filter(keep).sort((a, b) => (a.due || todayKey).localeCompare(b.due || todayKey) || (a.time || '99').localeCompare(b.time || '99') || a.title.localeCompare(b.title));
 }
 

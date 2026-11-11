@@ -79,8 +79,9 @@ test('날짜: 일만 쓰면 이번 달(지났으면 다음 달), N일 뒤', () =
 import { todayTasks as tt, normTask as nt } from '../js/agenda.js';
 test('홈 오늘 할일: 오늘 끝낸 일도 체크된 채로, 자리는 그대로', () => {
   const T = (id, due, done = false, completedAt = '') => ({ id, title: id, due, done, completedAt, time: '' });
-  const list = tt([T('a', '2026-11-11'), T('b', '2026-11-11', true, '2026-11-11'), T('c', '2026-11-09', true, '2026-11-11'), T('d', '2026-11-08', true, '2026-11-08'), T('e', '2026-11-12'), T('f', '2026-11-10')], '2026-11-11');
-  assert.deepEqual(list.map((x) => x.id), ['c', 'f', 'a', 'b']);
+  const list = tt([T('a', '2026-11-11'), T('b', '2026-11-11', true, '2026-11-11'), T('c', '2026-11-09', true, '2026-11-11'), T('d', '2026-11-08', true, '2026-11-08'), T('e', '2026-11-12'), T('f', '2026-11-10'),
+    T('g', '2026-11-17', true, '2026-11-11'), T('h', '', true, '2026-11-11')], '2026-11-11');
+  assert.deepEqual(list.map((x) => x.id), ['c', 'f', 'a', 'b']); // 17일 마감을 미리 끝낸 g, 날짜 없는 h는 오늘 목록에 없어요
 });
 test('완료 시각은 이 기기 날짜로', () => {
   const d = new Date(2026, 10, 11, 7, 10); // 이 기기 시간 아침 7시 10분
