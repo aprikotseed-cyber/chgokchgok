@@ -60,6 +60,21 @@ export async function connect(h) {
     login: (email, pw) => A.signInWithEmailAndPassword(auth, email, pw),
     logout: () => A.signOut(auth),
     save: (data) => F.setDoc(mainRef, data),
+    /** 이번 달 자산 기록 한 칸만 (다른 기기에서 고친 내용을 덮어쓰지 않게, 전체 저장 대신 이 칸만) */
+    saveSnapshot: (ym, snap) => F.setDoc(mainRef, { snapshots: { [ym]: snap } }, { merge: true }),
+    /**
+     * 당겨서 새로고침·앱으로 돌아올 때: 서버에서 직접 다시 받아요.
+     * (휴대폰 앱이 뒤에 있다 오면 실시간 연결이 잠들어 있을 수 있어서, 저장해 둔 값 대신 서버 값을 받아요)
+     * 인터넷이 안 되면 오류를 던져요.
+     */
+    reload: async () => {
+      await F.enableNetwork(db).catch(() => {});
+      const [m, mk, hs] = await Promise.all([F.getDocFromServer(mainRef), F.getDocFromServer(F.doc(db, 'users', auth.currentUser.uid, 'data', 'market')), F.getDocFromServer(historyRef)]);
+      h.onData(m.exists() ? m.data() : null);
+      h.onMarket(mk.exists() ? mk.data() : {});
+      h.onHistory?.(hs.exists() ? hs.data().days || {} : {});
+      h.onSync('saved');
+    },
     /** 하루 자산 기록 한 줄 (같은 날이면 덮어써요) */
     saveHistory: (day, entry) => F.setDoc(historyRef, { days: { [day]: entry } }, { merge: true }),
     /** 단축어용 키: 이 계정의 로그인 유지 토큰 (단축어가 본인 받은편지함에만 쓸 수 있어요) */
@@ -129,6 +144,8 @@ function demoStore(h) {
     login: async () => {},
     logout: async () => { localStorage.removeItem(KEY); location.href = location.pathname; },
     save: async (d) => { data = d; localStorage.setItem(KEY, JSON.stringify(d)); },
+    saveSnapshot: async (ym, snap) => { data = { ...data, snapshots: { ...(data.snapshots || {}), [ym]: snap } }; localStorage.setItem(KEY, JSON.stringify(data)); },
+    reload: async () => {},
     saveHistory: async (day, entry) => { history[day] = entry; localStorage.setItem(HKEY, JSON.stringify(history)); },
     pushSupported: async () => false,
     enablePush: async () => { throw new Error('체험 모드에서는 알림을 켤 수 없어요'); },
