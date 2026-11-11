@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261111x';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111x';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111x';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111x';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111x';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111x';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111x';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111x';
-import { estimateMonths } from './estimate.js?v=20261111x';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111x';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111x';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111x';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111x';
-import { createGoogle, freshServerToken } from './google.js?v=20261111x';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111x';
-import { createDemoGoogle } from './google-demo.js?v=20261111x';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111x';
+import { connect, isDemo } from './store.js?v=20261111y';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111y';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111y';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111y';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111y';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111y';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111y';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111y';
+import { estimateMonths } from './estimate.js?v=20261111y';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111y';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111y';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111y';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111y';
+import { createGoogle, freshServerToken } from './google.js?v=20261111y';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111y';
+import { createDemoGoogle } from './google-demo.js?v=20261111y';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111y';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 

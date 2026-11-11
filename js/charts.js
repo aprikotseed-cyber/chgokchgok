@@ -1,5 +1,5 @@
 // Chart.js(전역 Chart)로 그리는 꺾은선그래프. 색은 CSS 변수에서 읽어 라이트/다크 모드를 따릅니다.
-import { won, wonShort, ymLabel } from './format.js?v=20261111x';
+import { won, wonShort, ymLabel } from './format.js?v=20261111y';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const charts = new Map();
@@ -60,10 +60,16 @@ const crosshair = {
   },
 };
 
+// 화면을 다시 그릴 때(저장 직후 등) 같은 내용이면 그래프가 처음부터 다시 움직이지 않게
+const lastData = new Map();
 function draw(canvas, config) {
   if (!window.Chart || !canvas) return;
   charts.get(canvas.id)?.destroy();
-  charts.set(canvas.id, new window.Chart(canvas, { ...config, plugins: [crosshair] }));
+  const sig = JSON.stringify(config.data, (k, v) => (typeof v === 'function' ? String(v) : v));
+  const same = lastData.get(canvas.id) === sig;
+  lastData.set(canvas.id, sig);
+  const options = same ? { ...config.options, animation: false } : config.options;
+  charts.set(canvas.id, new window.Chart(canvas, { ...config, options, plugins: [crosshair] }));
 }
 
 export function projectionChart(canvas, points) {
@@ -168,4 +174,5 @@ export function redrawAll() {
   // 다크/라이트 전환 시 색을 다시 읽어야 해서, 화면 쪽에서 다시 그리도록 신호만 줍니다.
   charts.forEach((c) => c.destroy());
   charts.clear();
+  lastData.clear();
 }
