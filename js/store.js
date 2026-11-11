@@ -60,6 +60,17 @@ export async function connect(h) {
     login: (email, pw) => A.signInWithEmailAndPassword(auth, email, pw),
     logout: () => A.signOut(auth),
     save: (data) => F.setDoc(mainRef, data),
+    /**
+     * 바뀐 항목만 저장해요 (자산·부채·설정처럼 맨 위 칸 단위). 한 기기에서 설정을 바꿔도
+     * 다른 기기에서 고친 자산을 예전 값으로 덮어쓰지 않아요. changes의 값이 undefined면 그 칸을 지워요.
+     */
+    update: async (changes, full) => {
+      const payload = {};
+      for (const [k, v] of Object.entries(changes)) payload[k] = v === undefined ? F.deleteField() : v;
+      if (!Object.keys(payload).length) return;
+      try { await F.updateDoc(mainRef, payload); }
+      catch (e) { if (e.code === 'not-found') await F.setDoc(mainRef, full); else throw e; }
+    },
     /** 이번 달 자산 기록 한 칸만 (다른 기기에서 고친 내용을 덮어쓰지 않게, 전체 저장 대신 이 칸만) */
     saveSnapshot: (ym, snap) => F.setDoc(mainRef, { snapshots: { [ym]: snap } }, { merge: true }),
     /**
@@ -144,6 +155,7 @@ function demoStore(h) {
     login: async () => {},
     logout: async () => { localStorage.removeItem(KEY); location.href = location.pathname; },
     save: async (d) => { data = d; localStorage.setItem(KEY, JSON.stringify(d)); },
+    update: async (_c, full) => { data = full; localStorage.setItem(KEY, JSON.stringify(full)); },
     saveSnapshot: async (ym, snap) => { data = { ...data, snapshots: { ...(data.snapshots || {}), [ym]: snap } }; localStorage.setItem(KEY, JSON.stringify(data)); },
     reload: async () => {},
     saveHistory: async (day, entry) => { history[day] = entry; localStorage.setItem(HKEY, JSON.stringify(history)); },
