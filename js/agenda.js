@@ -69,7 +69,8 @@ export function normTask(t, listId = '') {
     notes: m ? (t.notes || '').slice(m[0].length) : t.notes || '',
     time: m ? `${m[1].padStart(2, '0')}:${m[2]}` : '',
     due: t.due ? t.due.slice(0, 10) : '', done: t.status === 'completed', deleted: !!t.deleted,
-    completedAt: t.completed ? t.completed.slice(0, 10) : '', updated: t.updated || '',
+    // 완료 시각은 UTC라서, 한국 아침(0~9시)에 끝낸 것도 그날로 보이게 이 기기 날짜로 바꿔요
+    completedAt: t.completed ? (isNaN(new Date(t.completed)) ? t.completed.slice(0, 10) : dayKey(new Date(t.completed))) : '', updated: t.updated || '',
   };
 }
 
@@ -91,6 +92,12 @@ export function groupTasks(tasks, todayKey) {
   for (const k of ['overdue', 'today', 'tomorrow', 'week', 'later']) g[k].sort(byDue);
   g.done.sort((a, b) => b.completedAt.localeCompare(a.completedAt));
   return g;
+}
+
+/** 홈 '오늘' 할일: 오늘까지 해야 할 일 + 오늘 끝낸 일(체크된 채로 남겨 둬요). 끝내도 자리가 바뀌지 않게 마감 순서대로 */
+export function todayTasks(tasks, todayKey) {
+  const keep = (t) => (t.done ? t.completedAt === todayKey || t.due === todayKey : !!t.due && t.due <= todayKey);
+  return (tasks || []).filter(keep).sort((a, b) => (a.due || todayKey).localeCompare(b.due || todayKey) || (a.time || '99').localeCompare(b.time || '99') || a.title.localeCompare(b.title));
 }
 
 /** 구글 태스크에 보낼 due 값 */
