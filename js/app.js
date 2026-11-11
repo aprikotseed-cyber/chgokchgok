@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261111t';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111t';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111t';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111t';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111t';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111t';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111t';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111t';
-import { estimateMonths } from './estimate.js?v=20261111t';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111t';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111t';
-import { addFeedback, feedbackText } from './feedback.js?v=20261111t';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111t';
-import { createGoogle, freshServerToken } from './google.js?v=20261111t';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111t';
-import { createDemoGoogle } from './google-demo.js?v=20261111t';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111t';
+import { connect, isDemo } from './store.js?v=20261111v';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261111v';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261111v';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261111v';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261111v';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261111v';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261111v';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261111v';
+import { estimateMonths } from './estimate.js?v=20261111v';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261111v';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261111v';
+import { addFeedback, feedbackText } from './feedback.js?v=20261111v';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261111v';
+import { createGoogle, freshServerToken } from './google.js?v=20261111v';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261111v';
+import { createDemoGoogle } from './google-demo.js?v=20261111v';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261111v';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1269,7 +1269,7 @@ function defaultCal(title, calName = '') {
   return cals.find((c) => c.name.toLowerCase() === want) || cals.find((c) => c.name.toLowerCase() === 'life') || cals.find((c) => c.primary) || cals[0];
 }
 function eventPreview(p) {
-  if (!p.title) return EVENT_HINT;
+  if (!p.title) return ENTER_HINT;
   const cal = defaultCal(p.title, p.calName);
   return `‘${p.title}’ · ${eventLine({ ...p, date: p.date || today() }).replace(` ${p.title}`, '')}${p.date ? '' : ' (날짜를 안 써서 오늘)'}${p.repeat ? ` · ${repeatLabel(p.repeat, p.date)}` : ''}${cal ? ` · ${cal.name}` : ''}`;
 }
@@ -1630,15 +1630,20 @@ function viewCalendar() {
   if (!a) return section('다가오는 일정', connectCta('앞으로의 일정이'), { action: gsyncLine() });
   const days = state.calDays || 14;
   const list = agendaDays([...agendaEvents(), ...moneyEvents(days)], now(), days);
-  return `${section('일정 넣기', `<form id="event-add" class="quick-add panel" autocomplete="off">
-      <input id="event-input" type="text" placeholder="예: 금요일 7시 헬스 · 11/20 병원 · 다음주 수 3시 상담" enterkeyhint="done" aria-label="일정">
-      <button class="btn primary" type="submit">넣기</button>
-    </form><p class="hint task-preview" id="event-preview">${EVENT_HINT}</p>`, { action: gsyncLine() })}
+  return `${composer('event-add', 'event-input', '새 일정', '넣기', 'event-preview')}
   ${section(`앞으로 ${days === 14 ? '2주' : '한 달'}`, `${list.length ? list.map((d) => `<div class="day-group"><h3>${d.label}</h3><div class="panel list">${d.events.map((e) => eventRow(e, d.key)).join('')}</div></div>`).join('') : `<div class="panel">${empty('이 기간에는 일정이 없어요.')}</div>`}
     ${days === 14 ? '<div class="more"><button class="btn" data-action="cal-more">한 달까지 보기</button></div>' : ''}
-    <p class="hint">구글 캘린더와 연결돼 있어서, 여기서 넣고 고친 일정이 구글 캘린더에도 바로 들어가요. 일정을 누르면 고칠 수 있어요. 보여줄 캘린더는 설정에서 골라요.</p>`)}`;
+    <p class="hint">구글 캘린더와 연결돼 있어서, 여기서 넣고 고친 일정이 구글 캘린더에도 바로 들어가요. 일정을 누르면 고칠 수 있어요. 보여줄 캘린더는 설정에서 골라요.</p>`, { action: gsyncLine() })}`;
 }
-const EVENT_HINT = '시간을 안 쓰면 종일 일정, 요일만 쓰면 이번 주예요. 캘린더는 내용을 보고 골라 드려요.';
+/** 일정·할일 입력칸: 메모 칸과 같은 모양. Enter로 넣고, 아래 줄에 알아들은 내용을 미리 보여줘요 */
+const ENTER_HINT = ''; // 비어 있으면 PC에서만 'Enter로 넣기'를 보여줘요 (CSS)
+function composer(formId, inputId, label, verb, previewId) {
+  return `<form id="${formId}" class="ask-box memo-capture" autocomplete="off">
+    <label for="${inputId}" class="ask-label">${label}</label>
+    <textarea id="${inputId}" rows="3" aria-label="${label}" enterkeyhint="done"></textarea>
+    <div class="memo-capture-foot"><span class="hint compose-hint" id="${previewId}"></span><button class="ask-send" type="submit">${verb}</button></div>
+  </form>`;
+}
 
 const TASK_GROUPS = [['overdue', '지난 할일'], ['today', '오늘'], ['tomorrow', '내일'], ['week', '이번 주'], ['later', '나중에'], ['nodate', '날짜 없음']];
 function viewTasks() {
@@ -1647,11 +1652,8 @@ function viewTasks() {
   const g = groupTasks(a.tasks, today());
   const open = TASK_GROUPS.filter(([k]) => g[k].length);
   const listName = (a.lists || []).filter((l) => l.show !== false).map((l) => l.title).join('·');
-  return `${section('할일 추가', `<form id="task-add" class="quick-add panel" autocomplete="off">
-      <input id="task-input" type="text" placeholder="예: 내일 우유 사기 · 금요일까지 보고서 · 11/20 병원" enterkeyhint="done" aria-label="할일">
-      <button class="btn primary" type="submit">추가</button>
-    </form><p class="hint task-preview" id="task-preview">날짜를 말하면 알아서 마감일로 넣어요. 요일만 쓰면 이번 주 그 요일이에요.</p>`, { action: gsyncLine() })}
-  ${open.length ? open.map(([k, l]) => section(l, `<div class="panel list">${g[k].map(taskRow).join('')}</div>`, { sum: `${g[k].length}` })).join('') : `<div class="panel">${empty('남은 할일이 없어요. 위에서 새로 추가해 보세요.')}</div>`}
+  return `${composer('task-add', 'task-input', '새 할일', '추가', 'task-preview')}
+  ${open.length ? open.map(([k, l], i) => section(l, `<div class="panel list">${g[k].map(taskRow).join('')}</div>`, { sum: `${g[k].length}`, action: i ? '' : gsyncLine() })).join('') : section('남은 할일', `<div class="panel">${empty('남은 할일이 없어요. 위에서 새로 추가해 보세요.')}</div>`, { action: gsyncLine() })}
   ${g.done.length ? `<section class="block"><div class="panel">${details('tasks-done', `완료한 일 <span class="hint">최근 30일 ${g.done.length}개</span>`, `<div class="list">${g.done.map(taskRow).join('')}</div>`)}</div></section>` : ''}
   <p class="hint">구글 태스크${listName ? ` ‘${esc(listName)}’ 목록` : ''}과 연결돼 있어서, 여기서 추가·완료·수정한 내용이 구글에도 바로 기록돼요.</p>`;
 }
@@ -2606,11 +2608,11 @@ function bind() {
     }
     if (e.target.id === 'event-input') {
       const v = e.target.value.trim();
-      $('#event-preview').textContent = v ? eventPreview(parseEventInput(v, now(), writableCals(), gset().keywords)) : EVENT_HINT;
+      $('#event-preview').textContent = v ? eventPreview(parseEventInput(v, now(), writableCals(), gset().keywords)) : ENTER_HINT;
     }
     if (e.target.id === 'task-input') {
       const { title, due, repeat, time } = parseQuickTask(e.target.value, now());
-      $('#task-preview').textContent = !title ? '날짜를 말하면 알아서 마감일로 넣어요. 요일만 쓰면 이번 주 그 요일이에요. ‘매주 토요일’처럼 쓰면 반복 할일이에요.'
+      $('#task-preview').textContent = !title ? ENTER_HINT
         : due ? `‘${title}’ · ${dueLabel(due, today())}${time ? ` ${time}` : ''}${due < today() ? '' : due === today() ? '' : '까지'}${repeat ? ` · ${repeatLabel(repeat, due)} 반복` : ''}` : `‘${title}’ · 날짜 없음`;
     }
   });
@@ -2619,6 +2621,8 @@ function bind() {
     if (e.target.id === 'home-ask-input' && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
     // 메모는 여러 줄이라 Enter는 줄바꿈, Ctrl(⌘)+Enter로 저장
     if (e.target.id === 'memo-input' && e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
+    // 일정·할일은 한 줄이라 Enter로 바로 넣어요
+    if ((e.target.id === 'event-input' || e.target.id === 'task-input') && e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); e.target.form.requestSubmit(); }
   });
   $('#view').addEventListener('submit', (e) => {
     if (e.target.id === 'home-ask') {
@@ -2648,14 +2652,16 @@ function bind() {
       if (!p.title) return;
       createEvent({ ...p, date: p.date || today(), calId: defaultCal(p.title, p.calName)?.id });
       input.value = '';
-      $('#event-preview').textContent = EVENT_HINT;
+      $('#event-preview').textContent = ENTER_HINT;
       return;
     }
     if (e.target.id !== 'task-add') return;
     e.preventDefault();
     const input = $('#task-input');
+    if (!input.value.trim()) return input.focus();
     addTask(input.value);
     input.value = '';
+    $('#task-preview').textContent = ENTER_HINT;
     input.focus();
   });
   $('#view').addEventListener('change', async (e) => {

@@ -727,6 +727,7 @@ pre.debug { white-space: pre-wrap; word-break: break-all; font-size: 12px; line-
 }
 
 /* ───── 메모 ───── */
+@media (hover: hover) and (pointer: fine) { .compose-hint:empty::before { content: 'Enter로 넣기'; } }
 .memo-capture-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pc-only { display: none; }
 @media (hover: hover) and (min-width: 900px) { .pc-only { display: inline; } }
