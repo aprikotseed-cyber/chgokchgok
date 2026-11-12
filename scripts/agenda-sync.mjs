@@ -191,7 +191,7 @@ for (const doc of docs) {
     }
     await userRef.doc('agenda').set({ ...agenda, by: 'server' });
     await doc.ref.set({ googleSyncedAt: Date.now(), googleLinkError: FieldValue.delete() }, { merge: true });
-    console.log(`일정 ${agenda.events.length}개, 할일 ${agenda.tasks.length}개 저장`);
+    console.log(`일정 ${agenda.events.length}개 저장`); // 할일은 차곡차곡에 따로 저장돼서 여기선 일정만
   } catch (e) {
     console.log('동기화 실패:', e.message);
     if (e.code === 'invalid_grant') await doc.ref.set({ googleRefresh: FieldValue.delete(), googleAccess: FieldValue.delete(), googleLinkError: '구글 연결이 끊겼어요 (만료·해제). 설정에서 자동 동기화를 다시 켜 주세요' }, { merge: true });
