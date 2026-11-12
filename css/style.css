@@ -1,21 +1,21 @@
-/* 차곡차곡 — 조용한 장부 같은 화면.
+/* 차곡차곡 — 조용한 장부 같은 화면. 바탕은 노란기 없는 회색(그레이) 톤.
    색은 잉크(검정) 하나와 그래프 3색만, 구분은 그림자 대신 가는 선과 여백으로. */
 
 :root {
   color-scheme: light;
-  --bg: #f5f5f2;
+  --bg: #f4f4f5;
   --surface-1: #ffffff;   /* 패널·그래프 바탕 */
-  --surface-2: #f0efeb;   /* 입력칸·막대 트랙·눌림 */
+  --surface-2: #efeff1;   /* 입력칸·막대 트랙·눌림 */
   --surface-3: #ffffff;   /* 툴팁 */
-  --text-primary: #141413;
-  --text-secondary: #55544f;
-  --text-muted: #8b8a83;
-  --border: #e6e5e0;
-  --grid: #efeee9;
+  --text-primary: #141415;
+  --text-secondary: #545458;
+  --text-muted: #8a8a8e;
+  --border: #e5e5e8;
+  --grid: #eeeef0;
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
-  --ink: #141413;
+  --ink: #141415;
   --on-ink: #ffffff;
   --up: #d23c3b;     /* 상승 빨강 (국내 관례) */
   --down: #256abf;   /* 하락 파랑 */
@@ -31,20 +31,20 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #111110;
-    --surface-1: #1a1a19;
-    --surface-2: #252523;
-    --surface-3: #2a2a28;
-    --text-primary: #f0efec;
-    --text-secondary: #c3c2b7;
-    --text-muted: #8f8e86;
-    --border: #2c2c2a;
-    --grid: #262624;
+    --bg: #111112;
+    --surface-1: #1a1a1c;
+    --surface-2: #252527;
+    --surface-3: #2a2a2c;
+    --text-primary: #f0f0f2;
+    --text-secondary: #c2c2c7;
+    --text-muted: #8e8e93;
+    --border: #2c2c2e;
+    --grid: #262628;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
-    --ink: #f0efec;
-    --on-ink: #111110;
+    --ink: #f0f0f2;
+    --on-ink: #111112;
     --up: #f07272;
     --down: #6da7ec;
     --warn: #e0a040;
@@ -672,7 +672,7 @@ dialog.lock .lock-logo { width: 96px; height: 96px; transition: width .4s var(--
 .mday.sel { background: color-mix(in srgb, var(--ink) 12%, var(--surface-1)); }
 .mday.out { opacity: .35; }
 .mday .num { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; font-size: 14px; font-weight: 600; }
-.mday.today .num { background: var(--down); color: #f7f7f5; font-weight: 700; } /* 오늘: 하늘색 동그라미에 흰색에 가까운 글씨 */
+.mday.today .num { background: var(--down); color: #f4f4f5; font-weight: 700; } /* 오늘: 하늘색 동그라미에 흰색에 가까운 글씨 */
 .mdots { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px; max-width: 100%; }
 .mdots i, .mlegend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--c); }
 .mdots i.m, .mlegend i.m { width: 13px; height: 13px; border-radius: 50%; background: var(--hot-bg); color: var(--hot-ink); font-size: 9px; font-style: normal; font-weight: 800; line-height: 13px; text-align: center; }
