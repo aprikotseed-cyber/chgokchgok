@@ -57,17 +57,12 @@ const dayKeyDate = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 // ───── 할일 ─────
 
 /** 구글 태스크 하나 → 앱용. due는 날짜만 의미 있어요 (구글 태스크는 시간을 저장하지 않아요) */
-// 구글 태스크는 다른 앱에서 시간을 넣을 수 없어서, 시간은 메모 첫 줄 '시간 15:00'으로 적어 둬요
-const TIME_LINE = /^시간\s*(\d{1,2}):(\d{2})\s*(?:\n|$)/;
-/** 할일 메모 + 시간 → 구글 태스크에 보낼 메모 */
-export const taskNotes = (notes = '', time = '') => (time ? `시간 ${time}${notes ? `\n${notes}` : ''}` : notes || '');
-
+// 할일은 구글 태스크에 실제로 있는 것만 보여줘요 (메모에 적힌 '시간 15:00'을 시간으로 따로 해석하지 않아요)
 export function normTask(t, listId = '') {
-  const m = (t.notes || '').match(TIME_LINE);
   return {
     id: t.id, listId, title: t.title || '(제목 없음)',
-    notes: m ? (t.notes || '').slice(m[0].length) : t.notes || '',
-    time: m ? `${m[1].padStart(2, '0')}:${m[2]}` : '',
+    notes: t.notes || '',
+    time: '',
     due: t.due ? t.due.slice(0, 10) : '', done: t.status === 'completed', deleted: !!t.deleted,
     // 완료 시각은 UTC라서, 한국 아침(0~9시)에 끝낸 것도 그날로 보이게 이 기기 날짜로 바꿔요
     completedAt: t.completed ? (isNaN(new Date(t.completed)) ? t.completed.slice(0, 10) : dayKey(new Date(t.completed))) : '', updated: t.updated || '',
@@ -150,7 +145,8 @@ export function parseQuickTask(text, now = new Date()) {
   });
   take(/\s(다음\s?주|담주)\s?([월화수목금토일])(요일)?(까지|에)?\s/, (m) => addDays(monday, 7 + dayIdx(m[2])));
   take(/\s(이번\s?주\s?)?([월화수목금토일])요일(까지|에)?\s/, (m) => addDays(monday, dayIdx(m[2])));
-  const title = s.replace(/\s+/g, ' ').trim();
+  // 제목을 따옴표로 감싸 말해도 따옴표는 빼요: '귀 세척' → 귀 세척
+  const title = s.replace(/\s+/g, ' ').trim().replace(/^['"‘’“”](.+)['"‘’“”]$/, '$1').trim();
   const t = time ? { time } : {};
   if (!rep.rule) return { title, due, ...t };
   // 반복: 날짜를 따로 안 쓰면 오늘부터 첫 차례
@@ -411,19 +407,6 @@ export function nextFrom(rule, key, todayKey) {
   let n = nextOccurrence(rule, key);
   for (let i = 0; n && n < todayKey && i < 1000; i++) n = nextOccurrence(rule, n);
   return n;
-}
-
-/**
- * 반복 할일을 끝냈을 때 만들 다음 차례 날짜. 이미 있으면 '' (중복으로 만들지 않아요)
- *  - 같은 이름의 할일이 오늘 이후로 아직 남아 있으면 그게 다음 차례예요
- *  - 지난 차례를 늦게 끝내도, 같은 이름 할일 중 가장 늦은 날짜 다음부터 만들어요
- *    (목요일 것을 먼저 끝내고 월요일 것을 나중에 끝내도 목요일이 또 생기지 않게)
- */
-export function nextTaskDate(rule, task, siblings, todayKey) {
-  const same = (siblings || []).filter((x) => x.id !== task.id && !x.deleted && x.title === task.title && x.due);
-  if (same.some((x) => !x.done && x.due >= todayKey)) return '';
-  const last = [task.due || todayKey, ...same.map((x) => x.due)].sort().at(-1);
-  return nextFrom(rule, last, todayKey);
 }
 
 /** 구글 캘린더 반복 규칙 */

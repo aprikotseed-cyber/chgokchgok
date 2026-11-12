@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261112h';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261112h';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261112h';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261112h';
-import { won, wonExact, mdw, pct } from './format.js?v=20261112h';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261112h';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261112i';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261112i';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261112i';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261112i';
+import { won, wonExact, mdw, pct } from './format.js?v=20261112i';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261112i';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -718,9 +718,17 @@ function addAnswer(ctx, now) {
     const { title, repeat, time } = p;
     if (!title) return { text: '어떤 할일을 넣을까요? 예: ‘금요일까지 보고서 할일 추가해줘’' };
     const due = p.due || ymd(ctx.now); // 날짜를 말하지 않으면 오늘 할일로
+    // 구글 태스크는 앱에서 시간·반복을 넣을 수 없어요. 앱에만 따로 기억하지 않고, 구글 캘린더 일정으로 넣을지 물어봐요
+    if (repeat || time) {
+      const plain = `${mdw(fromKey(due)).replace(/ \(.\)$/, '')} ${title}`;
+      return {
+        text: `구글 태스크에는 앱에서 ${[time && '시간', repeat && '반복'].filter(Boolean).join('·')}을 넣을 수 없어요.\n구글 캘린더 일정으로 넣으면 ${time ? `${time} ` : ''}${repeat ? `${repeatLabel(repeat, due)} 반복` : ''}이 그대로 들어가요. 일정으로 넣을까요, 날짜만 있는 할일로 넣을까요?`,
+        choose: [{ label: '일정', q: `${body} 일정 추가해줘` }, { label: '할일', q: `${plain} 할일 추가해줘` }],
+      };
+    }
     return {
-      text: `이 할일을 넣을까요?\n· ${title} (${mdw(fromKey(due))}${time ? ` ${time}` : ''}까지)${repeat ? `\n· 반복: ${repeatLabel(repeat, due)} (끝내면 다음 차례를 만들어요)` : ''}${p.due ? '' : '\n날짜를 말씀하지 않아서 오늘 할일로 넣을게요.'}`,
-      action: { kind: 'task', title, due, ...(time ? { time } : {}), ...(repeat ? { repeat } : {}) },
+      text: `이 할일을 넣을까요?\n· ${title} (${mdw(fromKey(due))}까지)${p.due ? '' : '\n날짜를 말씀하지 않아서 오늘 할일로 넣을게요.'}`,
+      action: { kind: 'task', title, due },
     };
   }
   const p = parseEventInput(body, now, ctx.agenda.calendars || [], ctx.agenda.keywords || []);

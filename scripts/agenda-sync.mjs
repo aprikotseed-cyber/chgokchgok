@@ -5,9 +5,9 @@
 // 필요한 GitHub Secret: FIREBASE_SERVICE_ACCOUNT, GOOGLE_CLIENT_SECRET (구글 콘솔의 OAuth 클라이언트 보안 비밀번호)
 // 한국 날짜로 계산하도록 워크플로에서 TZ=Asia/Seoul로 실행해요.
 import { initializeApp, cert } from 'firebase-admin/app';
-import { getFirestore, FieldValue, FieldPath } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
-import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, taskNotes, eventLine, repeatLabel, dueLabel, dayKey, inboxKind } from '../js/agenda.js';
+import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, eventLine, repeatLabel, dueLabel, dayKey, inboxKind } from '../js/agenda.js';
 import { fetchCalDav } from '../js/caldav.js';
 import { listApi } from '../js/google.js';
 
@@ -93,12 +93,12 @@ async function handleInbox(userRef, item, ctx) {
   }
   const { title, due, repeat, time } = parseQuickTask(text, new Date());
   if (!title) throw new Error('할일 내용을 알아듣지 못했어요');
+  // 구글 태스크는 시간·반복을 넣을 수 없어요. 앱에만 따로 기억하지 않고, 넣지 않은 채 알려 드려요
+  if (repeat || time) throw new Error('구글 태스크에는 시간·반복을 넣을 수 없어요. 일정(📅)으로 보내 주세요');
   const lists = await ctx.api().taskLists(false);
   const listId = lists.some((l) => l.id === ctx.gs.taskList) ? ctx.gs.taskList : lists[0]?.id;
-  await googleFetch(at, `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`, { title, ...(time ? { notes: taskNotes('', time) } : {}), ...(due ? { due: toTaskDue(due) } : {}) });
-  // 반복 할일 규칙은 앱 설정에 (앱과 같은 곳)
-  if (repeat) await userRef.collection('data').doc('main').update(new FieldPath('settings', 'taskRepeat', title), repeat).catch(() => {});
-  return `할일: ${title}${due ? ` · ${dueLabel(due, dayKey(new Date()))}` : ''}${time ? ` ${time}` : ''}${repeat ? ` (${repeatLabel(repeat, due)})` : ''}`;
+  await googleFetch(at, `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`, { title, ...(due ? { due: toTaskDue(due) } : {}) });
+  return `할일: ${title}${due ? ` · ${dueLabel(due, dayKey(new Date()))}` : ''}`;
 }
 
 const inbox = (await db.collectionGroup('inbox').get()).docs;

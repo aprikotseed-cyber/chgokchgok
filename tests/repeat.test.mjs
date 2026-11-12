@@ -48,18 +48,7 @@ test('늦게 끝내도 다음 차례는 오늘 이후', async () => {
   assert.equal(nextFrom(w, '2026-11-14', '2026-11-09'), '2026-11-21');
 });
 
-import { nextTaskDate, parseQuickTask as pqt } from '../js/agenda.js';
-test('반복 할일: 다음 차례를 중복으로 만들지 않아요', () => {
-  const rule = { freq: 'weekly', interval: 1, byday: [1, 4] }; // 월·목
-  const T = (id, due, done = false) => ({ id, title: '영어공부', due, done });
-  // 월(9일)을 목(12일)에 끝냈는데 12일 것이 이미 있으면 새로 만들지 않아요
-  assert.equal(nextTaskDate(rule, T('a', '2026-11-09', true), [T('a', '2026-11-09', true), T('b', '2026-11-12')], '2026-11-12'), '');
-  // 12일 것을 먼저 끝내고(→16일 생김) 9일 것을 나중에 끝내도 12일이 또 생기지 않아요
-  assert.equal(nextTaskDate(rule, T('a', '2026-11-09', true), [T('b', '2026-11-12', true), T('c', '2026-11-16')], '2026-11-12'), '');
-  // 다음 차례가 없으면 가장 늦은 날짜 다음부터
-  assert.equal(nextTaskDate(rule, T('a', '2026-11-09', true), [T('b', '2026-11-12', true)], '2026-11-12'), '2026-11-16');
-  assert.equal(nextTaskDate(rule, T('b', '2026-11-12', true), [], '2026-11-12'), '2026-11-16');
-});
+import { parseQuickTask as pqt } from '../js/agenda.js';
 test("'매주 월, 목요일'·'매주 월요일, 목요일'도 두 요일 반복", () => {
   const now = new Date(2026, 10, 12, 9);
   for (const q of ['매주 월, 목요일 저녁 9시 영어공부', '매주 월요일, 목요일 오후 9시 영어공부', '매주 월·목 21시 영어공부']) {

@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261112h';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112h';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112h';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112h';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112h';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112h';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112h';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112h';
-import { estimateMonths } from './estimate.js?v=20261112h';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112h';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112h';
-import { addFeedback, feedbackText } from './feedback.js?v=20261112h';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112h';
-import { createGoogle, freshServerToken } from './google.js?v=20261112h';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112h';
-import { createDemoGoogle } from './google-demo.js?v=20261112h';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, nextTaskDate } from './agenda.js?v=20261112h';
+import { connect, isDemo } from './store.js?v=20261112i';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112i';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112i';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112i';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112i';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112i';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112i';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112i';
+import { estimateMonths } from './estimate.js?v=20261112i';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112i';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112i';
+import { addFeedback, feedbackText } from './feedback.js?v=20261112i';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112i';
+import { createGoogle, freshServerToken } from './google.js?v=20261112i';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112i';
+import { createDemoGoogle } from './google-demo.js?v=20261112i';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112i';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -84,9 +84,7 @@ const FORMS = {
     fields: [
       { key: 'title', label: '할일', type: 'text', required: true },
       { key: 'due', label: '마감일', type: 'date', optional: true, hint: '비워 두면 날짜 없는 할일이에요.' },
-      { key: 'time', label: '시간', type: 'time', hint: '선택. 구글 태스크에는 메모 첫 줄에 ‘시간 15:00’으로 적어 둬요.' },
-      { key: 'repeat', label: '반복', type: 'select', options: REPEAT_CHOICES, hint: '완료하면 다음 차례 할일을 구글 태스크에 만들어 드려요' },
-      { key: 'notes', label: '메모', type: 'text', placeholder: '선택' },
+      { key: 'notes', label: '메모', type: 'text', placeholder: '선택', hint: '구글 태스크는 앱에서 시간·반복을 넣을 수 없어요. 필요하면 구글 태스크에서 직접 설정해 주세요.' },
     ],
   },
   savings: {
@@ -1225,48 +1223,29 @@ async function taskOp(change, call, listId = state.agenda?.listId) {
   }
 }
 
+/**
+ * 할일은 구글 태스크에 실제로 들어가는 것만 다뤄요 (제목·마감 날짜·메모).
+ * 구글 태스크는 앱에서 시간·반복을 넣을 수 없어서, 그런 말이 있으면 넣지 않고 알려 드려요.
+ */
 function addTask(text) {
   const { title, due, repeat, time } = parseQuickTask(text, now());
-  if (title) addTaskItem(title, due, repeat, undefined, '', false, time);
+  if (!title) return false;
+  if (repeat || time) { toast('구글 태스크에는 앱에서 시간·반복을 넣을 수 없어요. 일정 탭에서 일정으로 넣거나, 구글 태스크에서 직접 설정해 주세요.'); return false; }
+  addTaskItem(title, due);
+  return true;
 }
 
-// ───── 반복 할일: 구글 태스크 API가 반복 규칙을 알려주지 않아서, 규칙은 앱(설정)에 할일 제목별로 저장해요 ─────
-const taskRule = (t) => state.data.settings?.taskRepeat?.[t.title] || null;
-function setTaskRule(title, rule, oldTitle) {
-  const map = { ...(state.data.settings?.taskRepeat || {}) };
-  if (oldTitle && oldTitle !== title) delete map[oldTitle];
-  if (rule) map[title] = rule; else delete map[title];
-  state.data.settings = { ...(state.data.settings || {}), taskRepeat: map };
-  commit();
-}
-
-/** 반복 할일을 끝내면 다음 차례를 만들어요 (구글이 이미 만들어 뒀으면 건너뛰기) */
-async function makeNextTask(t, rule) {
-  // 구글에서 이 목록을 새로 받아 같은 이름 할일을 확인해요 (못 받으면 앱에 있는 목록으로)
-  let list = state.agenda?.tasks || [];
-  try {
-    await new Promise((r) => setTimeout(r, 1200));
-    list = (await gapi().tasks(t.listId, true)).map((x) => normTask(x, t.listId));
-  } catch { /* 앱 목록으로 확인 */ }
-  const next = nextTaskDate(rule, t, list, today());
-  if (!next) return;
-  const ok = await addTaskItem(t.title, next, null, t.listId, t.notes, true, t.time);
-  if (ok) toast(`잘했어요! 다음 차례 ${mdw(fromKey(next))} 할일을 만들어 뒀어요.`);
-}
-
-async function addTaskItem(title, due, repeat = null, listId = state.agenda?.listId, notes = '', quiet = false, time = '') {
+async function addTaskItem(title, due, listId = state.agenda?.listId, notes = '', quiet = false) {
   if (!state.agenda?.listId) { toast('먼저 설정에서 구글에 연결해 주세요.'); return false; }
   listId ||= state.agenda.listId;
-  const tmp = { id: `tmp-${Date.now()}`, listId, title, notes, time, due, done: false, completedAt: '', updated: '' };
-  if (repeat) setTaskRule(title, repeat);
+  const tmp = { id: `tmp-${Date.now()}`, listId, title, notes, time: '', due, done: false, completedAt: '', updated: '' };
   const ok = await taskOp((ts) => ts.unshift(tmp), async (g, l) => {
-    const n = taskNotes(notes, time);
-    const r = await g.addTask(l, { title, ...(n ? { notes: n } : {}), ...(due ? { due: toTaskDue(due) } : {}) });
+    const r = await g.addTask(l, { title, ...(notes ? { notes } : {}), ...(due ? { due: toTaskDue(due) } : {}) });
     const i = state.agenda.tasks.findIndex((x) => x.id === tmp.id);
     if (i >= 0) state.agenda.tasks[i] = normTask(r, l);
     render();
   }, listId);
-  if (ok && !quiet) toast(due ? `‘${title}’ · ${dueLabel(due, today())}${time ? ` ${time}` : ''}${due === today() ? '' : '까지'}${repeat ? ` · ${repeatLabel(repeat, due)}` : ''} 추가했어요.` : `‘${title}’을(를) 추가했어요.`);
+  if (ok && !quiet) toast(due ? `‘${title}’ · ${dueLabel(due, today())}${due === today() ? '' : '까지'} 추가했어요.` : `‘${title}’을(를) 추가했어요.`);
   return ok;
 }
 
@@ -1274,27 +1253,18 @@ function toggleTask(id) {
   const t = state.agenda?.tasks.find((x) => x.id === id);
   if (!t || t.id.startsWith('tmp-')) return;
   const done = !t.done;
-  const rule = taskRule(t);
   state.justToggled = done ? id : '';
   setTimeout(() => { state.justToggled = ''; }, 0);
   taskOp(() => Object.assign(t, { done, completedAt: done ? today() : '' }),
-    (g, l) => g.patchTask(l, id, done ? { status: 'completed' } : { status: 'needsAction', completed: null }), listOf(id))
-    .then((ok) => { if (ok && done && rule) makeNextTask(t, rule); });
+    (g, l) => g.patchTask(l, id, done ? { status: 'completed' } : { status: 'needsAction', completed: null }), listOf(id));
 }
 
 function saveTask(vals) {
   const id = editing.id;
   const due = vals.due || '';
-  const rule = vals.repeat ? ruleFromChoice(vals.repeat, due || today(), editing.rule) : null;
-  if (rule && !due) { toast('반복 할일은 마감일이 있어야 해요.'); return false; }
-  if (!id) { addTaskItem(vals.title, due, rule, undefined, vals.notes, false, vals.time); return; }
-  const old = state.agenda?.tasks.find((x) => x.id === id);
-  const hadRule = !!(old && taskRule(old));
-  if (rule || hadRule) setTaskRule(vals.title, rule, old?.title);
-  // 이미 끝낸 할일에 반복을 새로 걸면 다음 차례를 바로 만들어요
-  if (old?.done && rule && !hadRule) makeNextTask({ ...old, title: vals.title, notes: vals.notes, due }, rule);
-  taskOp((ts) => Object.assign(ts.find((x) => x.id === id) || {}, { title: vals.title, notes: vals.notes, time: vals.time, due }),
-    (g, l) => g.patchTask(l, id, { title: vals.title, notes: taskNotes(vals.notes, vals.time), due: due ? toTaskDue(due) : null }), listOf(id));
+  if (!id) { addTaskItem(vals.title, due, undefined, vals.notes); return; }
+  taskOp((ts) => Object.assign(ts.find((x) => x.id === id) || {}, { title: vals.title, notes: vals.notes, due }),
+    (g, l) => g.patchTask(l, id, { title: vals.title, notes: vals.notes || '', due: due ? toTaskDue(due) : null }), listOf(id));
 }
 /** 할일이 들어 있는 구글 태스크 목록 */
 const listOf = (id) => state.agenda?.tasks.find((x) => x.id === id)?.listId || state.agenda?.listId;
@@ -1578,8 +1548,7 @@ function taskRow(t) {
   const late = t.due && t.due < today() && !t.done;
   const lists = (state.agenda?.lists || []).filter((l) => l.show !== false);
   const list = lists.length > 1 ? lists.find((l) => l.id === t.listId)?.title || '' : '';
-  const rule = taskRule(t);
-  const meta = [label ? `<span class="${late ? 'late' : ''}">${label}${t.time ? ` ${t.time}` : ''}</span>` : t.time ? t.time : '', rule ? esc(repeatLabel(rule, t.due)) : '', esc(list), esc(t.notes.split('\n')[0])].filter(Boolean).join(' · ');
+  const meta = [label ? `<span class="${late ? 'late' : ''}">${label}</span>` : '', esc(list), esc(t.notes.split('\n')[0])].filter(Boolean).join(' · ');
   return `<div class="row task${t.done ? ' done' : ''}">
     <button class="tcheck${state.justToggled === t.id ? ' just' : ''}" data-action="task-toggle" data-id="${esc(t.id)}" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title)} ${t.done ? '완료 취소' : '완료'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
     <button class="row-main" data-action="task-edit" data-id="${esc(t.id)}"><span class="row-title">${esc(t.title)}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</button>
@@ -2035,14 +2004,14 @@ function openForm(kind, item, preset = {}) {
   }
   if (kind === 'stocks' && item) v = { avgCur: 'KRW', manualCur: 'KRW', market: stockMarket(item), ...item };
   if (kind === 'fx') v = { usdKrw: state.data.settings?.usdKrw || '' };
-  if (kind === 'event' || kind === 'task') {
+  if (kind === 'event') {
     // 반복: 고를 수 있는 것 + 지금 규칙이 목록에 없으면 그대로 두기
-    const rule = kind === 'task' ? (item ? taskRule(item) : preset.repeat) : preset.repeat;
+    const rule = preset.repeat;
     const f = spec.fields.find((x) => x.key === 'repeat');
     f.options = choiceOf(rule) === 'keep' ? [...REPEAT_CHOICES, ['keep', `${repeatLabel(rule)} (그대로)`]] : REPEAT_CHOICES;
     editing.rule = rule || null;
   }
-  if (kind === 'task') v = { ...(item || preset), repeat: choiceOf(editing.rule) };
+  if (kind === 'task') v = { ...(item || preset) };
   if (kind === 'event') {
     spec.fields.find((f) => f.key === 'calId').options = writableCals().map((c) => [c.id, c.name]);
     const e = item || preset;
@@ -2434,7 +2403,7 @@ async function doAction(m, what) {
     m.done = 'busy';
     renderChat();
     const ok = a.kind === 'memo' ? await addMemo(a.text)
-      : a.kind === 'task' ? await addTaskItem(a.title, a.due, a.repeat || null, undefined, '', false, a.time || '')
+      : a.kind === 'task' ? await addTaskItem(a.title, a.due)
       : a.kind === 'move' ? await moveEvent(a)
       : a.kind === 'delete' ? await removeEvent(a.calId, a.id)
       : await createEvent({ ...a.ev, calId: writableCals().find((c) => c.name === a.ev.calName)?.id });
@@ -2713,8 +2682,10 @@ function bind() {
     if (e.target.id === 'task-input') {
       const { title, due, repeat, time } = parseQuickTask(e.target.value, now());
       $('#task-preview').textContent = !title ? ENTER_HINT
-        : due ? `‘${title}’ · ${dueLabel(due, today())}${time ? ` ${time}` : ''}${due < today() ? '' : due === today() ? '' : '까지'}${repeat ? ` · ${repeatLabel(repeat, due)} 반복` : ''}` : `‘${title}’ · 날짜 없음`;
+        : repeat || time ? '구글 태스크에는 앱에서 시간·반복을 넣을 수 없어요. 일정 탭에서 일정으로 넣어 주세요.'
+        : due ? `‘${title}’ · ${dueLabel(due, today())}${due <= today() ? '' : '까지'}` : `‘${title}’ · 날짜 없음`;
     }
+
   });
   // 비서 칸: Enter로 보내기, Shift+Enter는 줄바꿈 (한글 조합 중에는 보내지 않아요)
   $('#view').addEventListener('keydown', (e) => {
@@ -2761,7 +2732,7 @@ function bind() {
     e.preventDefault();
     const input = $('#task-input');
     if (!input.value.trim()) return input.focus();
-    addTask(input.value);
+    if (!addTask(input.value)) return input.focus(); // 시간·반복이 있으면 넣지 않고 글은 그대로 둬요
     input.value = '';
     $('#task-preview').textContent = ENTER_HINT;
     input.focus();
