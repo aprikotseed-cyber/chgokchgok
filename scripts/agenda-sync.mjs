@@ -7,7 +7,7 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
-import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, eventLine, repeatLabel, dueLabel, dayKey, inboxKind } from '../js/agenda.js';
+import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, eventLine, repeatLabel, dueLabel, dayKey, inboxKind, occurrences } from '../js/agenda.js';
 import { fetchCalDav } from '../js/caldav.js';
 import { listApi } from '../js/google.js';
 
@@ -91,13 +91,16 @@ async function handleInbox(userRef, item, ctx) {
     await googleFetch(at, `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`, toGoogleEvent(ev));
     return `${cal.name}: ${eventLine(ev)}${ev.repeat ? ` (${repeatLabel(ev.repeat, ev.date)})` : ''}`;
   }
-  const { title, due, repeat, time } = parseQuickTask(text, new Date());
+  const { title, due, repeat, time, count } = parseQuickTask(text, new Date());
   if (!title) throw new Error('할일 내용을 알아듣지 못했어요');
-  // 구글 태스크는 시간·반복을 넣을 수 없어요. 앱에만 따로 기억하지 않고, 넣지 않은 채 알려 드려요
-  if (repeat || time) throw new Error('구글 태스크에는 시간·반복을 넣을 수 없어요. 일정(📅)으로 보내 주세요');
+  // 구글 태스크는 시간을 넣을 수 없어요. 앱에만 따로 기억하지 않고, 넣지 않은 채 알려 드려요
+  if (time) throw new Error('구글 태스크에는 시간을 넣을 수 없어요. 시간이 정해진 일은 일정(📅)으로 보내 주세요');
   const lists = await ctx.api().taskLists(false);
   const listId = lists.some((l) => l.id === ctx.gs.taskList) ? ctx.gs.taskList : lists[0]?.id;
-  await googleFetch(at, `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`, { title, ...(due ? { due: toTaskDue(due) } : {}) });
+  // 반복: 구글 태스크는 반복을 받지 않아서 날짜마다 따로 만들어요 (기본 매주 8주치)
+  const dates = repeat ? occurrences(repeat, due, count) : [due];
+  for (const d of dates) await googleFetch(at, `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`, { title, ...(d ? { due: toTaskDue(d) } : {}) });
+  if (repeat) return `할일: ${title} · ${repeatLabel(repeat, due)} ${dates.length}개 (${dueLabel(dates[0], dayKey(new Date()))} ~ ${dueLabel(dates.at(-1), dayKey(new Date()))})`;
   return `할일: ${title}${due ? ` · ${dueLabel(due, dayKey(new Date()))}` : ''}`;
 }
 

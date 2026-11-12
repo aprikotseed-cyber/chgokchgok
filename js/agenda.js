@@ -111,6 +111,12 @@ export function parseQuickTask(text, now = new Date()) {
   const rep = parseRepeat(text, now);
   // 쉼표·괄호는 띄어쓰기로 ('다음 주 화요일, 보고서', '17일(화)')
   let s = ` ${rep.rest} `.replace(/[,，、()（）]/g, ' ');
+  // 반복 할일을 몇 번 만들지: '12주치', '8회', '10번', '6개월치' (반복 말이 있을 때만)
+  let count = null;
+  if (rep.rule) {
+    const cm = s.match(/\s(\d{1,3})\s?(주치|주\s?동안|회|번|개월치|개월\s?동안|달치)(만큼|씩)?\s/);
+    if (cm) { count = { n: Number(cm[1]), unit: /주/.test(cm[2]) ? 'week' : /개월|달/.test(cm[2]) ? 'month' : 'times' }; s = s.replace(cm[0], ' '); }
+  }
   // '오후 3시', '15:30' 같은 시간은 제목에서 빼서 따로
   let time = '';
   const tm = s.match(TIME_RE);
@@ -151,7 +157,26 @@ export function parseQuickTask(text, now = new Date()) {
   if (!rep.rule) return { title, due, ...t };
   // 반복: 날짜를 따로 안 쓰면 오늘부터 첫 차례
   const first = due && matchesRule(rep.rule, due) ? due : firstOccurrence(rep.rule, due || dayKey(today));
-  return { title, due: first, ...t, repeat: { ...rep.rule, anchor: first } };
+  return { title, due: first, ...t, repeat: { ...rep.rule, anchor: first }, ...(count ? { count } : {}) };
+}
+
+/**
+ * 반복 할일을 구글 태스크에 '따로따로' 미리 만들 날짜들 (구글 태스크는 앱에서 반복을 넣을 수 없어서).
+ * count: {n, unit: 'week'|'month'|'times'}. 없으면 매주는 8주치, 매월은 6개월치, 매일은 14번, 매년은 3번.
+ * 너무 많이 만들지 않게 60개까지만.
+ */
+export function occurrences(rule, startKey, count) {
+  const c = count || (rule.freq === 'weekly' ? { n: 8, unit: 'week' } : rule.freq === 'monthly' ? { n: 6, unit: 'month' } : rule.freq === 'daily' ? { n: 14, unit: 'times' } : { n: 3, unit: 'times' });
+  const start = fromKey(startKey);
+  const end = c.unit === 'week' ? dayKey(addDays(start, 7 * c.n - 1))
+    : c.unit === 'month' ? dayKey(addDays(new Date(start.getFullYear(), start.getMonth() + c.n, start.getDate()), -1)) : '';
+  const out = [];
+  let k = matchesRule({ ...rule, anchor: rule.anchor || startKey }, startKey) ? startKey : firstOccurrence(rule, startKey);
+  while (k && out.length < 60 && (end ? k <= end : out.length < c.n)) {
+    out.push(k);
+    k = nextOccurrence({ ...rule, anchor: rule.anchor || startKey }, k);
+  }
+  return out;
 }
 
 /** 월·일만 주어지면 올해, 이미 한참 지났으면(30일 넘게) 내년 */

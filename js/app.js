@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261112i';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112i';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112i';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112i';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112i';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112i';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112i';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112i';
-import { estimateMonths } from './estimate.js?v=20261112i';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112i';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112i';
-import { addFeedback, feedbackText } from './feedback.js?v=20261112i';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112i';
-import { createGoogle, freshServerToken } from './google.js?v=20261112i';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112i';
-import { createDemoGoogle } from './google-demo.js?v=20261112i';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112i';
+import { connect, isDemo } from './store.js?v=20261112j';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112j';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112j';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112j';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112j';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112j';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112j';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112j';
+import { estimateMonths } from './estimate.js?v=20261112j';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112j';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112j';
+import { addFeedback, feedbackText } from './feedback.js?v=20261112j';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112j';
+import { createGoogle, freshServerToken } from './google.js?v=20261112j';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112j';
+import { createDemoGoogle } from './google-demo.js?v=20261112j';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, occurrences, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112j';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1228,11 +1228,35 @@ async function taskOp(change, call, listId = state.agenda?.listId) {
  * 구글 태스크는 앱에서 시간·반복을 넣을 수 없어서, 그런 말이 있으면 넣지 않고 알려 드려요.
  */
 function addTask(text) {
-  const { title, due, repeat, time } = parseQuickTask(text, now());
+  const { title, due, repeat, time, count } = parseQuickTask(text, now());
   if (!title) return false;
-  if (repeat || time) { toast('구글 태스크에는 앱에서 시간·반복을 넣을 수 없어요. 일정 탭에서 일정으로 넣거나, 구글 태스크에서 직접 설정해 주세요.'); return false; }
+  if (time) { toast('구글 태스크에는 앱에서 시간을 넣을 수 없어요. 시간이 정해진 일은 일정 탭에서 일정으로 넣어 주세요.'); return false; }
+  // 반복: 구글 태스크에 날짜마다 따로따로 미리 만들어요 (앱에 규칙을 기억하지 않아요)
+  if (repeat) { addTaskSeries(title, occurrences(repeat, due, count)); return true; }
   addTaskItem(title, due);
   return true;
+}
+
+/** 같은 할일을 여러 날짜에 하나씩 (반복 할일 몇 주치) */
+async function addTaskSeries(title, dates) {
+  if (!dates.length) return false;
+  let n = 0;
+  for (const d of dates) if (await addTaskItem(title, d, undefined, '', true)) n++;
+  const span = `${mdw(fromKey(dates[0]))} ~ ${mdw(fromKey(dates.at(-1)))}`;
+  toast(n === dates.length ? `‘${title}’ 할일을 ${n}개 만들었어요. (${span})` : `${dates.length}개 중 ${n}개만 만들었어요. 잠시 뒤 다시 해 주세요.`);
+  return n === dates.length;
+}
+
+/** 할일 미리보기 한 줄: 반복이면 몇 개를 언제부터 언제까지 만드는지 */
+function taskPreview(text) {
+  const { title, due, repeat, time, count } = parseQuickTask(text, now());
+  if (!title) return ENTER_HINT;
+  if (time) return '구글 태스크에는 앱에서 시간을 넣을 수 없어요. 시간이 정해진 일은 일정 탭에서 넣어 주세요.';
+  if (repeat) {
+    const ds = occurrences(repeat, due, count);
+    return `‘${title}’ · ${repeatLabel(repeat, due)} · ${ds.length}개를 따로 만들어요 (${mdw(fromKey(ds[0]))} ~ ${mdw(fromKey(ds.at(-1)))}). 횟수는 ‘12주치’처럼 적어요.`;
+  }
+  return due ? `‘${title}’ · ${dueLabel(due, today())}${due <= today() ? '' : '까지'}` : `‘${title}’ · 날짜 없음`;
 }
 
 async function addTaskItem(title, due, listId = state.agenda?.listId, notes = '', quiet = false) {
@@ -2081,6 +2105,12 @@ function openForm(kind, item, preset = {}) {
   if (kind === 'memo' && item) {
     $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint memo-stamp">${memoStamp(item)} <button type="button" class="link-btn" id="memo-copy">복사</button></p>`);
   }
+  // 미리 만들어 둔 반복 할일: 앞으로 남은 같은 이름 할일까지 한꺼번에 지우기
+  if (kind === 'task' && item) {
+    const rest = (state.agenda?.tasks || []).filter((x) => x.id !== item.id && !x.done && x.title === item.title && x.due && x.due >= today() && !x.id.startsWith('tmp-'));
+    editing.series = rest.map((x) => x.id);
+    if (rest.length) $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint"><button type="button" class="text-btn danger" id="task-del-series">이 할일과 앞으로 남은 같은 할일 ${rest.length}개 모두 지우기</button></p>`);
+  }
   if (kind === 'event' && item) $('#f-repeat')?.closest('.field')?.setAttribute('hidden', '');
   if (kind === 'event' && item) {
     $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint">${item.recurring ? '반복 일정이라 이 날 하나만 바뀌어요. ' : ''}${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noopener">구글 캘린더에서 열기</a>` : ''}</p>`);
@@ -2337,7 +2367,7 @@ function chatHtml(m, i) {
   let act = '';
   if (m.action) {
     const verb = { move: '옮기', delete: '지우', memo: '저장하' }[m.action.kind] || '넣';
-    const doneText = { move: '구글 캘린더에서 옮겼어요.', delete: '구글 캘린더에서 지웠어요.', task: '구글 태스크에 넣었어요.', memo: '메모에 저장했어요.' }[m.action.kind] || '구글 캘린더에 넣었어요.';
+    const doneText = { move: '구글 캘린더에서 옮겼어요.', delete: '구글 캘린더에서 지웠어요.', task: '구글 태스크에 넣었어요.', tasks: '구글 태스크에 넣었어요.', memo: '메모에 저장했어요.' }[m.action.kind] || '구글 캘린더에 넣었어요.';
     if (m.done) act = `<p class="fb-done${after}">${{ ok: doneText, fail: `${verb}지 못했어요. 다시 해 볼까요?`, cancel: `${verb}지 않았어요.`, edit: '입력창에서 고쳐서 넣어 주세요.', busy: `${verb}는 중…` }[m.done]}</p>`;
     if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="as-act primary" data-act="do" data-i="${i}">${verb}기</button>${m.action.kind === 'event' ? `<button type="button" class="as-act" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="as-act" data-act="cancel" data-i="${i}">취소</button></div>`;
   }
@@ -2404,6 +2434,7 @@ async function doAction(m, what) {
     renderChat();
     const ok = a.kind === 'memo' ? await addMemo(a.text)
       : a.kind === 'task' ? await addTaskItem(a.title, a.due)
+      : a.kind === 'tasks' ? await addTaskSeries(a.title, a.dates)
       : a.kind === 'move' ? await moveEvent(a)
       : a.kind === 'delete' ? await removeEvent(a.calId, a.id)
       : await createEvent({ ...a.ev, calId: writableCals().find((c) => c.name === a.ev.calName)?.id });
@@ -2680,10 +2711,7 @@ function bind() {
       $('#event-preview').textContent = v ? eventPreview(parseEventInput(v, now(), writableCals(), gset().keywords)) : ENTER_HINT;
     }
     if (e.target.id === 'task-input') {
-      const { title, due, repeat, time } = parseQuickTask(e.target.value, now());
-      $('#task-preview').textContent = !title ? ENTER_HINT
-        : repeat || time ? '구글 태스크에는 앱에서 시간·반복을 넣을 수 없어요. 일정 탭에서 일정으로 넣어 주세요.'
-        : due ? `‘${title}’ · ${dueLabel(due, today())}${due <= today() ? '' : '까지'}` : `‘${title}’ · 날짜 없음`;
+      $('#task-preview').textContent = taskPreview(e.target.value);
     }
 
   });
@@ -2732,7 +2760,7 @@ function bind() {
     e.preventDefault();
     const input = $('#task-input');
     if (!input.value.trim()) return input.focus();
-    if (!addTask(input.value)) return input.focus(); // 시간·반복이 있으면 넣지 않고 글은 그대로 둬요
+    if (!addTask(input.value)) return input.focus(); // 시간이 있으면 넣지 않고 글은 그대로 둬요
     input.value = '';
     $('#task-preview').textContent = ENTER_HINT;
     input.focus();
@@ -2790,6 +2818,14 @@ function bind() {
   $('#editor-delete').addEventListener('click', () => deleteItem() && dlg.close());
   dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); }); // 바깥 누르면 닫기
   $('#editor-fields').addEventListener('click', (e) => {
+    if (e.target.id === 'task-del-series') {
+      const ids = [editing.id, ...(editing.series || [])];
+      if (!confirm(`‘${$('#f-title').value}’ 할일 ${ids.length}개를 모두 지울까요? 구글 태스크에서도 지워져요.`)) return;
+      ids.forEach((id) => removeTask(id));
+      $('#editor').close();
+      toast(`할일 ${ids.length}개를 지웠어요.`);
+      return;
+    }
     if (e.target.id === 'memo-copy') {
       navigator.clipboard?.writeText($('#f-text').value).then(() => toast('복사했어요.'), () => toast('복사하지 못했어요. 글을 길게 눌러 복사해 주세요.'));
     }
