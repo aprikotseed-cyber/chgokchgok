@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261112g';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112g';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112g';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112g';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112g';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112g';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112g';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112g';
-import { estimateMonths } from './estimate.js?v=20261112g';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112g';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112g';
-import { addFeedback, feedbackText } from './feedback.js?v=20261112g';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112g';
-import { createGoogle, freshServerToken } from './google.js?v=20261112g';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112g';
-import { createDemoGoogle } from './google-demo.js?v=20261112g';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, nextTaskDate } from './agenda.js?v=20261112g';
+import { connect, isDemo } from './store.js?v=20261112h';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112h';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112h';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112h';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112h';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112h';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112h';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112h';
+import { estimateMonths } from './estimate.js?v=20261112h';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112h';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112h';
+import { addFeedback, feedbackText } from './feedback.js?v=20261112h';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112h';
+import { createGoogle, freshServerToken } from './google.js?v=20261112h';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112h';
+import { createDemoGoogle } from './google-demo.js?v=20261112h';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, nextTaskDate } from './agenda.js?v=20261112h';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1783,6 +1783,7 @@ function render() {
   renderSync();
   renderAlerts();
   const money = navTab(state.tab) === 'money';
+  const kept = lastTab === state.tab ? keepTyping() : null;
   $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : state.tab === 'debts' ? debtsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
   // 메뉴를 옮겼을 때만 새 화면이 살짝 떠오르며 나타나요 (실시간 갱신 때는 그대로)
   if (lastTab !== state.tab) {
@@ -1797,9 +1798,36 @@ function render() {
     }
     lastTab = state.tab;
   }
+  kept?.();
   afterRender();
 }
 let lastTab = '';
+
+/**
+ * 쓰던 글 지키기: 실시간 갱신(동기화·시세·앱으로 돌아오기 등)으로 화면을 다시 그려도
+ * 입력칸에 쓰던 글·커서 위치·포커스를 그대로 되살려요. 돌려주는 함수를 다시 그린 뒤에 불러요.
+ */
+function keepTyping() {
+  const fields = [...$('#view').querySelectorAll('input[id], textarea[id]')]
+    .filter((el) => !['checkbox', 'radio', 'hidden', 'file'].includes(el.type) && el.value)
+    .map((el) => ({ id: el.id, value: el.value }));
+  const a = document.activeElement;
+  const focus = a && a.id && $('#view').contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName)
+    ? { id: a.id, start: a.selectionStart, end: a.selectionEnd, scroll: a.scrollTop } : null;
+  if (!fields.length && !focus) return null;
+  return () => {
+    for (const f of fields) {
+      const el = document.getElementById(f.id);
+      if (el && !el.value) { el.value = f.value; el.dispatchEvent(new Event('input', { bubbles: true })); } // 미리보기도 다시
+    }
+    const el = focus && document.getElementById(focus.id);
+    if (el) {
+      el.focus({ preventScroll: true });
+      try { el.setSelectionRange(focus.start, focus.end); } catch { /* 날짜 칸 등 */ }
+      el.scrollTop = focus.scroll;
+    }
+  };
+}
 
 // ───── 부드러운 움직임 ─────
 /**
