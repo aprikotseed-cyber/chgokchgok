@@ -79,9 +79,15 @@ test('비서: 일정·할일 넣기는 확인 카드로', () => {
 
 test('비서: 반복 일정·할일 넣기', () => {
   const ag = { ...agenda, calendars: [{ id: 'l', name: 'Life' }, { id: 'x', name: 'Exercise' }] };
+  // 구글 태스크는 반복을 넣을 수 없어서, 앱에만 기억하지 않고 일정으로 넣을지 물어봐요
   const a = ask('매주 토요일 화장실 청소 할일 추가해줘', data, {}, now, ag);
-  assert.deepEqual([a.action.title, a.action.due, a.action.repeat.byday], ['화장실 청소', '2026-11-14', [6]]);
-  assert.match(a.text, /반복: 매주 토요일/);
+  assert.ok(!a.action);
+  assert.match(a.text, /구글 태스크에는 앱에서 반복을 넣을 수 없어요/);
+  assert.deepEqual(a.choose.map((c) => c.label), ['일정', '할일']);
+  const a2 = ask(a.choose[0].q, data, {}, now, ag);
+  assert.deepEqual([a2.action.kind, a2.action.ev.repeat.byday], ['event', [6]]);
+  const a3 = ask(a.choose[1].q, data, {}, now, ag);
+  assert.deepEqual(a3.action, { kind: 'task', title: '화장실 청소', due: '2026-11-14' });
   const b = ask('매주 화요일 7시 헬스 일정 넣어줘', data, {}, now, ag);
   assert.deepEqual([b.action.ev.date, b.action.ev.time, b.action.ev.calName], ['2026-11-10', '19:00', 'Exercise']);
   assert.match(b.text, /반복: 매주 화요일/);
