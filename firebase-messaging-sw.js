@@ -9,7 +9,7 @@ self.addEventListener('push', (event) => {
   if (!n) return;
   event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
     if (!list.some((c) => c.visibilityState === 'visible')) return null;
-    return self.registration.showNotification(n.title || '차곡차곡', {
+    return self.registration.showNotification(typeof n.title === 'string' ? n.title : '차곡차곡', { // 빈 제목도 그대로 (시험용)
       body: n.body, icon: n.icon, tag: n.tag, renotify: !!n.tag, requireInteraction: n.requireInteraction === true || n.requireInteraction === 'true',
       data: { link: (p.fcmOptions && p.fcmOptions.link) || './' },
     });
