@@ -324,25 +324,12 @@ export async function fetchAgenda(g, gs = {}, now = new Date(), interactive = fa
       partner: PARTNER_NAMES.includes(name) };
   });
   const shown = calendars.filter((c) => calPref(c, gs).show);
-  const lists = await g.taskLists(interactive);
-  // 새 할일을 넣을 목록 (설정에서 고른 것, 없으면 첫 목록)
-  const listId = lists.some((l) => l.id === gs.taskList) ? gs.taskList : lists[0]?.id || '';
-  // 할일은 모든 목록에서 받아요 (설정에서 숨긴 목록만 빼고)
-  const hidden = new Set(gs.hideLists || []);
-  const shownLists = lists.filter((l) => !hidden.has(l.id));
-  const [evs, perList] = await Promise.all([
-    Promise.all(shown.map((c) => g.events(c.id, from.toISOString(), to.toISOString(), interactive)
-      .then((items) => items.filter((e) => e.status !== 'cancelled').map((e) => normEvent(e, { id: c.id, summary: c.name, backgroundColor: c.color, partner: calPref(c, gs).partner }))))),
-    Promise.all(shownLists.map((l) => g.tasks(l.id, interactive).then((items) => items.map((x) => normTask(x, l.id))))),
-  ]);
-  const old = dayKey(addDays(t, -30));
-  const tasks = perList.flat().filter((x) => !x.deleted && x.title !== '(제목 없음)').filter((x) => !x.done || !x.completedAt || x.completedAt >= old);
+  // 할일은 차곡차곡에 직접 저장해요 (구글 태스크는 받아오지 않아요). 일정만 구글 캘린더에서 받아요
+  const evs = await Promise.all(shown.map((c) => g.events(c.id, from.toISOString(), to.toISOString(), interactive)
+    .then((items) => items.filter((e) => e.status !== 'cancelled').map((e) => normEvent(e, { id: c.id, summary: c.name, backgroundColor: c.color, partner: calPref(c, gs).partner })))));
   return {
-    calendars, listId,
-    lists: lists.map((l, i) => ({ id: l.id, title: l.title || '', show: !hidden.has(l.id), count: tasks.filter((x) => x.listId === l.id && !x.done).length,
-      received: shownLists.includes(l) ? perList[shownLists.indexOf(l)].length : null, done: tasks.filter((x) => x.listId === l.id && x.done).length })),
+    calendars,
     events: evs.flat(),
-    tasks,
     from: dayKey(from), until: dayKey(addDays(to, -1)),
     syncedAt: Date.now(),
   };

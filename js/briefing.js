@@ -1,7 +1,7 @@
 // 아침 브리핑 알림 (GitHub Actions가 매일 아침 보내요): 오늘 일정 · 할일 · 오늘 나가는 돈.
 // 대출 상환과 고정지출은 '오늘'이 상환일·출금일일 때만 넣어요.
-import { upcoming } from './reminders.js?v=20261112j';
-import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261112j';
+import { upcoming } from './reminders.js?v=20261112k';
+import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261112k';
 
 const WEEK = '일월화수목금토';
 const list = (items, n = 4) => items.slice(0, n).join(', ') + (items.length > n ? ` 외 ${items.length - n}개` : '');
@@ -17,7 +17,7 @@ export const numEmoji = (n) => (n === 10 ? '🔟' : String(n).split('').map((d) 
  *  └ 오늘 출금 : 정수기
  *  (없으면 '└ 일정 ❌', '└ 할일 ❌')
  */
-export function morningBriefing(data, agenda, today) {
+export function morningBriefing(data, agenda, today, tasks = agenda?.tasks || []) {
   const key = dayKey(today);
   const lines = [];
   const linked = !!agenda?.syncedAt;
@@ -27,8 +27,11 @@ export function morningBriefing(data, agenda, today) {
         .map((e) => `${e.allDay ? '' : `${e.time} `}${e.title}${e.partner ? '(반려자)' : ''}`);
       lines.push(evs.length ? `└ 일정 ${numEmoji(evs.length)} : ${list(evs)}` : '└ 일정 ❌');
     } else lines.push('└ 일정 : 앱을 한 번 열면 새로 받아와요');
-    const g = groupTasks(agenda.tasks || [], key);
-    const todo = g.today.map((t) => `${t.time ? `${t.time} ` : ''}${t.title}`);
+  }
+  // 할일은 차곡차곡에 저장된 것 (구글 연결과 상관없어요)
+  const g = groupTasks(tasks || [], key);
+  const todo = g.today.map((t) => `${t.time ? `${t.time} ` : ''}${t.title}`);
+  if (linked || todo.length || g.overdue.length) {
     lines.push(todo.length ? `└ 할일 ${numEmoji(todo.length)} : ${list(todo)}` : '└ 할일 ❌');
     if (g.overdue.length) lines.push(`└ 지난 할일 : ${numEmoji(g.overdue.length)}개 있어요. 참고!`);
   }
@@ -38,6 +41,6 @@ export function morningBriefing(data, agenda, today) {
   const pay = due.filter((u) => u.type === 'loan').map((u) => u.name);
   if (out.length) lines.push(`└ 오늘 출금 : ${out.join(', ')}`);
   if (pay.length) lines.push(`└ 오늘 상환 : ${pay.join(', ')}`);
-  if (!linked && !lines.length) return null; // 일정 연결 전이고 오늘 나갈 돈도 없으면 보내지 않아요
+  if (!linked && !lines.length) return null; // 일정 연결 전이고 할일·오늘 나갈 돈도 없으면 보내지 않아요
   return { title: '🗓️ 오늘의 아침 브리핑', body: lines.join('\n') };
 }

@@ -16,7 +16,7 @@ test('구글에서 받아 오기: 기본 캘린더 고르기·반려자·설정 
   assert.equal(cal('partner').partner, true);
   assert.equal(cal('holiday').write, false);
   assert.ok(a.events.some((e) => e.title === '야근' && e.partner));
-  assert.ok(a.tasks.length > 0 && a.listId === 'default');
+  assert.equal(a.tasks, undefined); // 할일은 차곡차곡에 저장해서 구글 태스크는 받지 않아요
   // 설정에서 Work를 숨기면 받지 않아요
   const b = await fetchAgenda(g, { cals: { work: { show: false } } }, new Date());
   assert.ok(!b.events.some((e) => e.calId === 'work'));

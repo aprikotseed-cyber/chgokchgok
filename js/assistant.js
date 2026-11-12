@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261112j';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261112j';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261112j';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261112j';
-import { won, wonExact, mdw, pct } from './format.js?v=20261112j';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput, occurrences } from './agenda.js?v=20261112j';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261112k';
+import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261112k';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261112k';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261112k';
+import { won, wonExact, mdw, pct } from './format.js?v=20261112k';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261112k';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -606,7 +606,9 @@ function entitySummary(ctx, e) {
 }
 
 // ───── 일정·할일 ─────
-const NOT_LINKED = '구글 캘린더·할일이 아직 연결되지 않았어요. 설정 → 구글 캘린더·할일에서 연결하면 알려드릴게요.';
+const NOT_LINKED = '구글 캘린더가 아직 연결되지 않았어요. 설정 → 구글 캘린더에서 연결하면 일정도 알려드릴게요.';
+/** 구글 캘린더 일정을 받아 둔 상태인지 (할일은 차곡차곡에 있어서 연결과 상관없어요) */
+const linked = (ctx) => !!ctx.agenda && ctx.agenda.linked !== false;
 const shortDay = (d) => `${d.getMonth() + 1}/${d.getDate()} (${'일월화수목금토'[d.getDay()]})`;
 const addD = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 
@@ -626,7 +628,7 @@ function scheduleAnswer(ctx) {
   const one = ymd(start) === ymd(end);
   const money = outflowItems(ctx, start, end);
   const moneyText = money.length ? `\n나갈 돈: ${money.map((x) => `${one ? '' : `${x.date.getMonth() + 1}/${x.date.getDate()} `}${x.name} ${wonExact(x.amount)}`).join(', ')}` : '';
-  if (!ctx.agenda) return { text: `${NOT_LINKED}${moneyText ? `\n${label}${moneyText}` : ''}` };
+  if (!linked(ctx)) return { text: `${NOT_LINKED}${moneyText ? `\n${label}${moneyText}` : ''}` };
   let events = ctx.agenda.events;
   const cal = ctx.ents.find((e) => e.type === 'cal');
   const partner = ctx.ents.some((e) => e.type === 'partner');
@@ -655,7 +657,7 @@ function scheduleAnswer(ctx) {
 
 /** 이 제목의 일정이 언제인지 (가장 가까운 앞으로의 것) */
 function eventWhen(ctx, title) {
-  if (!ctx.agenda) return { text: NOT_LINKED };
+  if (!linked(ctx)) return { text: NOT_LINKED };
   const today = ymd(ctx.now);
   const list = ctx.agenda.events.filter((e) => e.title === title).sort((a, b) => a.startKey.localeCompare(b.startKey));
   const e = list.find((x) => x.endKey >= today) || list.at(-1);
@@ -668,7 +670,7 @@ function eventWhen(ctx, title) {
 }
 
 function tasksAnswer(ctx) {
-  if (!ctx.agenda) return { text: NOT_LINKED };
+  if (!ctx.agenda) return { text: '할일을 아직 불러오지 못했어요.' };
   const today = ymd(ctx.now);
   const g = groupTasks(ctx.agenda.tasks, today);
   const t1 = (t) => `· ${t.title}${t.due && t.due < today ? ` (${dueLabel(t.due, today)})` : ''}`;
@@ -712,32 +714,16 @@ export function stripCommand(raw) {
 function addAnswer(ctx, now) {
   if (!ctx.agenda) return { text: NOT_LINKED };
   const isTask = /할일|투두|todo|해야/.test(ctx.q);
+  if (!isTask && !linked(ctx)) return { text: NOT_LINKED };
   const body = stripCommand(ctx.raw);
   if (isTask) {
     const p = parseQuickTask(body, now);
     const { title, repeat, time } = p;
     if (!title) return { text: '어떤 할일을 넣을까요? 예: ‘금요일까지 보고서 할일 추가해줘’' };
     const due = p.due || ymd(ctx.now); // 날짜를 말하지 않으면 오늘 할일로
-    // 구글 태스크는 앱에서 시간을 넣을 수 없어요. 앱에만 따로 기억하지 않고, 구글 캘린더 일정으로 넣을지 물어봐요
-    const countText = p.count ? ` ${p.count.n}${{ week: '주치', month: '개월치', times: '회' }[p.count.unit]}` : '';
-    if (time) {
-      const plain = repeat ? `${repeatLabel(repeat, due)} ${title}${countText}` : `${mdw(fromKey(due)).replace(/ \(.\)$/, '')} ${title}`;
-      return {
-        text: `구글 태스크에는 앱에서 시간을 넣을 수 없어요.\n구글 캘린더 일정으로 넣으면 ${time}${repeat ? `, ${repeatLabel(repeat, due)} 반복` : ''}이 그대로 들어가요. 일정으로 넣을까요, 시간 없는 할일로 넣을까요?`,
-        choose: [{ label: '일정', q: `${body} 일정 추가해줘` }, { label: '할일', q: `${plain} 할일 추가해줘` }],
-      };
-    }
-    // 반복: 구글 태스크에 날짜마다 따로 미리 만들어요
-    if (repeat) {
-      const dates = occurrences(repeat, due, p.count);
-      return {
-        text: `이 할일을 ${dates.length}개 넣을까요?\n· ${title}\n· ${repeatLabel(repeat, due)}: ${mdw(fromKey(dates[0]))} ~ ${mdw(fromKey(dates.at(-1)))}\n구글 태스크는 반복을 받지 않아서, 날짜마다 따로 만들어요. 횟수는 ‘12주치’처럼 말해 주세요.`,
-        action: { kind: 'tasks', title, dates },
-      };
-    }
     return {
-      text: `이 할일을 넣을까요?\n· ${title} (${mdw(fromKey(due))}까지)${p.due ? '' : '\n날짜를 말씀하지 않아서 오늘 할일로 넣을게요.'}`,
-      action: { kind: 'task', title, due },
+      text: `이 할일을 넣을까요?\n· ${title} (${mdw(fromKey(due))}${time ? ` ${time}` : ''}${repeat ? '' : '까지'})${repeat ? `\n· 반복: ${repeatLabel(repeat, due)} (끝내면 다음 차례를 만들어요)` : ''}${time ? '\n· 30분 전에 알려 드려요' : ''}${p.due ? '' : '\n날짜를 말씀하지 않아서 오늘 할일로 넣을게요.'}`,
+      action: { kind: 'task', title, due, ...(time ? { time } : {}), ...(repeat ? { repeat } : {}) },
     };
   }
   const p = parseEventInput(body, now, ctx.agenda.calendars || [], ctx.agenda.keywords || []);
