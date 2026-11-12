@@ -340,7 +340,10 @@ export function keepExternal(next, prev) {
 // 규칙 {freq: 'daily'|'weekly'|'monthly'|'yearly', interval, byday: [0~6 (일~토)], day: 매월 며칠, anchor: 첫 날, until}
 const DAYS = '일월화수목금토';
 const BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
-const daysIn = (str) => [...new Set([...str].map((c) => DAYS.indexOf(c)).filter((i) => i >= 0))].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+// '요일'의 '일'을 일요일로 세지 않게 먼저 지워요
+const daysIn = (str) => [...new Set([...String(str).replace(/요일/g, '')].map((c) => DAYS.indexOf(c)).filter((i) => i >= 0))].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7));
+// '월', '월요일', '월, 목요일', '월요일·목요일', '월/목', '월과 목'처럼 요일 여러 개
+const DAY_LIST = '[월화수목금토일](?:요일)?(?:\\s*(?:,|·|/|와|과|랑|및|하고)?\\s*[월화수목금토일](?:요일)?)*';
 
 /** 글에서 반복 말을 찾아 {rule, rest} (rest는 반복 말을 뺀 글) */
 export function parseRepeat(text) {
@@ -356,9 +359,11 @@ export function parseRepeat(text) {
   take(/\s(매일|날마다)\s/, () => ({ freq: 'daily', interval: 1 }));
   take(/\s(평일마다|매\s?평일|평일\s?매일)\s/, () => ({ freq: 'weekly', interval: 1, byday: [1, 2, 3, 4, 5] }));
   take(/\s(주말마다|매\s?주말)\s/, () => ({ freq: 'weekly', interval: 1, byday: [6, 0] }));
-  take(/\s(격주|2주마다|이주마다)\s?([월화수목금토일,·\s]*?)(요일)?(마다|에)?\s/, (m) => ({ freq: 'weekly', interval: 2, byday: daysIn(m[2]) }));
-  take(/\s(매주|주마다)\s?([월화수목금토일,·]*)(요일)?(마다|에)?\s/, (m) => ({ freq: 'weekly', interval: 1, byday: daysIn(m[2]) }));
-  take(/\s([월화수목금토일])요일마다\s/, (m) => ({ freq: 'weekly', interval: 1, byday: daysIn(m[1]) }));
+  // 쉼표 붙은 요일 목록도 한 덩어리로 보려고, 반복 말을 찾을 때만 쉼표 뒤를 띄어 둬요
+  s = s.replace(/([월화수목금토일](?:요일)?)\s*([,·/])\s*(?=[월화수목금토일])/g, '$1$2');
+  take(new RegExp(`\\s(격주|2주마다|이주마다)\\s?(${DAY_LIST})?(마다|에)?[,]?\\s`), (m) => ({ freq: 'weekly', interval: 2, byday: daysIn(m[2] || '') }));
+  take(new RegExp(`\\s(매주|주마다)\\s?(${DAY_LIST})?(마다|에)?[,]?\\s`), (m) => ({ freq: 'weekly', interval: 1, byday: daysIn(m[2] || '') }));
+  take(new RegExp(`\\s(${DAY_LIST})\\s?마다\\s`), (m) => ({ freq: 'weekly', interval: 1, byday: daysIn(m[1]) }));
   take(/\s(매월|매달|다달이)\s?(\d{1,2})일(마다|에)?\s/, (m) => ({ freq: 'monthly', interval: 1, day: Number(m[2]) }));
   take(/\s(매월|매달|다달이)\s/, () => ({ freq: 'monthly', interval: 1 }));
   take(/\s(매년|해마다)\s/, () => ({ freq: 'yearly', interval: 1 }));
@@ -406,6 +411,19 @@ export function nextFrom(rule, key, todayKey) {
   let n = nextOccurrence(rule, key);
   for (let i = 0; n && n < todayKey && i < 1000; i++) n = nextOccurrence(rule, n);
   return n;
+}
+
+/**
+ * 반복 할일을 끝냈을 때 만들 다음 차례 날짜. 이미 있으면 '' (중복으로 만들지 않아요)
+ *  - 같은 이름의 할일이 오늘 이후로 아직 남아 있으면 그게 다음 차례예요
+ *  - 지난 차례를 늦게 끝내도, 같은 이름 할일 중 가장 늦은 날짜 다음부터 만들어요
+ *    (목요일 것을 먼저 끝내고 월요일 것을 나중에 끝내도 목요일이 또 생기지 않게)
+ */
+export function nextTaskDate(rule, task, siblings, todayKey) {
+  const same = (siblings || []).filter((x) => x.id !== task.id && !x.deleted && x.title === task.title && x.due);
+  if (same.some((x) => !x.done && x.due >= todayKey)) return '';
+  const last = [task.due || todayKey, ...same.map((x) => x.due)].sort().at(-1);
+  return nextFrom(rule, last, todayKey);
 }
 
 /** 구글 캘린더 반복 규칙 */
