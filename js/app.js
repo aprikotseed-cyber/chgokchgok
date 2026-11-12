@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261112e';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112e';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112e';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112e';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112e';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112e';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112e';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112e';
-import { estimateMonths } from './estimate.js?v=20261112e';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112e';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112e';
-import { addFeedback, feedbackText } from './feedback.js?v=20261112e';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112e';
-import { createGoogle, freshServerToken } from './google.js?v=20261112e';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112e';
-import { createDemoGoogle } from './google-demo.js?v=20261112e';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112e';
+import { connect, isDemo } from './store.js?v=20261112f';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112f';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112f';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112f';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112f';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112f';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112f';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112f';
+import { estimateMonths } from './estimate.js?v=20261112f';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112f';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112f';
+import { addFeedback, feedbackText } from './feedback.js?v=20261112f';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112f';
+import { createGoogle, freshServerToken } from './google.js?v=20261112f';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112f';
+import { createDemoGoogle } from './google-demo.js?v=20261112f';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112f';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1925,21 +1925,44 @@ function closedAlerts() {
   try { return JSON.parse(localStorage.getItem(DISMISS_KEY) || '[]'); } catch { return []; }
 }
 
+/** PC 오른쪽 아래 알림: 비서가 상환·출금 일정을 알려 드리는 말투로 */
+let alertsHtml = null;
 function renderAlerts() {
   const box = $('#alerts');
-  if (!state.user) { box.innerHTML = ''; return; }
   const closed = new Set(closedAlerts());
-  const list = alertsFor(state.data, now()).filter((a) => !closed.has(alertKey(a)));
-  box.innerHTML = list.map((a) => {
+  const list = state.user ? alertsFor(state.data, now()).filter((a) => !closed.has(alertKey(a))) : [];
+  const html = list.map((a) => {
     const loan = a.type === 'loan';
-    return `<div class="alert-card" role="alert">
-      <div class="alert-head"><span class="badge hot">${loan ? `D-${a.dday}` : '내일'}</span><b>${loan ? `${esc(a.name)} 상환 ${a.dday}일 전` : `${esc(a.name)} 출금`}</b>
-        <button class="icon-btn" data-close-alert="${esc(alertKey(a))}" aria-label="닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
-      <p>${mdw(a.date)} · ${a.exact ? '' : '약 '}${wonExact(a.amount)}${a.account ? ` · ${esc(a.account)}` : ''}</p>
-      <a class="link-btn" href="#${loan ? 'debts' : 'fixed'}" data-close-alert="${esc(alertKey(a))}">${loan ? '부채에서 보기' : '고정지출에서 보기'}</a>
+    const key = esc(alertKey(a));
+    const when = a.dday === 0 ? '오늘' : a.dday === 1 ? '내일' : `${a.dday}일 뒤`;
+    const amount = `<b>${a.exact ? '' : '약 '}${wonExact(a.amount)}</b>`;
+    const from = a.account ? `${esc(a.account)}에서 ` : '';
+    const msg = loan
+      ? `덕준님, ${mdw(a.date)}에 <b>${esc(a.name)}</b> 상환이 있어요. ${from}${amount}이 나갈 예정이에요.`
+      : `덕준님, ${mdw(a.date)}에 <b>${esc(a.name)}</b> ${amount}이 ${from}빠져나가요.`;
+    return `<div class="alert-card" role="status">
+      <div class="alert-head">
+        <img class="alert-mark" src="assistant-mark.png" alt="" width="22" height="22"><span class="alert-who">비서</span><span class="alert-kind">${loan ? '상환 일정' : '출금 일정'} · ${when}</span>
+        <button class="alert-close" data-close-alert="${key}" aria-label="닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg></button>
+      </div>
+      <p class="alert-msg">${msg}</p>
+      <a class="alert-link" href="#${loan ? 'debts' : 'fixed'}" data-close-alert="${key}">${loan ? '부채에서 보기' : '고정지출에서 보기'}</a>
     </div>`;
   }).join('');
+  // 화면을 다시 그릴 때마다 새로 만들면 등장 움직임이 반복돼서, 내용이 바뀔 때만 바꿔요
+  if (html === alertsHtml) return;
+  alertsHtml = html;
+  box.innerHTML = html;
+  alertShownAt = Date.now();
 }
+
+/** 알림을 오래 닫지 않으면 가끔 살짝 튕겨서 알려요 (보고 있는 동안만, 움직임 줄이기 설정이면 하지 않아요) */
+let alertShownAt = 0;
+setInterval(() => {
+  const cards = document.querySelectorAll('#alerts .alert-card');
+  if (!cards.length || document.visibilityState !== 'visible' || reduceMotion() || Date.now() - alertShownAt < 20_000) return;
+  cards.forEach((c, i) => setTimeout(() => { c.classList.remove('nudge'); void c.offsetWidth; c.classList.add('nudge'); }, i * 120));
+}, 30_000);
 
 function renderSync() {
   document.querySelectorAll('.sync').forEach((el) => {

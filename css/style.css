@@ -494,14 +494,27 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
   .alerts:empty { display: none; }
 }
 .alert-card {
-  background: var(--surface-1); border: 1px solid var(--border); border-left: 4px solid var(--hot-ink);
-  border-radius: 14px; padding: 12px 12px 12px 16px; box-shadow: 0 10px 30px rgb(0 0 0 / .14);
+  background: var(--surface-1); border: 0; border-radius: 18px; padding: 14px 14px 12px 16px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .05), 0 14px 36px rgb(0 0 0 / .10);
 }
-.alert-head { display: flex; align-items: center; gap: 8px; }
-.alert-head b { flex: 1; font-size: 15px; }
-.alert-head .icon-btn { width: 30px; height: 30px; border: 0; background: none; cursor: pointer; }
-.alert-card p { margin: 6px 0 4px; font-size: 14px; color: var(--text-secondary); }
-.alert-card .link-btn { font-size: 13px; }
+.alert-head { display: flex; align-items: center; gap: 7px; }
+.alert-mark { width: 22px; height: 22px; border-radius: 50%; }
+.alert-who { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.alert-kind { flex: 1; font-size: 12px; color: var(--text-muted); }
+.alert-close {
+  width: 26px; height: 26px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: var(--text-muted); cursor: pointer; transition: background-color .2s var(--ease), color .2s var(--ease);
+}
+.alert-close svg { width: 15px; height: 15px; stroke-width: 2; }
+.alert-close:hover { background: var(--surface-2); color: var(--text-primary); }
+.alert-msg { margin: 8px 0 10px; font-size: 14.5px; line-height: 1.6; color: var(--text-secondary); word-break: keep-all; }
+.alert-msg b { color: var(--text-primary); font-weight: 600; }
+.alert-link { display: inline-block; font-size: 13px; font-weight: 600; color: var(--text-secondary); text-decoration: none; transition: color .2s var(--ease); }
+.alert-link::after { content: ' →'; }
+.alert-link:hover { color: var(--text-primary); }
+/* 오래 닫지 않으면 살짝 튕기기 */
+@keyframes alert-nudge { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-7px); } 55% { transform: translateY(0); } 72% { transform: translateY(-3px); } }
+.alert-card.nudge { animation: alert-nudge .7s var(--ease); }
 
 /* 시세 업데이트 시각: 왼쪽 정렬 */
 .hint.update-time { text-align: left; padding: 12px 4px 0; }
