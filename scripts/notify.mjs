@@ -31,8 +31,7 @@ if (process.env.TEST === 'true') {
     if (!devices.length) continue;
     const r = await messaging.sendEachForMulticast({
       tokens: devices.map((x) => x.token),
-      // 제목 없이 보내 보기 (아이폰은 웹앱 알림에 'from 차곡차곡' 줄을 늘 붙여서, 제목을 빼면 더 깔끔한지 시험)
-      webpush: { notification: { title: '', body: `알림 시험 (${hm}): 이 알림이 보이면 아침 브리핑도 받을 수 있어요.`, icon: `${APP_URL}icon-192.png`, tag: `chgok-test-${Date.now()}`, renotify: true }, fcmOptions: { link: `${APP_URL}#settings` } },
+      webpush: { notification: { title: '알림 시험', body: `${hm}에 보낸 시험 알림이에요. 이 알림이 보이면 아침 브리핑도 받을 수 있어요.`, icon: `${APP_URL}icon-192.png`, tag: `chgok-test-${Date.now()}`, renotify: true }, fcmOptions: { link: `${APP_URL}#settings` } },
     });
     console.log(`시험 알림: 보냄 ${r.successCount}, 실패 ${r.failureCount}`, r.responses.map((x) => x.error?.code).filter(Boolean));
   }
