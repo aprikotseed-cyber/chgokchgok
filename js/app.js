@@ -1,26 +1,27 @@
-import { connect, isDemo } from './store.js?v=20261112m';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112m';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112m';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112m';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112m';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112m';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112m';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112m';
-import { estimateMonths } from './estimate.js?v=20261112m';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112m';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112m';
-import { addFeedback, feedbackText } from './feedback.js?v=20261112m';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112m';
-import { createGoogle, freshServerToken } from './google.js?v=20261112m';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112m';
-import { createDemoGoogle } from './google-demo.js?v=20261112m';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261112m';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112m';
+import { connect, isDemo } from './store.js?v=20261112n';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112n';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112n';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112n';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112n';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112n';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112n';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112n';
+import { estimateMonths } from './estimate.js?v=20261112n';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112n';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112n';
+import { addFeedback, feedbackText } from './feedback.js?v=20261112n';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112n';
+import { createGoogle, freshServerToken } from './google.js?v=20261112n';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112n';
+import { createDemoGoogle } from './google-demo.js?v=20261112n';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261112n';
+import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261112n';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112n';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
 const EMPTY = () => ({
-  savings: [], stocks: [], homes: [], debts: [], fixed: [],
+  savings: [], deposits: [], stocks: [], homes: [], debts: [], fixed: [],
   settings: {}, snapshots: {}, records: [],
 });
 
@@ -99,6 +100,18 @@ const FORMS = {
       { key: 'balance', label: '현재 잔액', type: 'won' },
       { key: 'monthly', label: '매달 넣는 돈', type: 'won' },
       { key: 'rate', label: '연 이자율', type: 'pct' },
+    ],
+  },
+  deposits: {
+    title: '예·적금',
+    fields: [
+      { key: 'name', label: '상품 이름', type: 'text', placeholder: '청년희망적금', required: true },
+      { key: 'type', label: '종류', type: 'seg', str: true, def: '적금', options: [['적금', '적금'], ['예금', '예금']] },
+      { key: 'accountId', label: '연결할 저축·현금 계좌', type: 'acct', hint: '연결하면 그 계좌에 입금한 기록이 이 상품의 납입으로 잡혀요. ‘납입’ 버튼으로 넣으면 계좌 잔액에도 더해져요.' },
+      { key: 'amount', label: '금액', type: 'won', hint: '적금은 매달 넣는 돈, 예금은 처음 맡긴 돈' },
+      { key: 'start', label: '가입일', type: 'date' },
+      { key: 'maturity', label: '만기일', type: 'date', optional: true },
+      { key: 'rate', label: '연 금리', type: 'pct', hint: '예금은 이 금리로 다달이 붙는 이자(세전, 예상)를 더해 보여줘요' },
     ],
   },
   stocks: {
@@ -497,12 +510,49 @@ function viewAssets() {
   </section>
   <div class="cols"><div class="col-main">
   ${section('저축·현금', state.reorder === 'savings' ? sortList('savings', d.savings, (s) => ({ title: esc(s.name), value: won(s.balance) })) : `<div class="panel list">${sav || empty('예금, 적금, 연금, 보증금 등을 추가해 보세요.')}</div>`, { sum: won(t.savings), action: listActions('savings', (d.savings || []).length) })}
-  ${section('주식', stk, { action: `<span class="head-actions">${refreshBtn(m)}${addBtn('stocks', '새 종목')}</span>` })}
+  ${depositSection(d)}
   </div><div class="col-side">
   ${section('주택', `<div class="panel list">${homes || empty('단지명과 전용면적을 넣으면 국토부 실거래가로 시세가 반영돼요.')}</div>`, { sum: won(t.homes), action: addBtn('homes') })}
+  ${section('주식', stk, { action: `<span class="head-actions">${refreshBtn(m)}${addBtn('stocks', '새 종목')}</span>` })}
   </div></div>
   ${updateLine(m)}`;
 }
+
+/** 자산 탭 '예·적금': 상품 한눈에 보기 + 해마다 달별 추이 */
+function depositSection(d) {
+  const deps = d.deposits || [];
+  const key = today();
+  const acct = (id) => (d.savings || []).find((x) => x.id === id);
+  const fmt = (v) => (v ? won(v).replace('원', '') : '');
+  if (!deps.length) return section('예·적금', `<div class="panel">${empty('적금·예금 상품을 추가하면 한눈에 정리하고 달마다 얼마나 쌓였는지 보여드려요.')}</div>`, { action: addBtn('deposits') });
+  const totals = deps.map((x) => depositTotal(x, d.records, key));
+  const sum = totals.reduce((a, v) => a + v, 0);
+  const summary = `<div class="table-scroll"><table class="dep-table">
+    <thead><tr><th>내용</th><th>종류</th><th>총액</th><th>만기</th><th>연금리</th><th></th></tr></thead>
+    <tbody>${deps.map((x, i) => `<tr>
+      <th><button class="link-btn dep-name" data-action="edit" data-kind="deposits" data-id="${esc(x.id)}">${esc(x.name)}</button>${acct(x.accountId) ? `<small class="muted sub">${esc(acct(x.accountId).name)} 연결</small>` : ''}</th>
+      <td>${esc(x.type || '적금')}</td>
+      <td>${won(totals[i])}${x.type === '예금' ? '<small class="muted sub">이자 포함 예상</small>' : ''}</td>
+      <td>${x.maturity ? x.maturity.replaceAll('-', '.') : '-'}</td>
+      <td>${x.rate ? pct(x.rate) : '-'}</td>
+      <td>${x.type !== '예금' && x.accountId && acct(x.accountId) ? `<button class="pill buy" data-action="deposit" data-type="saving" data-id="${esc(x.accountId)}" data-amount="${num0(x.amount)}">납입</button>` : ''}</td>
+    </tr>`).join('')}</tbody>
+    <tfoot><tr><th>합계</th><td></td><td>${won(sum)}</td><td colspan="3"></td></tr></tfoot>
+  </table></div>`;
+  const years = depositYears(deps, key);
+  const year = years.includes(state.depYear) ? state.depYear : years.at(-1);
+  const t = yearTable(deps, d.records, year, key);
+  const monthly = `<div class="dep-year"><div class="mini-head">달별 추이
+      <span class="mnav">${years.length > 1 ? `<button class="icon-btn" data-action="dep-year" data-key="${year - 1}" ${year <= years[0] ? 'disabled' : ''} aria-label="이전 해"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button>` : ''}<b>${year}년</b>${years.length > 1 ? `<button class="icon-btn" data-action="dep-year" data-key="${year + 1}" ${year >= years.at(-1) ? 'disabled' : ''} aria-label="다음 해"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button>` : ''}</span></div>
+    <div class="table-scroll"><table class="dep-table dep-months">
+      <thead><tr><th>구분</th><th>~${year - 1}</th>${Array.from({ length: 12 }, (_, i) => `<th>${i + 1}월</th>`).join('')}<th>총액</th></tr></thead>
+      <tbody>${t.rows.map((r) => `<tr><th>${esc(r.name)}<small class="muted sub">${esc(r.type || '적금')}</small></th><td>${fmt(r.before)}</td>${r.months.map((v) => `<td>${fmt(v)}</td>`).join('')}<td><b>${fmt(r.total)}</b></td></tr>`).join('')}</tbody>
+      <tfoot><tr><th>합계</th><td>${fmt(t.total.before)}</td>${t.total.months.map((v) => `<td>${fmt(v)}</td>`).join('')}<td><b>${fmt(t.total.total)}</b></td></tr></tfoot>
+    </table></div>
+    <p class="hint pad">적금은 연결한 계좌에 넣은 돈, 예금은 맡긴 돈과 다달이 붙는 이자(세전 예상)예요. 총액은 그해 말까지 쌓인 금액이에요.</p></div>`;
+  return section('예·적금', `<div class="panel">${summary}${monthly}</div>`, { sum: won(sum), action: addBtn('deposits') });
+}
+const num0 = (v) => Number(v) || 0;
 
 const MARKETS = [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']];
 const usd = (n, digits = 2) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
@@ -2037,7 +2087,7 @@ function openForm(kind, item, preset = {}) {
     const list = state.data[kind === 'repayment' ? 'debts' : 'savings'] || [];
     const first = list.find((x) => x.id === preset.targetId) || list.filter((x) => !x.schedule?.length)[0];
     if (!first) return toast(kind === 'repayment' ? '직접 기록할 대출이 없어요. 상환스케줄을 불러온 대출은 자동으로 기록돼요.' : '먼저 자산에서 저축 계좌를 추가해 주세요.');
-    v = { targetId: first.id, date: today(), ...recordDefaults(kind, first.id) };
+    v = { targetId: first.id, date: today(), ...recordDefaults(kind, first.id), ...(preset.amount ? { amount: Number(preset.amount), kind: '적금 납입' } : {}) };
   }
   $('#editor-title').textContent = kind === 'fx' || kind === 'trade' ? spec.title : `${spec.title} ${item ? '수정' : '추가'}`;
   $('#editor-fields').innerHTML = spec.fields.map((f) => {
@@ -2069,6 +2119,8 @@ function openForm(kind, item, preset = {}) {
       input = `<div class="unit"><input id="${id}" name="${f.key}" type="number" step="0.01" inputmode="decimal" value="${val}"><span>%</span></div>`;
     } else if (f.type === 'day') {
       input = `<select id="${id}" name="${f.key}"><option value="">선택 안 함</option>${Array.from({ length: 31 }, (_, i) => i + 1).map((n) => `<option value="${n}" ${Number(val) === n ? 'selected' : ''}>${n}일</option>`).join('')}</select>`;
+    } else if (f.type === 'acct') {
+      input = `<select id="${id}" name="${f.key}"><option value="">연결 안 함</option>${(state.data.savings || []).map((o) => `<option value="${esc(o.id)}" ${o.id === val ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>`;
     } else if (f.type === 'ref') {
       input = `<select id="${id}" name="${f.key}" required>${(state.data[f.source] || []).filter((o) => !f.filter || f.filter(o) || o.id === val).map((o) => `<option value="${esc(o.id)}" ${o.id === val ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>`;
     } else if (f.type === 'date') {
@@ -2573,7 +2625,8 @@ function bind() {
     if (a === 'task-edit') { const t = findTask(id); if (t) openForm('task', t); }
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
     if (a === 'trade') openTrade(id, b.dataset.type);
-    if (a === 'deposit') openForm(b.dataset.type, null, { targetId: id });
+    if (a === 'deposit') openForm(b.dataset.type, null, { targetId: id, amount: b.dataset.amount });
+    if (a === 'dep-year') { state.depYear = Number(b.dataset.key); render(); }
     if (a === 'trade-undo') {
       const s = state.data.stocks.find((x) => x.id === id);
       const last = s?.trades?.at(-1);
