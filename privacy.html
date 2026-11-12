@@ -46,7 +46,8 @@
     <ul>
       <li><b>로그인 정보</b>: 이메일 주소 (Firebase Authentication)</li>
       <li><b>직접 입력한 내용</b>: 자산·대출·고정지출·기록·메모 (Google Firebase Firestore, 본인 계정에만)</li>
-      <li><b>구글 캘린더·구글 태스크에서 받아 온 내용</b>: 일정과 할일 (화면에 보여주고 아침 브리핑을 만들기 위해)</li>
+      <li><b>직접 입력한 할일</b>: 본인 계정에만 저장 (시간을 넣은 할일은 30분 전 알림을 보내기 위해 씀)</li>
+      <li><b>구글 캘린더에서 받아 온 내용</b>: 일정 (화면에 보여주고 아침 브리핑·30분 전 알림을 만들기 위해)</li>
       <li><b>알림 기기 정보</b>: 푸시 알림을 받을 기기의 알림 토큰</li>
     </ul>
     <p class="muted">Firestore 보안 규칙으로 로그인한 본인만 자기 정보를 읽고 쓸 수 있어요.</p>
@@ -57,7 +58,7 @@
     <p>사용자가 허용한 경우에만 다음 권한을 써요.</p>
     <ul>
       <li><code>calendar.readonly</code>, <code>calendar.events</code>: 캘린더 목록과 일정을 보여주고, 사용자가 앱에서 넣거나 고친 일정을 구글 캘린더에 반영</li>
-      <li><code>tasks</code>: 구글 태스크의 할일을 보여주고, 추가·완료·수정·삭제를 반영</li>
+      <li><code>tasks</code>: 사용자가 '구글 태스크에서 가져오기'를 누를 때만, 구글 태스크의 할일을 읽어 차곡차곡으로 한 번 옮겨요</li>
     </ul>
     <p>구글에서 받은 정보는 위 기능을 위해서만 쓰고, 다른 곳에 보내거나 광고·분석·인공지능 학습에 쓰지 않아요. 차곡차곡의 Google 사용자 데이터 사용은 <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API 서비스 사용자 데이터 정책</a>(제한적 사용 요건 포함)을 따라요.</p>
   </section>

@@ -49,6 +49,8 @@ export async function connect(h) {
       F.onSnapshot(historyRef, (s) => h.onHistory?.(s.exists() ? s.data().days || {} : {})),
       // 구글 캘린더·태스크에서 받아 둔 일정·할일 (다음에 열 때 로그인 없이 바로 보이게)
       F.onSnapshot(F.doc(db, 'users', user.uid, 'data', 'agenda'), (s) => h.onAgenda?.(s.exists() ? s.data() : null)),
+      // 할일: 하나씩 따로 저장 (차곡차곡이 직접 관리, 단축어·알림도 같은 곳을 써요)
+      F.onSnapshot(F.collection(db, 'users', user.uid, 'tasks'), (s) => h.onTasks?.(s.docs.map((d) => ({ id: d.id, ...d.data() })))),
       // 메모: 하나씩 따로 저장 (단축어로 GitHub이 넣어도 앱 저장과 겹치지 않게)
       F.onSnapshot(F.collection(db, 'users', user.uid, 'memos'), (s) => h.onMemos?.(s.docs.map((d) => ({ id: d.id, ...d.data() })))),
       // 토큰 같은 비밀값: 백업 파일·개선 목록에 섞이지 않게 따로 저장
@@ -92,6 +94,8 @@ export async function connect(h) {
     shortcutKey: () => auth.currentUser?.refreshToken || '',
     apiKey: firebaseConfig.apiKey,
     saveMemo: ({ id, ...memo }) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'memos', id), memo),
+    saveTask: ({ id, ...task }) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'tasks', id), task),
+    deleteTask: (id) => F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'tasks', id)),
     deleteMemo: (id) => F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'memos', id)),
     saveAgenda: (agenda) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'agenda'), agenda),
     saveSecret: (key, value) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'secrets'), { [key]: value || F.deleteField() }, { merge: true }),
@@ -142,8 +146,12 @@ function demoStore(h) {
   const MKEY = 'chgok-demo-memos';
   let memos = JSON.parse(localStorage.getItem(MKEY) || 'null') || sampleMemos();
   const putMemos = () => { localStorage.setItem(MKEY, JSON.stringify(memos)); h.onMemos?.(memos); };
+  const TKEY = 'chgok-demo-tasks';
+  let tasks = JSON.parse(localStorage.getItem(TKEY) || 'null') || sampleTasks();
+  const putTasks = () => { localStorage.setItem(TKEY, JSON.stringify(tasks)); h.onTasks?.(tasks); };
   setTimeout(() => {
     h.onMemos?.(memos);
+    h.onTasks?.(tasks);
     h.onAuth({ email: '체험 모드' });
     h.onData(data);
     h.onMarket(market);
@@ -168,8 +176,27 @@ function demoStore(h) {
     apiKey: '체험모드',
     saveMemo: async (m) => { memos = [m, ...memos.filter((x) => x.id !== m.id)]; putMemos(); },
     deleteMemo: async (id) => { memos = memos.filter((x) => x.id !== id); putMemos(); },
+    saveTask: async (t) => { tasks = [t, ...tasks.filter((x) => x.id !== t.id)]; putTasks(); },
+    deleteTask: async (id) => { tasks = tasks.filter((x) => x.id !== id); putTasks(); },
     removePushDevice: async () => {},
   };
+}
+
+function sampleTasks() {
+  const t = new Date();
+  const k = (n) => { const d = new Date(t.getFullYear(), t.getMonth(), t.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const sat = 6 - t.getDay();
+  const base = { notes: '', time: '', repeat: null, series: '', done: false, completedAt: '', createdAt: Date.now(), updatedAt: Date.now() };
+  return [
+    { ...base, id: 'd1', title: '교육청 공문 회신', due: k(-1) },
+    { ...base, id: 'd2', title: '수학 단원평가 채점', due: k(0), time: '16:00' },
+    { ...base, id: 'd3', title: '우유 사기', due: k(0) },
+    { ...base, id: 'd4', title: '현장체험학습 동의서 걷기', due: k(1) },
+    { ...base, id: 'd5', title: '화장실 청소', due: k(sat), repeat: { freq: 'weekly', interval: 1, byday: [6], anchor: k(sat) }, series: 'd5' },
+    { ...base, id: 'd6', title: '대학원 과제 제출', due: k(4), notes: 'PDF로' },
+    { ...base, id: 'd7', title: '읽고 싶은 책 정리' },
+    { ...base, id: 'd8', title: '연말정산 서류 준비', due: k(-3), done: true, completedAt: k(-2) },
+  ];
 }
 
 function sampleMemos() {

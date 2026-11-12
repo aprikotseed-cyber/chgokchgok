@@ -42,9 +42,11 @@ for (const doc of mains) {
   const pushRef = doc.ref.parent.doc('push');
   // 하루에 한 번만 (외부 알람과 GitHub 예약이 둘 다 돌아도)
   if ((await pushRef.get()).data()?.lastBriefing === todayKey) { console.log('오늘 브리핑은 이미 보냈어요'); continue; }
-  // 앱에서 구글 캘린더·태스크를 받아 저장해 둔 일정·할일
+  // 앱에서 구글 캘린더를 받아 저장해 둔 일정
   const agenda = (await doc.ref.parent.doc('agenda').get()).data() || null;
-  const n = morningBriefing(doc.data(), agenda, today);
+  // 할일은 차곡차곡에 직접 저장된 것 (users/{uid}/tasks)
+  const tasks = (await doc.ref.parent.parent.collection('tasks').get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+  const n = morningBriefing(doc.data(), agenda, today, tasks);
   console.log(n ? `브리핑 ${n.body.split('\n').length}줄` : '보낼 내용 없음');
   if (!n) continue;
 

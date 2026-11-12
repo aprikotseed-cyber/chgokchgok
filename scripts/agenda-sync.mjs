@@ -7,9 +7,10 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
-import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, toTaskDue, eventLine, repeatLabel, dueLabel, dayKey, inboxKind } from '../js/agenda.js';
+import { fetchAgenda, keepExternal, parseEventInput, parseQuickTask, toGoogleEvent, eventLine, repeatLabel, dueLabel, dayKey, inboxKind } from '../js/agenda.js';
 import { fetchCalDav } from '../js/caldav.js';
 import { listApi } from '../js/google.js';
+import { makeTask } from '../js/tasks.js';
 
 const SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 // 반려자 네이버 캘린더 (선택): 네이버 아이디 + 애플리케이션 비밀번호 (GitHub Secrets)
@@ -81,8 +82,8 @@ async function handleInbox(userRef, item, ctx) {
     await userRef.collection('memos').doc(`m${t.toString(36)}${Math.random().toString(36).slice(2, 5)}`).set({ text, pinned: false, createdAt: item.at || t, updatedAt: t, source: 'shortcut' });
     return `메모: ${text.split('\n')[0]}`;
   }
-  const at = await ctx.accessToken();
   if (kind === 'event') {
+    const at = await ctx.accessToken();
     const cals = (await ctx.api().calendars(false)).filter((c) => ['owner', 'writer'].includes(c.accessRole)).map((c) => ({ id: c.id, name: c.summaryOverride || c.summary || '' }));
     const p = parseEventInput(text, new Date(), cals, ctx.gs.keywords || []);
     if (!p.title) throw new Error('일정 내용을 알아듣지 못했어요');
@@ -91,14 +92,13 @@ async function handleInbox(userRef, item, ctx) {
     await googleFetch(at, `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`, toGoogleEvent(ev));
     return `${cal.name}: ${eventLine(ev)}${ev.repeat ? ` (${repeatLabel(ev.repeat, ev.date)})` : ''}`;
   }
+  // 할일: 차곡차곡에 직접 저장 (시간·반복도 그대로)
   const { title, due, repeat, time } = parseQuickTask(text, new Date());
   if (!title) throw new Error('할일 내용을 알아듣지 못했어요');
-  // 구글 태스크는 시간·반복을 넣을 수 없어요. 앱에만 따로 기억하지 않고, 넣지 않은 채 알려 드려요
-  if (repeat || time) throw new Error('구글 태스크에는 시간·반복을 넣을 수 없어요. 일정(📅)으로 보내 주세요');
-  const lists = await ctx.api().taskLists(false);
-  const listId = lists.some((l) => l.id === ctx.gs.taskList) ? ctx.gs.taskList : lists[0]?.id;
-  await googleFetch(at, `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks`, { title, ...(due ? { due: toTaskDue(due) } : {}) });
-  return `할일: ${title}${due ? ` · ${dueLabel(due, dayKey(new Date()))}` : ''}`;
+  const t = makeTask({ title, due, time, repeat });
+  const { id, ...doc } = t;
+  await userRef.collection('tasks').doc(id).set(doc);
+  return `할일: ${title}${due ? ` · ${dueLabel(due, dayKey(new Date()))}` : ''}${time ? ` ${time}` : ''}${repeat ? ` (${repeatLabel(repeat, due)})` : ''}`;
 }
 
 const inbox = (await db.collectionGroup('inbox').get()).docs;
