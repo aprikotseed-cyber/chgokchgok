@@ -1077,3 +1077,19 @@ dialog.memo-dialog form { padding: 14px 16px 12px; }
   .memo-dialog .ask-box { border-radius: 20px 20px 0 0; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
   .memo-dialog textarea { min-height: 180px; }
 }
+
+/* 자산 → 예·적금: 상품 표와 달별 추이 표 */
+.dep-table thead th { font-size: 12px; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); padding-top: 12px; padding-bottom: 8px; }
+.dep-table tbody tr + tr th, .dep-table tbody tr + tr td { border-top: 1px solid var(--border); }
+.dep-table tfoot th, .dep-table tfoot td { font-weight: 700; border-top: 1px solid var(--border); background: var(--surface-2); }
+.dep-table small.sub { display: block; font-size: 11px; font-weight: 400; margin-top: 1px; }
+.dep-table .dep-name { padding: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.dep-table .dep-name:hover { opacity: .7; }
+.dep-table .pill { padding: 3px 10px; font-size: 12px; font-weight: 600; color: var(--up); }
+.dep-months th, .dep-months td { padding-left: 10px; padding-right: 10px; }
+.dep-months th:first-child { padding-left: 18px; position: sticky; left: 0; background: var(--surface-1); z-index: 1; }
+.dep-months tfoot th:first-child { background: var(--surface-2); }
+.dep-year { border-top: 1px solid var(--border); }
+.dep-year .mini-head b { font-size: 14px; color: var(--text-primary); }
+.dep-year .mnav { display: inline-flex; align-items: center; gap: 6px; }
+.dep-year .icon-btn:disabled { opacity: .3; cursor: default; }
