@@ -1,20 +1,20 @@
-import { connect, isDemo } from './store.js?v=20261112f';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112f';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112f';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112f';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112f';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112f';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112f';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112f';
-import { estimateMonths } from './estimate.js?v=20261112f';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112f';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112f';
-import { addFeedback, feedbackText } from './feedback.js?v=20261112f';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112f';
-import { createGoogle, freshServerToken } from './google.js?v=20261112f';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112f';
-import { createDemoGoogle } from './google-demo.js?v=20261112f';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112f';
+import { connect, isDemo } from './store.js?v=20261112g';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112g';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112g';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112g';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112g';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112g';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112g';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112g';
+import { estimateMonths } from './estimate.js?v=20261112g';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112g';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112g';
+import { addFeedback, feedbackText } from './feedback.js?v=20261112g';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112g';
+import { createGoogle, freshServerToken } from './google.js?v=20261112g';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112g';
+import { createDemoGoogle } from './google-demo.js?v=20261112g';
+import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, taskNotes, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, nextTaskDate } from './agenda.js?v=20261112g';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1242,14 +1242,14 @@ function setTaskRule(title, rule, oldTitle) {
 
 /** 반복 할일을 끝내면 다음 차례를 만들어요 (구글이 이미 만들어 뒀으면 건너뛰기) */
 async function makeNextTask(t, rule) {
-  const next = nextFrom(rule, t.due || today(), today());
-  if (!next) return;
-  const g = gapi();
+  // 구글에서 이 목록을 새로 받아 같은 이름 할일을 확인해요 (못 받으면 앱에 있는 목록으로)
+  let list = state.agenda?.tasks || [];
   try {
     await new Promise((r) => setTimeout(r, 1200));
-    const fresh = (await g.tasks(t.listId, true)).map((x) => normTask(x, t.listId));
-    if (fresh.some((x) => !x.done && !x.deleted && x.title === t.title && x.due === next)) { toast(`다음 차례(${mdw(fromKey(next))})는 이미 있어요.`); return; }
-  } catch { /* 확인을 못 해도 만들어요 */ }
+    list = (await gapi().tasks(t.listId, true)).map((x) => normTask(x, t.listId));
+  } catch { /* 앱 목록으로 확인 */ }
+  const next = nextTaskDate(rule, t, list, today());
+  if (!next) return;
   const ok = await addTaskItem(t.title, next, null, t.listId, t.notes, true, t.time);
   if (ok) toast(`잘했어요! 다음 차례 ${mdw(fromKey(next))} 할일을 만들어 뒀어요.`);
 }
