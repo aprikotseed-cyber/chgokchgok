@@ -1,11 +1,10 @@
-// 구글 캘린더·구글 태스크 연결 (브라우저에서 바로).
+// 구글 캘린더 연결 (브라우저에서 바로). 할일은 차곡차곡에 저장해서 구글 태스크 권한은 쓰지 않아요.
 // 구글 공식 로그인 도구(Google Identity Services)로 1시간짜리 접근 토큰을 받아 API를 불러요.
 // 토큰은 이 탭이 열려 있는 동안만 기억해요 (sessionStorage). 비밀번호는 앱이 보지 않아요.
 
 export const SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly', // 캘린더 목록·일정 읽기
   'https://www.googleapis.com/auth/calendar.events',   // 일정 넣기·고치기·지우기
-  'https://www.googleapis.com/auth/tasks',              // 할일 읽기·쓰기
 ].join(' ');
 // 권한이 늘면 숫자를 올려요: 저장된 토큰을 버리고 구글에 다시 허용을 받아요
 const SCOPE_VER = '2';

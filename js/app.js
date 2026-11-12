@@ -1,21 +1,21 @@
-import { connect, isDemo } from './store.js?v=20261112k';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112k';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112k';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112k';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112k';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112k';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112k';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112k';
-import { estimateMonths } from './estimate.js?v=20261112k';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112k';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112k';
-import { addFeedback, feedbackText } from './feedback.js?v=20261112k';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112k';
-import { createGoogle, freshServerToken } from './google.js?v=20261112k';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112k';
-import { createDemoGoogle } from './google-demo.js?v=20261112k';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261112k';
-import { normEvent, eventsOn, agendaDays, normTask, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112k';
+import { connect, isDemo } from './store.js?v=20261112l';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112l';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112l';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112l';
+import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112l';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112l';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112l';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112l';
+import { estimateMonths } from './estimate.js?v=20261112l';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112l';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112l';
+import { addFeedback, feedbackText } from './feedback.js?v=20261112l';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112l';
+import { createGoogle, freshServerToken } from './google.js?v=20261112l';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112l';
+import { createDemoGoogle } from './google-demo.js?v=20261112l';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261112l';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112l';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1272,26 +1272,6 @@ function removeTask(id) {
   store.deleteTask(id).catch((e) => toast(`지우지 못했어요: ${e.message}`));
 }
 
-/** 구글 태스크에 있던 할일을 차곡차곡으로 한 번 가져오기 (안 끝낸 것만, 같은 제목·날짜는 건너뛰기) */
-async function importGoogleTasks(btn) {
-  const g = gapi();
-  if (!g) return toast('먼저 설정에서 구글에 연결해 주세요.');
-  if (btn) btn.disabled = true;
-  try {
-    const lists = await g.taskLists(true);
-    const items = (await Promise.all(lists.map((l) => g.tasks(l.id, true).then((xs) => xs.map((x) => normTask(x, l.id)))))).flat()
-      .filter((x) => !x.done && !x.deleted && x.title && x.title !== '(제목 없음)');
-    const have = new Set(state.tasks.map((x) => `${x.title}|${x.due}`));
-    const fresh = items.filter((x) => !have.has(`${x.title}|${x.due}`));
-    for (const x of fresh) await putTask(makeTask({ title: x.title, due: x.due, notes: x.notes }));
-    toast(fresh.length ? `구글 태스크에서 할일 ${fresh.length}개를 가져왔어요.` : '가져올 새 할일이 없어요.');
-  } catch (e) {
-    toast(`가져오지 못했어요: ${e.message}`);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
 // ───── 일정 넣기·고치기·지우기 (구글 캘린더에 바로) ─────
 const writableCals = () => (state.agenda?.calendars || []).filter((c) => c.write !== false && !/holiday|공휴일|#contacts|#weather/i.test(c.id));
 const canWrite = (calId) => writableCals().some((c) => c.id === calId);
@@ -1704,7 +1684,7 @@ function viewTasks() {
   return `${composer('task-add', 'task-input', '새 할일', '추가', 'task-preview')}
   ${open.length ? open.map(([k, l]) => section(l, `<div class="panel list">${g[k].map(taskRow).join('')}</div>`, { sum: `${g[k].length}` })).join('') : section('남은 할일', `<div class="panel">${empty('남은 할일이 없어요. 위에서 새로 추가해 보세요.')}</div>`)}
   ${done.length ? `<section class="block"><div class="panel">${details('tasks-done', `완료한 일 <span class="hint">최근 30일 ${done.length}개</span>`, `<div class="list">${done.map(taskRow).join('')}</div>`)}</div></section>` : ''}
-  <p class="hint">할일은 차곡차곡에 저장돼서 PC·휴대폰 어디서나 함께 보여요. 시간을 넣은 할일은 30분 전에 알려 드려요.${state.agenda ? ' <button class="link-btn" data-action="import-gtasks">구글 태스크에서 가져오기</button>' : ''}</p>`;
+  <p class="hint">할일은 차곡차곡에 저장돼서 PC·휴대폰 어디서나 함께 보여요. 시간을 넣은 할일은 30분 전에 알려 드려요.</p>`;
 }
 
 /** 설정 → Face ID 잠금 (이 기기에만) */
@@ -2590,7 +2570,6 @@ function bind() {
     if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openMemoEditor(m); }
     if (a === 'memo-pin') toggleMemoPin(id);
     if (a === 'event-edit') { const ev = state.agenda?.events.find((x) => x.id === id && x.calId === b.dataset.cal); if (ev) openForm('event', ev); }
-    if (a === 'import-gtasks') importGoogleTasks(b);
     if (a === 'task-edit') { const t = findTask(id); if (t) openForm('task', t); }
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
     if (a === 'trade') openTrade(id, b.dataset.type);
