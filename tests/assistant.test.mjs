@@ -132,3 +132,14 @@ test('같은 날 두 건이면 함께', () => {
   assert.match(a, /'관리비'로 238,000원/);
   assert.match(a, /'적금 자동이체'로 300,000원 \(급여 통장\)/);
 });
+
+test('대출: 일정 제목의 연도(2027년)에 끌려가지 않고 그 달 상환액', () => {
+  const agenda = { calendars: [{ id: 'l', name: 'Life' }], keywords: [], tasks: [],
+    events: [{ id: 'e1', title: '2027년 대학원 수업', calName: 'Life', startKey: '2027-01-07', endKey: '2027-01-07', allDay: true }] };
+  const a = ask('2027년 2월 예상 상환 금액은?', data, market, now, agenda).text;
+  assert.doesNotMatch(a, /대학원/);
+  assert.match(a, /아낌e보금자리론: 2월 17일/);
+  assert.match(a, /2027년 2월 대출 상환은 모두/);
+  // 일정 제목으로 물으면 여전히 그 일정
+  assert.match(ask('2027년 대학원 수업 언제야?', data, market, now, agenda).text, /대학원 수업/);
+});
