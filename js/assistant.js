@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261112n';
-import { upcoming, fixedSummary, nextDue, daysBetween, dateOnly } from './reminders.js?v=20261112n';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261112n';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261112n';
-import { won, wonExact, mdw, pct } from './format.js?v=20261112n';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261112n';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261113a';
+import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly } from './reminders.js?v=20261113a';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261113a';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261113a';
+import { won, wonExact, mdw, pct } from './format.js?v=20261113a';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261113a';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -283,7 +283,7 @@ function fixedIn(data, start, end) {
   const out = [];
   for (const f of data.fixed || []) {
     if (f.active === false) continue;
-    for (let d = nextDue(f.day, start); d && d <= end; d = nextDue(f.day, new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))) out.push({ name: f.name, date: d, amount: Number(f.amount) || 0 });
+    for (let d = fixedNext(f, start); d && d <= end; d = fixedNext(f, new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))) out.push({ name: f.name, date: d, amount: Number(f.amount) || 0 });
   }
   return out;
 }
@@ -460,7 +460,7 @@ const H = {
     if (item && (!cat || item.score >= cat.score)) return entitySummary(ctx, item);
     if (cat) {
       const fs = fixed.filter((f) => f.category === cat.name && f.active !== false);
-      return { text: `${cat.name} 고정지출은 매달 ${wonExact(fs.reduce((a, f) => a + (Number(f.amount) || 0), 0))}이에요.\n${fs.map((f) => `· ${f.name} ${wonExact(f.amount)} (매달 ${f.day}일)`).join('\n')}` };
+      return { text: `${cat.name} 고정지출은 매달 ${wonExact(fs.reduce((a, f) => a + (Number(f.amount) || 0), 0))}이에요.\n${fs.map((f) => `· ${f.name} ${wonExact(f.amount)} (${cycleLabel(f)})`).join('\n')}` };
     }
     const s = fixedSummary(fixed, ctx.now);
     return {
@@ -588,8 +588,8 @@ function entitySummary(ctx, e) {
   }
   if (e.type === 'fixed') {
     const f = e.item;
-    const d = nextDue(f.day, now);
-    return { text: `${은(f.name)} 매달 ${f.day}일에 ${wonExact(f.amount)} 나가요.${f.account ? ` (${f.account})` : ''}${f.active === false ? '\n지금은 멈춤으로 되어 있어요.' : d ? `\n다음 출금은 ${mdw(d)}, ${이에요(dd(daysBetween(now, d)))}.` : ''}` };
+    const d = fixedNext(f, now);
+    return { text: `${은(f.name)} ${cycleLabel(f)}에 ${wonExact(f.amount)} 나가요.${f.account ? ` (${f.account})` : ''}${f.active === false ? '\n지금은 멈춤으로 되어 있어요.' : d ? `\n다음 출금은 ${mdw(d)}, ${이에요(dd(daysBetween(now, d)))}.` : ''}` };
   }
   if (e.type === 'stock') {
     const s = e.item;

@@ -1,7 +1,7 @@
 // 매달 정해진 날짜에 나가는 돈(대출 상환, 고정지출)의 일정과 알림.
 // 화면과 GitHub Actions 알림 스크립트가 함께 씁니다. 날짜는 시각 없이 '그날'로만 다룹니다.
-import { currentPayment, loanBalance } from './projection.js?v=20261112n';
-import { nextScheduled, ymd } from './schedule.js?v=20261112n';
+import { currentPayment, loanBalance } from './projection.js?v=20261113a';
+import { nextScheduled, ymd } from './schedule.js?v=20261113a';
 
 const DAY = 86_400_000;
 
@@ -25,6 +25,22 @@ export function nextDue(day, from) {
   return here >= f ? here : dayIn(f.getFullYear(), f.getMonth() + 1, d);
 }
 
+/** 고정지출 하나의 다음 출금일 (매달 day일, 또는 매년 month월 day일) */
+export function fixedNext(f, from) {
+  if (f.cycle !== 'yearly') return nextDue(f.day, from);
+  const d = Number(f.day) || 1;
+  const m = (Number(f.month) || 1) - 1;
+  const t = dateOnly(from);
+  const here = dayIn(t.getFullYear(), m, d);
+  return here >= t ? here : dayIn(t.getFullYear() + 1, m, d);
+}
+
+/** 한 달로 환산한 금액 (매년 내는 건 12로 나눠요) */
+export const monthlyAmount = (f) => (f.cycle === 'yearly' ? (Number(f.amount) || 0) / 12 : Number(f.amount) || 0);
+
+/** '매달 15일' · '매년 3월 2일' */
+export const cycleLabel = (f) => (f.cycle === 'yearly' ? `매년 ${Number(f.month) || 1}월 ${Number(f.day) || 1}일` : `매달 ${Number(f.day) || 1}일`);
+
 export function daysBetween(from, to) {
   return Math.round((dateOnly(to) - dateOnly(from)) / DAY);
 }
@@ -33,7 +49,7 @@ export function daysBetween(from, to) {
 export function upcoming(data, from, days = 31) {
   const out = [];
   const add = (type, item, amount, fixedDate) => {
-    const date = fixedDate || nextDue(type === 'loan' ? item.payDay : item.day, from);
+    const date = fixedDate || (type === 'loan' ? nextDue(item.payDay, from) : fixedNext(item, from));
     if (!date) return;
     const dday = daysBetween(from, date);
     if (dday <= days) out.push({ type, id: item.id, name: item.name, amount, date, dday, account: item.account || '', exact: type === 'fixed' || !!fixedDate });
@@ -73,16 +89,29 @@ export function notificationFor(alerts) {
   return { title: `차곡차곡 · 확인할 일정 ${alerts.length}건`, body: alerts.map(alertText).join('\n') };
 }
 
-/** 고정지출 요약: 월 합계, 이번 달 아직 안 나간 금액, 분류별 합계 */
+/** 고정지출 요약: 월 합계(매년 내는 건 월로 환산), 이번 달 아직 안 나간 금액, 분류별 합계 */
 export function fixedSummary(fixed, today) {
   const items = (fixed || []).filter((f) => f.active !== false);
-  const total = items.reduce((a, f) => a + (Number(f.amount) || 0), 0);
+  const total = Math.round(items.reduce((a, f) => a + monthlyAmount(f), 0));
   const t = dateOnly(today);
   const remaining = items
-    .filter((f) => dayIn(t.getFullYear(), t.getMonth(), Number(f.day) || 1) >= t)
+    .filter((f) => (f.cycle === 'yearly' ? (Number(f.month) || 1) - 1 === t.getMonth() : true) && dayIn(t.getFullYear(), t.getMonth(), Number(f.day) || 1) >= t)
     .reduce((a, f) => a + (Number(f.amount) || 0), 0);
   const byCat = {};
-  for (const f of items) byCat[f.category || '기타'] = (byCat[f.category || '기타'] || 0) + (Number(f.amount) || 0);
-  const categories = Object.entries(byCat).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);
+  for (const f of items) byCat[f.category || '기타'] = (byCat[f.category || '기타'] || 0) + monthlyAmount(f);
+  const categories = Object.entries(byCat).map(([name, amount]) => ({ name, amount: Math.round(amount) })).sort((a, b) => b.amount - a.amount);
   return { total, remaining, categories, count: items.length };
+}
+
+/** 구독(분류 '구독') 요약: 월 환산 합계, 1년 합계, 다음 결제 순서 목록 */
+export function subsSummary(fixed, today) {
+  const subs = (fixed || []).filter((f) => f.category === '구독');
+  const on = subs.filter((f) => f.active !== false);
+  const monthly = Math.round(on.reduce((a, f) => a + monthlyAmount(f), 0));
+  const yearly = on.reduce((a, f) => a + (Number(f.amount) || 0) * (f.cycle === 'yearly' ? 1 : 12), 0);
+  const list = subs.map((f) => {
+    const next = f.active === false ? null : fixedNext(f, today);
+    return { ...f, next, dday: next ? daysBetween(today, next) : null };
+  }).sort((a, b) => (a.next ? 0 : 1) - (b.next ? 0 : 1) || (a.dday ?? 0) - (b.dday ?? 0) || a.name.localeCompare(b.name));
+  return { monthly, yearly, count: on.length, paused: subs.length - on.length, list };
 }
