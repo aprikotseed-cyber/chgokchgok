@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261113b';
-import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly } from './reminders.js?v=20261113b';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261113b';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261113b';
-import { won, wonExact, mdw, pct } from './format.js?v=20261113b';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261113b';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261113c';
+import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly } from './reminders.js?v=20261113c';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261113c';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261113c';
+import { won, wonExact, mdw, pct } from './format.js?v=20261113c';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261113c';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -141,15 +141,18 @@ function findEntities(q, data, agenda) {
     }
     if (PARTNER_WORDS.some((w) => q.includes(w))) out.push({ type: 'partner', name: '반려자', score: 3 });
     // 일정·할일 제목 (점수는 4까지만: 등록한 자산 이름보다 앞서지 않게)
+    // 숫자·날짜(2027년, 2월, 3시…)는 빼고 견줘요: '2027년 2월 상환액'이 '2027년 대학원 수업'에 붙지 않게
+    const undate = (x) => norm(x).replace(/\d+(?:년|월|일|시|분|주)?/g, '');
+    const qd = undate(q);
     const seen = new Set();
     for (const e of agenda.events) {
       if (seen.has(e.title)) continue;
       seen.add(e.title);
-      const sc = nameScore(q, e.title);
+      const sc = nameScore(qd, undate(e.title));
       if (sc >= 3) out.push({ type: 'event', item: e, name: e.title, score: Math.min(sc, 4) });
     }
     for (const t of agenda.tasks) {
-      const sc = nameScore(q, t.title);
+      const sc = nameScore(qd, undate(t.title));
       if (sc >= 3) out.push({ type: 'task', item: t, name: t.title, score: Math.min(sc, 4) });
     }
   }
@@ -403,7 +406,7 @@ const H = {
       if (end) {
         const ps = loanPaymentsIn(l, start, end, ctx.now);
         if (!ps.length) { lines.push(`${l.name}: ${ctx.time.label}에는 상환이 없어요${!l.schedule?.length && !l.payDay ? ' (상환일 미입력)' : ''}.`); continue; }
-        for (const p of ps) lines.push(`${l.name}: ${mdw(p.date)} ${p.approx ? '약 ' : ''}${wonExact(p.amount)}${p.principal != null ? ` (원금 ${wonExact(p.principal)} · 이자 ${wonExact(p.interest)})` : ''}`);
+        for (const p of ps) lines.push({ at: p.date, text: `${l.name}: ${mdw(p.date)} ${p.approx ? '약 ' : ''}${wonExact(p.amount)}${p.principal != null ? ` (원금 ${wonExact(p.principal)} · 이자 ${wonExact(p.interest)})` : ''}` });
         continue;
       }
       if (l.schedule?.length) {
