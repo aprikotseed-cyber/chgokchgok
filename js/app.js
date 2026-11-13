@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261113a';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261113a';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261113a';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261113a';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261113a';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261113a';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261113a';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261113a';
-import { estimateMonths } from './estimate.js?v=20261113a';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261113a';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261113a';
-import { addFeedback, feedbackText } from './feedback.js?v=20261113a';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261113a';
-import { createGoogle, freshServerToken } from './google.js?v=20261113a';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261113a';
-import { createDemoGoogle } from './google-demo.js?v=20261113a';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261113a';
-import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261113a';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261113a';
+import { connect, isDemo } from './store.js?v=20261113b';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261113b';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261113b';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261113b';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261113b';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261113b';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261113b';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261113b';
+import { estimateMonths } from './estimate.js?v=20261113b';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261113b';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261113b';
+import { addFeedback, feedbackText } from './feedback.js?v=20261113b';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261113b';
+import { createGoogle, freshServerToken } from './google.js?v=20261113b';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261113b';
+import { createDemoGoogle } from './google-demo.js?v=20261113b';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261113b';
+import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261113b';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261113b';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1356,7 +1356,7 @@ function defaultCal(title, calName = '') {
 function eventPreview(p) {
   if (!p.title) return ENTER_HINT;
   const cal = defaultCal(p.title, p.calName);
-  return `‘${p.title}’ · ${eventLine({ ...p, date: p.date || today() }).replace(` ${p.title}`, '')}${p.date ? '' : ' (날짜를 안 써서 오늘)'}${p.repeat ? ` · ${repeatLabel(p.repeat, p.date)}` : ''}${cal ? ` · ${cal.name}` : ''}`;
+  return `‘${p.title}’ · ${eventLine({ ...p, date: p.date || today() }).replace(` ${p.title}`, '')}${p.date ? '' : ' (날짜를 안 써서 오늘)'}${p.repeat ? ` · ${repeatLabel(p.repeat, p.date)}` : ''}${p.location ? ` · ${p.location}` : ''}${cal ? ` · ${cal.name}` : ''}`;
 }
 const appEvent = (r, cal) => normEvent(r, { id: cal.id, summary: cal.name, backgroundColor: cal.color, partner: calPref(cal).partner });
 
@@ -1625,8 +1625,10 @@ function eventRow(e, dayKey) {
   }
   // 반려자 일정은 캘린더 이름 대신 '반려자'만
   const meta = esc(e.partner ? '반려자' : e.calName);
+  // 장소가 있으면 일정명 오른쪽에 캘린더 이름과 같은 모양으로
+  const place = e.location ? `<span class="row-place">${esc(e.location)}</span>` : '';
   const inner = `<span class="ev-time">${when}</span><span class="ev-dot${e.money ? ' money' : ''}" style="${e.color ? `--c:${esc(e.color)}` : ''}"></span>
-    <span class="row-main"><span class="row-title">${esc(e.title)}</span><span class="row-meta">${meta}</span></span>`;
+    <span class="row-main"><span class="row-title">${esc(e.title)}${place}</span><span class="row-meta">${meta}</span></span>`;
   const cls = `row ev${e.partner ? ' partner' : ''}`;
   // 내가 쓸 수 있는 캘린더 일정은 눌러서 앱에서 고쳐요
   if (!e.money && canWrite(e.calId) && !e.id.startsWith('tmp-')) return `<button class="${cls}" data-action="event-edit" data-cal="${esc(e.calId)}" data-id="${esc(e.id)}">${inner}</button>`;

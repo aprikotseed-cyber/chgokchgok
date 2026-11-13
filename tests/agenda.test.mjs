@@ -84,3 +84,18 @@ test('완료 시각은 이 기기 날짜로', () => {
   const d = new Date(2026, 10, 11, 7, 10); // 이 기기 시간 아침 7시 10분
   assert.equal(nt({ id: 'x', status: 'completed', completed: d.toISOString() }).completedAt, '2026-11-11');
 });
+
+import { parseEventInput, pickLocation } from '../js/agenda.js';
+test('일정의 장소: "장소는 …"을 장소 칸으로', () => {
+  const now = new Date('2026-11-13T10:00:00+09:00');
+  const cals = [{ name: 'Life' }, { name: 'Work' }];
+  const p = parseEventInput('11월 19일 오후 5시~6시반 대학원 수업 . 장소는 인천캠퍼스 예지관 107호', now, cals);
+  assert.equal(p.title, '대학원 수업');
+  assert.equal(p.location, '인천캠퍼스 예지관 107호');
+  assert.equal(p.time, '17:00');
+  assert.equal(p.endTime, '18:30');
+  assert.equal(p.calName, 'Life');
+  assert.equal(parseEventInput('내일 3시 회의, 장소: 3층 회의실이야', now, cals).location, '3층 회의실');
+  assert.equal(pickLocation('금요일 헬스 장소는 판교 헬스장으로 넣어줘').location, '판교 헬스장');
+  assert.equal(parseEventInput('토요일 점심 약속', now, cals).location, undefined);
+});

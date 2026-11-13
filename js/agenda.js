@@ -505,9 +505,25 @@ export function pickCalendar(text, calendars = [], keywords = []) {
 }
 
 /** 일정 한 줄 → 일정 + 캘린더 이름 (말한 캘린더 / 나만의 낱말 / 기본 규칙 순) */
+/** '장소는 인천캠퍼스 예지관 107호' → 장소를 떼어 내요 (장소 말은 맨 뒤에 붙는 게 보통이에요) */
+const PLACE_RE = /(?:^|[\s.,·])장소\s*(?:는|은|:|：)\s*(.+)$|(?:^|[\s.,·])장소\s+(.+)$/;
+export function pickLocation(text) {
+  const s = String(text || '');
+  const m = s.match(PLACE_RE);
+  if (!m) return { text: s, location: '' };
+  const location = (m[1] || m[2])
+    .replace(/\s*(?:(?:으로|로)\s*)?(?:넣어|추가해|등록해|잡아|해)\s*(?:줘|주세요|줄래)?[.!~]*\s*$/, '')
+    .replace(/\s*(?:에서|이야|입니다|이에요|예요|야|임)?[.!~。]*\s*$/, '')
+    .trim();
+  return { text: s.slice(0, m.index).replace(/[\s.,·]+$/, ''), location };
+}
+
 export function parseEventInput(text, now, calendars = [], keywords = []) {
-  const { text: rest, calName } = pickCalendar(text, calendars, keywords);
+  const { text: noPlace, location } = pickLocation(text);
+  const { text: rest, calName } = pickCalendar(noPlace, calendars, keywords);
   const p = parseQuickEvent(rest, now);
+  p.title = p.title.replace(/[\s.,·]+$/, '');
+  if (location) p.location = location;
   const want = calName || (keywords || []).find((k) => k.word && p.title.includes(k.word))?.cal || classifyEvent(p.title);
   const cal = calendars.find((c) => c.name.toLowerCase() === want.toLowerCase());
   return { ...p, calName: cal?.name || want };
