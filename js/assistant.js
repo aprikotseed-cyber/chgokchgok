@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261113d';
-import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly } from './reminders.js?v=20261113d';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261113d';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261113d';
-import { won, wonExact, mdw, pct } from './format.js?v=20261113d';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261113d';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261113e';
+import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261113e';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261113e';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261113e';
+import { won, wonExact, mdw, pct } from './format.js?v=20261113e';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261113e';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -61,15 +61,15 @@ export function parseTime(q, now) {
   const month = (yy, mm) => ({ kind: 'month', start: new Date(yy, mm, 1), end: new Date(yy, mm + 1, 0), label: `${yy === y ? '' : `${yy}년 `}${((mm % 12) + 12) % 12 + 1}월` });
   const year = (yy) => ({ kind: 'year', year: yy, start: new Date(yy, 0, 1), end: new Date(yy, 11, 31), label: `${yy}년` });
   if (q.includes('오늘')) return { ...day(t), label: '오늘' };
-  if (q.includes('내일')) return { ...day(new Date(y, m, t.getDate() + 1)), label: '내일' };
+  if (q.includes('내일') || /^낼(?!돈|이자|거|게|것)/.test(q) || /낼(일정|할일|약속|스케줄|뭐)/.test(q)) return { ...day(new Date(y, m, t.getDate() + 1)), label: '내일' };
   if (q.includes('모레')) return { ...day(new Date(y, m, t.getDate() + 2)), label: '모레' };
   const dow = (t.getDay() + 6) % 7; // 월요일 0
   const WD = '월화수목금토일';
   const md = (d) => `${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`;
   // 'X요일' (요일만 말하면 이번 주), '다음 주 X요일'
-  const wd = q.match(/(다음주|담주)?(이번주|금주)?([월화수목금토일])요일/);
+  const wd = q.match(/(다다음주)?(다음주|담주)?(이번주|금주)?([월화수목금토일])요일/);
   if (wd) {
-    const d = new Date(y, m, t.getDate() - dow + (wd[1] ? 7 : 0) + WD.indexOf(wd[3]));
+    const d = new Date(y, m, t.getDate() - dow + (wd[1] ? 14 : wd[2] ? 7 : 0) + WD.indexOf(wd[4]));
     return { ...day(d), label: md(d) };
   }
   if (q.includes('주말')) {
@@ -93,6 +93,7 @@ export function parseTime(q, now) {
     if (d < t) d = new Date(y, m + 1, Number(dm[1]));
     return { ...day(d), label: md(d) };
   }
+  if (/다다음주/.test(q)) return { kind: 'range', start: new Date(y, m, t.getDate() + 14 - dow), end: new Date(y, m, t.getDate() + 20 - dow), label: '다다음 주' };
   if (/이번주|금주/.test(q)) return { kind: 'range', start: t, end: new Date(y, m, t.getDate() + 6 - dow), label: '이번 주' };
   if (/다음주|담주/.test(q)) return { kind: 'range', start: new Date(y, m, t.getDate() + 7 - dow), end: new Date(y, m, t.getDate() + 13 - dow), label: '다음 주' };
   if (/다음달|담달|내달/.test(q)) return month(y, m + 1);
@@ -120,21 +121,41 @@ export function parseTime(q, now) {
 }
 
 // ───── ② 어떤 항목 ─────
+/** 고정지출을 다르게 부를 때 (이름에 왼쪽 말이 들어 있으면) */
+const FIXED_ALIAS = { 휴대폰: ['핸드폰', '폰요금', '폰비', '휴대전화', '스마트폰'], 인터넷: ['와이파이요금', '인터넷요금'], 넷플릭스: ['넷플'], 유튜브: ['유튭', '유튜브'] };
+/** 종목을 줄여 부를 때 */
+const STOCK_KO = {
+  '005930': ['삼전'], '000660': ['하이닉스', '하닉'], '035420': ['네이버'], '035720': ['카카오'], '005380': ['현대차'],
+  AAPL: ['애플'], TSLA: ['테슬라'], NVDA: ['엔비디아'], MSFT: ['마이크로소프트', '마소'], GOOGL: ['구글', '알파벳'], GOOG: ['구글', '알파벳'],
+  AMZN: ['아마존'], META: ['메타', '페이스북'], NFLX: ['넷플릭스주식'], VOO: ['뱅가드', 's&p500', 'snp500', '에스앤피'], QQQ: ['나스닥100', '큐큐큐'],
+  SCHD: ['슈드'], SPY: ['spy'], AVGO: ['브로드컴'], KO: ['코카콜라'], O: ['리얼티인컴'],
+};
 const KIND_ALIAS = { 주택담보대출: ['주담대', '주택담보', '담보대출', '집대출'], 신용대출: ['신용대출', '마통', '마이너스통장'], 교직원공제회: ['공제회', '교직원공제회'] };
 
 function findEntities(q, data, agenda) {
   const out = [];
   const add = (type, item, name, score) => score && out.push({ type, item, name, score });
   for (const s of data.savings || []) add('saving', s, s.name, Math.max(nameScore(q, s.name), s.kind && norm(s.kind).length >= 2 && q.includes(norm(s.kind)) ? 2 : 0));
-  for (const s of data.stocks || []) add('stock', s, s.name, Math.max(nameScore(q, s.name), s.ticker && q.includes(norm(s.ticker)) && norm(s.ticker).length >= 2 ? 10 : 0));
+  for (const s of data.stocks || []) {
+    const ko = (STOCK_KO[String(s.ticker || '').toUpperCase()] || []).some((w) => q.includes(w)) ? 6 : 0;
+    add('stock', s, s.name, Math.max(nameScore(q, s.name), s.ticker && q.includes(norm(s.ticker)) && norm(s.ticker).length >= 2 ? 10 : 0, ko));
+  }
   for (const h of data.homes || []) add('home', h, h.name, Math.max(nameScore(q, h.name), nameScore(q, h.aptName)));
   for (const l of data.debts || []) {
     const alias = (KIND_ALIAS[l.kind] || []).some((a) => q.includes(norm(a))) ? 3 : 0;
     add('loan', l, l.name, Math.max(nameScore(q, l.name), alias));
   }
-  for (const f of data.fixed || []) add('fixed', f, f.name, nameScore(q, f.name));
+  for (const f of data.fixed || []) {
+    const alias = Object.entries(FIXED_ALIAS).some(([k, ws]) => norm(f.name).includes(k) && ws.some((w) => q.includes(w))) ? 5 : 0;
+    add('fixed', f, f.name, Math.max(nameScore(q, f.name), alias));
+  }
   const cats = [...new Set((data.fixed || []).map((f) => f.category).filter(Boolean))];
-  for (const c of cats) if (q.includes(norm(c))) out.push({ type: 'category', name: c, score: c.length + 1 });
+  for (const c of cats) {
+    if (q.includes(norm(c))) { out.push({ type: 'category', name: c, score: c.length + 1 }); continue; }
+    // '기부·후원'처럼 묶인 분류는 한쪽만 말해도
+    const part = c.split(/[·,/]/).map(norm).filter((x) => x.length >= 2).find((x) => q.includes(x));
+    if (part) out.push({ type: 'category', name: c, score: part.length + 1 });
+  }
   if (/국내주식|국내/.test(q)) out.push({ type: 'market', key: 'kr', name: '국내주식', score: 3 });
   if (/해외주식|해외|미국주식|미장/.test(q)) out.push({ type: 'market', key: 'us', name: '해외주식', score: 3 });
   if (/연금저축|연금계좌/.test(q)) out.push({ type: 'market', key: 'pension', name: '연금저축', score: 4 });
@@ -154,8 +175,10 @@ function findEntities(q, data, agenda) {
     for (const e of agenda.events) {
       if (seen.has(e.title)) continue;
       seen.add(e.title);
-      const sc = nameScore(qd, undate(e.title));
-      if (sc >= 3) out.push({ type: 'event', item: e, name: e.title, score: Math.min(sc, 4) });
+      // '상담 몇 시야' → '학부모 상담', '생신 언제야' → '엄마 생신' (제목 마지막 낱말)
+      const last = undate(String(e.title).trim().split(/\s+/).at(-1));
+      const sc = Math.max(nameScore(qd, undate(e.title)), last.length >= 2 && qd.includes(last) ? 3 : 0);
+      if (sc >= 3) out.push({ type: 'event', item: e, name: e.title, score: Math.min(sc, 4) + (q.includes(norm(e.title)) ? 0.5 + norm(e.title).length / 100 : 0) });
     }
     for (const t of agenda.tasks) {
       const sc = nameScore(qd, undate(t.title));
@@ -178,18 +201,18 @@ const PARTNER_WORDS = ['반려자', '와이프', '아내', '남편', '배우자'
 const INTENTS = [
   { id: 'brief', words: ['브리핑', '하루요약', '오늘요약', '오늘어때', '오늘하루', '하루일과'] },
   { id: 'schedule', words: ['일정', '약속', '스케줄', '캘린더', '달력', '뭐있', '뭐해', '계획', '바빠', '바쁘', '한가', '시간있', '시간돼', '몇시'], types: ['event', 'cal', 'partner'] },
-  { id: 'tasks', words: ['할일', '할거', '해야할', '해야돼', '해야되', '해야하', '투두', 'todo', '마감', '밀린', '못한', '안한', '끝낸', '완료한'], types: ['task'] },
+  { id: 'tasks', words: ['할일', '할거', '해야할', '해야돼', '해야되', '해야될', '해야하', '투두', 'todo', '마감', '밀린', '못한', '안한', '끝낸', '완료한'], types: ['task'] },
   { id: 'net', words: ['총자산', '순자산', '재산', '내자산', '자산얼마', '자산이얼마', '전재산', '지난달대비', '얼마늘', '얼마줄'] },
   { id: 'saved', words: ['저축액', '저축얼마', '모은돈', '예금', '적금', '통장', '파킹'], types: ['saving'] },
   { id: 'home', words: ['주택', '아파트', '집값', '시세', '실거래', '부동산', '우리집'], types: ['home'] },
   { id: 'debtBal', words: ['남은원금', '잔액', '남은대출', '대출잔액', '빚', '대출얼마', '얼마남', '남았'], types: ['loan'] },
-  { id: 'nextPay', words: ['다음상환', '상환일', '납부일', '상환액', '원리금', '얼마나가', '언제나가', '언제빠져', '얼마빠져', '내야', '낼돈', '상환', '납부', '언제야'], types: ['loan'] },
-  { id: 'count', words: ['회차', '몇번', '몇회'], types: ['loan'] },
+  { id: 'nextPay', words: ['다음상환', '상환일', '납부일', '상환액', '원리금', '얼마나가', '언제나가', '언제빠져', '얼마빠져', '내야', '낼돈', '갚을', '얼마내', '상환', '납부'], types: ['loan'] },
+  { id: 'count', words: ['회차', '몇번', '몇회', '회남'], types: ['loan'] },
   { id: 'interest', words: ['이자', '낸이자', '이자얼마'], types: ['loan'] },
   { id: 'principalPaid', words: ['갚은', '상환한', '갚았', '낸원금', '갚은원금'], types: ['loan'] },
   { id: 'payoff', words: ['다갚', '완납', '언제끝', '만기', '상환끝', '다끝', '언제까지'], types: ['loan'] },
   { id: 'fixedTotal', words: ['고정지출', '고정비', '매달나가', '월지출', '정기지출', '구독료', '요금'], types: ['fixed', 'category'] },
-  { id: 'remaining', words: ['남은출금', '남은지출', '앞으로나갈', '더나갈', '이번달남은', '남은돈', '남은거'] },
+  { id: 'remaining', words: ['남은출금', '남은지출', '남은결제', '앞으로나갈', '더나갈', '남은돈', '남은거'] },
   { id: 'upcoming', words: ['돈나갈', '나갈돈', '빠져나갈', '나가는거', '나갈거', '뭐나가', '출금', '결제'] },
   { id: 'stocks', words: ['주식', '평가', '수익', '수익률', '손익', '종목', 'etf', '얼마벌', '벌었'], types: ['stock', 'market'] },
   { id: 'fx', words: ['환율', '달러', '환차', '환율효과', '원달러'] },
@@ -199,22 +222,29 @@ const INTENTS = [
 ];
 
 /** 질문 하나에 대한 답. { text, chips: [{label, q}], unknown } */
+/** 질문 하나에 대한 답. via: 어느 답이 나왔는지 (점검용) */
 export function ask(question, data, market = {}, now = new Date(), agenda = null, memos = []) {
+  return route(question, data, market, now, agenda, memos);
+}
+
+function route(question, data, market, now, agenda, memos) {
   const q = norm(question);
   if (!q) return { text: '궁금한 걸 적어 주세요.', chips: SUGGEST };
   const ctx = { q, raw: question, data, market, agenda, now: dateOnly(now), time: parseTime(q, now), ents: findEntities(q, data, agenda) };
 
   // '와이파이 비번 바뀜 메모해줘', '메모: …': 메모 남기기 (바로 저장) / '와이파이 메모 찾아줘': 메모 찾기
-  if (MEMO_SAVE.test(q) || /^메모\s*[:：]/.test(question.trim())) return memoSave(question);
-  if (q.includes('메모')) return memoFind(q, memos);
+  if (MEMO_SAVE.test(q) || /^메모\s*[:：]/.test(question.trim())) return { via: 'memoSave', ...memoSave(question) };
+  if (q.includes('메모')) return { via: 'memoFind', ...memoFind(q, memos) };
   // '목요일 면담을 수요일 2시로 옮겨줘', '면담 일정 지워줘': 일정 옮기기·지우기 (확인 카드로)
   if (agenda && (MOVE_RE.test(q) || DEL_RE.test(q)) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) {
     const r = changeAnswer(ctx, now);
-    if (r) return r;
+    if (r) return { via: r.action?.kind === 'delete' ? 'delete' : 'move', ...r };
   }
   // '내일 3시 상담 넣어줘', '우유 사기 할일 추가해줘': 일정·할일 넣기 (확인 카드로)
-  if (ADD_RE.test(q) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) return addAnswer(ctx, now);
+  if (ADD_RE.test(q) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) { const r = addAnswer(ctx, now); return { via: r.action?.kind === 'task' ? 'addTask' : r.action ? 'addEvent' : 'add', ...r }; }
 
+  // 날씨·뉴스·로또처럼 차곡차곡에 없는 것
+  if (OUT_OF_SCOPE.test(q) && !ctx.ents.some((e) => e.score >= 5)) return { text: '그건 차곡차곡에 없는 정보라 알려드릴 수 없어요. 일정·할일·메모·자산은 편하게 물어봐 주세요.', chips: SUGGEST, unknown: true, via: 'unknown' };
   // '가장 빠른 / 제일 먼저 / 다음에' 빠져나가는 것: 순서를 묻는 질문은 합계보다 먼저 봐요
   if (asksNext(q) && !ctx.ents.some((e) => e.type === 'loan' || e.type === 'fixed')) return H.nextOut(ctx);
 
@@ -222,18 +252,20 @@ export function ask(question, data, market = {}, now = new Date(), agenda = null
     let score = it.words.reduce((a, w) => a + (q.includes(w) ? w.length : 0), 0);
     if (score && it.types && ctx.ents.some((e) => it.types.includes(e.type))) score += 2;
     return { it, score };
-  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score);
+  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score || (a.it.id === 'schedule') - (b.it.id === 'schedule'));
+  // '대출 얼마 나가', '대출 얼마 내야 돼': 잔액이 아니라 낼 돈
+  if (scored[0]?.it.id === 'debtBal' && /나가|나감|내야|낼|갚을|빠져|빠짐|상환액|납부/.test(q) && !/남은|남았|잔액|얼마남/.test(q)) scored.unshift({ it: INTENTS.find((x) => x.id === 'nextPay'), score: 99 });
 
   // '12월 2일 부장회식'처럼 날짜와 할 거리만 말하면: 일정인지 할일인지 물어봐요
-  if (!scored.length && !ctx.ents.length && ctx.time?.kind === 'day' && agenda) {
+  if (!scored.length && ctx.time?.kind === 'day' && agenda && !ctx.ents.some((e) => !['event', 'task'].includes(e.type))) {
     const r = chooseKind(ctx);
-    if (r) return r;
+    if (r) return { via: 'choose', ...r };
   }
   // 시간만 있고 묻는 게 없으면: 일정을 연결했으면 그날 일정(나갈 돈 포함), 아니면 나갈 돈
   if (!scored.length && ctx.time && !ctx.ents.length) return agenda ? H.schedule(ctx) : H.upcoming(ctx);
   // 묻는 말 없이 항목 이름만 있으면 그 항목 요약
   if (!scored.length && ctx.ents.length) return entitySummary(ctx, ctx.ents[0]);
-  if (!scored.length) return { text: '그건 아직 잘 모르겠어요. 아래처럼 물어보시면 바로 알려드릴게요.', chips: SUGGEST, unknown: true };
+  if (!scored.length) return { text: '그건 아직 잘 모르겠어요. 아래처럼 물어보시면 바로 알려드릴게요.', chips: SUGGEST, unknown: true, via: 'unknown' };
 
   // 대출 이름이 없는데 다른 항목(고정지출·계좌 등) 이름이 있으면, 대출용 질문보다 그 항목 답이 맞아요
   const LOAN_INTENTS = ['nextPay', 'debtBal', 'count', 'payoff', 'interest', 'principalPaid'];
@@ -241,6 +273,8 @@ export function ask(question, data, market = {}, now = new Date(), agenda = null
   const e0 = ctx.ents[0];
   // 등록한 이름을 또렷하게 말했는데(예: '아파트 관리비') 질문 종류가 다른 항목용이면 그 이름이 우선
   if (e0 && e0.score >= 5 && top.it.types && !top.it.types.includes(e0.type)) return entitySummary(ctx, e0);
+  // '구독 서비스 뭐 있어': 날짜 없이 돈 항목(분류·고정지출·대출…)을 물으면 일정보다 그 항목
+  if (top.it.id === 'schedule' && !ctx.time && e0 && ['fixed', 'category', 'loan', 'saving', 'stock', 'home', 'market'].includes(e0.type)) return entitySummary(ctx, e0);
   // '어머니 생신 언제야'처럼 일정·할일 제목을 말하며 '언제'를 물으면 그 일정
   if (!['schedule', 'tasks', 'brief'].includes(top.it.id) && e0 && ['event', 'task'].includes(e0.type) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type))) return entitySummary(ctx, e0);
   // '넷플 언제 결제돼'처럼 항목을 콕 집어 물으면 전체 일정보다 그 항목 답이 먼저
@@ -248,6 +282,8 @@ export function ask(question, data, market = {}, now = new Date(), agenda = null
   if (LOAN_INTENTS.includes(top.it.id) && e0 && !ctx.ents.some((e) => e.type === 'loan') && !/대출|상환|이자|원금/.test(q)) return entitySummary(ctx, e0);
   return H[top.it.id](ctx);
 }
+
+const OUT_OF_SCOPE = /날씨|기온|비와|비오|눈와|눈오|미세먼지|뉴스|로또|메뉴추천|점심추천|저녁추천|뭐먹|맛집|주가전망|코스피전망|운세/;
 
 export const SUGGEST = [
   { label: '오늘 일정', q: '오늘 일정 뭐야?' },
@@ -321,7 +357,10 @@ const H = {
   /** 가장 빨리 빠져나가는 고정지출(질문에 대출·상환이 없으면 고정지출만, '나갈 돈'처럼 넓게 물으면 대출 포함) */
   nextOut(ctx) {
     const onlyFixed = /고정|구독|요금|공과금|관리비/.test(ctx.q) || !/대출|상환|돈|모든|전체|아무/.test(ctx.q);
-    const list = upcoming(onlyFixed ? { fixed: ctx.data.fixed } : ctx.data, ctx.now, 62);
+    // '다음에 결제되는 구독'처럼 분류를 말하면 그 분류만
+    const cat = ctx.ents.find((e) => e.type === 'category');
+    const fixed = cat ? (ctx.data.fixed || []).filter((f) => f.category === cat.name) : ctx.data.fixed;
+    const list = upcoming(onlyFixed || cat ? { fixed } : ctx.data, ctx.now, cat ? 400 : 62);
     if (!list.length) return { text: onlyFixed ? '앞으로 두 달 안에 빠져나갈 고정지출이 없어요. 고정지출 탭에서 출금일을 확인해 주세요.' : '앞으로 두 달 안에 빠져나갈 돈이 없어요.' };
     const first = list.filter((u) => u.dday === list[0].dday);
     const d = first[0].date;
@@ -467,9 +506,16 @@ const H = {
     const cat = ctx.ents.find((e) => e.type === 'category');
     const item = ctx.ents.find((e) => e.type === 'fixed');
     if (item && (!cat || item.score >= cat.score)) return entitySummary(ctx, item);
+    if (cat?.name === '구독') {
+      const sub = subsSummary(fixed, ctx.now);
+      const yearOnly = /1년|일년|연간|한해|년에/.test(ctx.q);
+      const head = yearOnly ? `구독료는 1년에 ${wonExact(sub.yearly)}이에요. (한 달에 약 ${wonExact(sub.monthly)})` : `구독은 ${sub.count}개, 한 달에 ${wonExact(sub.monthly)}이에요. (1년 ${wonExact(sub.yearly)})`;
+      return { text: `${head}${sub.paused ? ` 멈춘 구독 ${sub.paused}개는 뺐어요.` : ''}\n${sub.list.filter((f) => f.next).map((f) => `· ${f.name} ${wonExact(f.amount)} (${cycleLabel(f)}) · 다음 ${mdw(f.next)}`).join('\n')}` };
+    }
     if (cat) {
       const fs = fixed.filter((f) => f.category === cat.name && f.active !== false);
-      return { text: `${cat.name} 고정지출은 매달 ${wonExact(fs.reduce((a, f) => a + (Number(f.amount) || 0), 0))}이에요.\n${fs.map((f) => `· ${f.name} ${wonExact(f.amount)} (${cycleLabel(f)})`).join('\n')}` };
+      if (fs.length === 1) return entitySummary(ctx, { type: 'fixed', item: fs[0], name: fs[0].name });
+      return { text: `${cat.name} 고정지출은 매달 ${wonExact(Math.round(fs.reduce((a, f) => a + monthlyAmount(f), 0)))}이에요.\n${fs.map((f) => `· ${f.name} ${wonExact(f.amount)} (${cycleLabel(f)})`).join('\n')}` };
     }
     const s = fixedSummary(fixed, ctx.now);
     return {
@@ -545,6 +591,9 @@ const H = {
   },
 };
 
+// 답마다 어느 답인지 표시 (안쪽에서 다른 답으로 넘기면 그쪽 표시가 남아요)
+for (const k of Object.keys(H)) { const f = H[k]; H[k] = (ctx) => ({ via: k, ...f(ctx) }); }
+
 /** 낸 이자·갚은 원금 합계 (기간 기본: 올해) */
 function paidSummary(ctx, field) {
   const { list, picked } = loansOf(ctx);
@@ -588,17 +637,17 @@ function entitySummary(ctx, e) {
   if (e.type === 'home') return H.home({ ...ctx, ents: [e] });
   if (e.type === 'market') return H.stocks({ ...ctx, ents: [e] });
   if (e.type === 'category') return H.fixedTotal({ ...ctx, ents: [e] });
-  if (e.type === 'cal' || e.type === 'partner') return H.schedule({ ...ctx, ents: [e] });
-  if (e.type === 'event') return eventWhen(ctx, e.name);
+  if (e.type === 'cal' || e.type === 'partner') return H.schedule(ctx);
+  if (e.type === 'event') return { via: 'eventWhen', ...eventWhen(ctx, e.name) };
   if (e.type === 'task') {
     const t = e.item;
-    if (t.done) return { text: `‘${t.title}’${josa(t.title, '은', '는')} 이미 완료했어요.` };
-    return { text: t.due ? `‘${t.title}’ 마감은 ${mdw(fromKey(t.due))}, ${이에요(dueLabel(t.due, ymd(now)))}.` : `‘${t.title}’${josa(t.title, '은', '는')} 날짜 없이 적어 둔 할일이에요.` };
+    if (t.done) return { via: 'task', text: `‘${t.title}’${josa(t.title, '은', '는')} 이미 완료했어요.` };
+    return { via: 'task', text: t.due ? `‘${t.title}’ 마감은 ${mdw(fromKey(t.due))}, ${이에요(dueLabel(t.due, ymd(now)))}.` : `‘${t.title}’${josa(t.title, '은', '는')} 날짜 없이 적어 둔 할일이에요.` };
   }
   if (e.type === 'fixed') {
     const f = e.item;
     const d = fixedNext(f, now);
-    return { text: `${은(f.name)} ${cycleLabel(f)}에 ${wonExact(f.amount)} 나가요.${f.account ? ` (${f.account})` : ''}${f.active === false ? '\n지금은 멈춤으로 되어 있어요.' : d ? `\n다음 출금은 ${mdw(d)}, ${이에요(dd(daysBetween(now, d)))}.` : ''}` };
+    return { via: 'fixed', text: `${은(f.name)} ${cycleLabel(f)}에 ${wonExact(f.amount)} 나가요.${f.account ? ` (${f.account})` : ''}${f.active === false ? '\n지금은 멈춤으로 되어 있어요.' : d ? `\n다음 출금은 ${mdw(d)}, ${이에요(dd(daysBetween(now, d)))}.` : ''}` };
   }
   if (e.type === 'stock') {
     const s = e.item;
@@ -609,7 +658,7 @@ function entitySummary(ctx, e) {
     if (x.profitKrw != null) lines.push(`원화 수익 ${x.profitKrw >= 0 ? '+' : '−'}${won(Math.abs(x.profitKrw))} (${x.retKrw >= 0 ? '+' : ''}${pct(x.retKrw)})`);
     if (x.fxEffect != null) lines.push(`주가 효과 ${x.priceEffect >= 0 ? '+' : '−'}${won(Math.abs(x.priceEffect))} · 환율 효과 ${x.fxEffect >= 0 ? '+' : '−'}${won(Math.abs(x.fxEffect))} (매입 환율 ${wonExact(x.buyFx)})`);
     if (x.profitKrw == null && x.ret == null) lines.push('평균 매수가를 넣으면 수익도 알려드릴게요.');
-    return { text: lines.join('\n') };
+    return { via: 'stock', text: lines.join('\n') };
   }
   return { text: `${e.name}에 대해 무엇이 궁금하세요?` };
 }
@@ -646,7 +695,8 @@ function scheduleAnswer(ctx) {
   const what = cal ? `${cal.name} 일정` : partner ? '반려자 일정' : '일정';
   // 제목을 콕 집었는데 기간을 말하지 않았으면 그 일정이 언제인지
   const ev = ctx.ents.find((e) => e.type === 'event');
-  if (ev && !ctx.time && !cal && !partner) return eventWhen(ctx, ev.name);
+  if (ev && !ctx.time && /언제|몇시|며칠|몇일/.test(ctx.q) && (!cal || ev.item.calName === cal.name) && !partner) return { via: 'eventWhen', ...eventWhen(ctx, ev.name) };
+  if (ev && !ctx.time && !cal && !partner) return { via: 'eventWhen', ...eventWhen(ctx, ev.name) };
   const lines = [];
   for (let d = start; d <= end && lines.length < 40; d = addD(d, 1)) {
     const key = ymd(d);
@@ -659,7 +709,7 @@ function scheduleAnswer(ctx) {
   const beyond = ctx.agenda.until && ymd(end) > ctx.agenda.until ? `\n(앱에 받아 둔 일정은 ${shortDay(fromKey(ctx.agenda.until))}까지예요. 앱을 열면 새로 받아요.)` : '';
   if (!lines.length) {
     const next = ctx.time ? null : events.filter((e) => e.startKey > ymd(end)).sort((a, b) => a.startKey.localeCompare(b.startKey) || a.time.localeCompare(b.time))[0];
-    return { text: `${label}은 ${what}이 없어요.${next ? `\n다음 ${what}은 ${mdw(fromKey(next.startKey))} ${next.allDay ? '' : `${next.time} `}‘${next.title}’이에요.` : ''}${moneyText}${beyond}`, chips: one && label === '오늘' ? [ask1('내일 일정 뭐야?')] : [] };
+    return { text: `${은(label)} ${what}${josa(what, '이', '가')} 없어요.${next ? `\n다음 ${what}은 ${mdw(fromKey(next.startKey))} ${next.allDay ? '' : `${next.time} `}‘${next.title}’이에요.` : ''}${moneyText}${beyond}`, chips: one && label === '오늘' ? [ask1('내일 일정 뭐야?')] : [] };
   }
   return { text: `${label} ${what}${lines.length > 1 ? `은 ${lines.length}개예요` : '이에요'}.\n${lines.join('\n')}${moneyText}${beyond}`, chips: label === '오늘' ? [ask1('오늘 할일 뭐야?')] : [] };
 }
@@ -787,6 +837,8 @@ function findEvent(ctx, text) {
     if (sc > top) { top = sc; best = [e]; } else if (sc === top) best.push(e);
   }
   best.sort((a, b) => (a.startKey < today) - (b.startKey < today) || a.startKey.localeCompare(b.startKey) || a.time.localeCompare(b.time));
+  // 말한 날에 그 일정이 없으면(요일을 헷갈렸거나 다음 주 걸 말한 경우) 날짜 없이 다시 찾아요
+  if (!best.length && day?.kind === 'day') return findEvent(ctx, text.replace(/(다음\s*주|담주|이번\s*주)?\s*[월화수목금토일]요일|\d{1,2}월\s*\d{1,2}일|\d{1,2}일|오늘|내일|모레/g, ' '));
   return best[0] || null;
 }
 const whenOf = (e) => `${eventLine({ ...e, date: e.startKey }).replace(` ${e.title}`, '')}`;
