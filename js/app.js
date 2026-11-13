@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261112n';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261112n';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261112n';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261112n';
-import { upcoming, fixedSummary, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261112n';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261112n';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261112n';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261112n';
-import { estimateMonths } from './estimate.js?v=20261112n';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261112n';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261112n';
-import { addFeedback, feedbackText } from './feedback.js?v=20261112n';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261112n';
-import { createGoogle, freshServerToken } from './google.js?v=20261112n';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261112n';
-import { createDemoGoogle } from './google-demo.js?v=20261112n';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261112n';
-import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261112n';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261112n';
+import { connect, isDemo } from './store.js?v=20261113a';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261113a';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261113a';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261113a';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261113a';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261113a';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261113a';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261113a';
+import { estimateMonths } from './estimate.js?v=20261113a';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261113a';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261113a';
+import { addFeedback, feedbackText } from './feedback.js?v=20261113a';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261113a';
+import { createGoogle, freshServerToken } from './google.js?v=20261113a';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261113a';
+import { createDemoGoogle } from './google-demo.js?v=20261113a';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261113a';
+import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261113a';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261113a';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -169,7 +169,9 @@ const FORMS = {
       { key: 'name', label: '이름', type: 'text', placeholder: '휴대폰 요금', required: true },
       { key: 'category', label: '분류', type: 'select', options: FIXED_CATS },
       { key: 'amount', label: '금액', type: 'won' },
-      { key: 'day', label: '매달 출금일', type: 'day', hint: '출금일 당일 아침 브리핑에 넣어 드려요. 31일은 짧은 달엔 말일로 계산해요' },
+      { key: 'cycle', label: '나가는 주기', type: 'seg', str: true, def: 'monthly', options: [['monthly', '매달'], ['yearly', '매년']] },
+      { key: 'month', label: '출금 월', type: 'select', options: Array.from({ length: 12 }, (_, i) => [String(i + 1), `${i + 1}월`]), showIf: { cycle: 'yearly' } },
+      { key: 'day', label: '출금일', type: 'day', hint: '출금일 당일 아침 브리핑에 넣어 드려요. 31일은 짧은 달엔 말일로 계산해요' },
       { key: 'account', label: '출금 계좌·카드 (선택)', type: 'text', placeholder: '주거래 통장' },
       { key: 'active', label: '지금 나가고 있는 지출', type: 'check', def: true, hint: '잠시 멈춘 구독 등은 끄면 합계와 알림에서 빠져요' },
     ],
@@ -518,6 +520,24 @@ function viewAssets() {
   ${updateLine(m)}`;
 }
 
+/** 고정지출 → 구독: 구독 서비스만 따로 모아 보기 (고정지출 중 분류가 '구독'인 것) */
+function subsSection(d, t0) {
+  const S = subsSummary(d.fixed, t0);
+  const add = '<button class="link-btn" data-action="add-sub">+ 구독 추가</button>';
+  if (!S.list.length) return section('구독', `<div class="panel">${empty('넷플릭스, 유튜브 프리미엄, 클라우드처럼 정기 결제하는 서비스를 추가해 보세요. 매달·매년 결제 모두 돼요.')}</div>`, { action: add });
+  const rows = S.list.map((f) => `<button class="row ${f.active === false ? 'dim' : ''}" data-action="edit" data-kind="fixed" data-id="${esc(f.id)}">
+      <span class="row-main"><span class="row-title">${esc(f.name)}</span><span class="row-meta">${[cycleLabel(f), f.account].filter(Boolean).map(esc).join(' · ')}${f.active === false ? ' · 멈춤' : ''}</span></span>
+      <span class="row-side"><span class="row-value">${wonExact(f.amount)}</span><span class="row-meta">${f.next ? `${f.dday === 0 ? '오늘 결제' : `${mdw(f.next)} · D-${f.dday}`}` : '멈춤'}</span></span>
+    </button>`).join('');
+  return section('구독', `<div class="panel">
+      <div class="stats sub-stats">
+        <div class="stat"><span class="eyebrow">한 달에</span><span class="stat-num">${wonExact(S.monthly)}</span><span class="stat-sub">매년 결제는 12로 나눠 더했어요</span></div>
+        <div class="stat"><span class="eyebrow">1년에</span><span class="stat-num">${wonExact(S.yearly)}</span><span class="stat-sub">구독 ${S.count}개${S.paused ? ` · 멈춤 ${S.paused}개` : ''}</span></div>
+      </div>
+      <div class="list">${rows}</div>
+    </div>`, { sum: `${S.count}개`, action: add });
+}
+
 /** 자산 탭 '예·적금': 상품 한눈에 보기 + 해마다 달별 추이 */
 function depositSection(d) {
   const deps = d.deposits || [];
@@ -795,7 +815,8 @@ function viewFixed() {
   const mo = t0.getMonth();
   const last = new Date(y, mo + 1, 0).getDate();
   const items = [
-    ...(d.fixed || []).map((f) => ({ kind: 'fixed', id: f.id, name: f.name, day: Number(f.day) || 1, amount: Number(f.amount) || 0, meta: [f.category, f.account].filter(Boolean).join(' · '), off: f.active === false })),
+    ...(d.fixed || []).filter((f) => f.cycle !== 'yearly' || (Number(f.month) || 1) - 1 === mo)
+      .map((f) => ({ kind: 'fixed', id: f.id, name: f.name, day: Number(f.day) || 1, amount: Number(f.amount) || 0, meta: [f.category, f.cycle === 'yearly' ? '매년' : '', f.account].filter(Boolean).join(' · '), off: f.active === false })),
     ...(d.debts || []).map((l) => {
       if (l.schedule?.length) {
         // 이번 달 스케줄 회차 (이미 나갔어도 보여줘요)
@@ -832,6 +853,7 @@ function viewFixed() {
   </div>
   <div class="cols"><div class="col-main">
   ${section(`${mo + 1}월 출금 일정`, `<div class="panel list">${rows || empty('휴대폰 요금, 관리비, 보험료처럼 매달 나가는 돈을 추가해 보세요. 출금일 아침 브리핑에 알려드려요.')}</div>`, { action: addBtn('fixed') })}
+  ${subsSection(d, t0)}
   </div><div class="col-side">
   ${s.categories.length ? section('분류별', `<div class="panel list">${s.categories.map((c) => `<div class="row static bar-row">
       <span class="row-title">${esc(c.name)}</span>
@@ -2059,7 +2081,7 @@ function moneyText(val) {
 function openForm(kind, item, preset = {}) {
   const spec = FORMS[kind];
   editing = { kind, id: item?.id };
-  let v = item || {};
+  let v = item || { ...preset };
   editing.schedule = item?.schedule || null;
   if (kind === 'stocks' && !item) {
     const mk = state.stockTabShown || 'us';
@@ -2626,6 +2648,7 @@ function bind() {
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
     if (a === 'trade') openTrade(id, b.dataset.type);
     if (a === 'deposit') openForm(b.dataset.type, null, { targetId: id, amount: b.dataset.amount });
+    if (a === 'add-sub') openForm('fixed', null, { category: '구독', cycle: 'monthly', active: true });
     if (a === 'dep-year') { state.depYear = Number(b.dataset.key); render(); }
     if (a === 'trade-undo') {
       const s = state.data.stocks.find((x) => x.id === id);

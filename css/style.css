@@ -1093,3 +1093,7 @@ dialog.memo-dialog form { padding: 14px 16px 12px; }
 .dep-year .mini-head b { font-size: 14px; color: var(--text-primary); }
 .dep-year .mnav { display: inline-flex; align-items: center; gap: 6px; }
 .dep-year .icon-btn:disabled { opacity: .3; cursor: default; }
+
+/* 고정지출 → 구독 */
+.sub-stats { border-bottom: 1px solid var(--border); }
+.sub-stats .stat-num { font-size: 20px; }

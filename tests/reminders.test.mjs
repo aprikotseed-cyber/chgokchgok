@@ -58,3 +58,26 @@ test('고정지출 합계와 이번 달 남은 금액', () => {
   assert.equal(s.count, 2);
   assert.deepEqual(s.categories.map((c) => c.name), ['주거', '통신']);
 });
+
+import { fixedNext, subsSummary, cycleLabel, fixedSummary as fs2, upcoming as up2 } from '../js/reminders.js';
+test('구독·매년 고정지출: 다음 결제일, 월 환산, 1년 합계', () => {
+  const today = new Date(2026, 10, 13);
+  const yearly = { id: 'y', name: '쿠팡 와우(연)', category: '구독', amount: 120000, cycle: 'yearly', month: '3', day: 2 };
+  const monthly = { id: 'm', name: '넷플릭스', category: '구독', amount: 17000, day: 20 };
+  const paused = { id: 'p', name: '멈춘 것', category: '구독', amount: 5000, day: 1, active: false };
+  assert.deepEqual(fixedNext(yearly, today), new Date(2027, 2, 2));
+  assert.deepEqual(fixedNext(monthly, today), new Date(2026, 10, 20));
+  assert.equal(cycleLabel(yearly), '매년 3월 2일');
+  const S = subsSummary([yearly, monthly, paused, { id: 'x', name: '관리비', category: '주거', amount: 1, day: 1 }], today);
+  assert.equal(S.monthly, 17000 + 10000);
+  assert.equal(S.yearly, 17000 * 12 + 120000);
+  assert.deepEqual([S.count, S.paused], [2, 1]);
+  assert.deepEqual(S.list.map((x) => x.id), ['m', 'y', 'p']);
+  // 고정지출 합계는 매년 결제를 월로 환산, 이번 달 남은 출금엔 매년 결제가 이번 달일 때만
+  const f = fs2([yearly, monthly], today);
+  assert.equal(f.total, 27000);
+  assert.equal(f.remaining, 17000);
+  // 다가오는 출금: 매년 결제는 그 달에만
+  assert.ok(!up2({ fixed: [yearly] }, today, 31).length);
+  assert.equal(up2({ fixed: [yearly] }, new Date(2027, 1, 28), 31)[0].date.getMonth(), 2);
+});
