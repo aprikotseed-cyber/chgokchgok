@@ -1,12 +1,12 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261113c';
-import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly } from './reminders.js?v=20261113c';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261113c';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261113c';
-import { won, wonExact, mdw, pct } from './format.js?v=20261113c';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261113c';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261113d';
+import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly } from './reminders.js?v=20261113d';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261113d';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261113d';
+import { won, wonExact, mdw, pct } from './format.js?v=20261113d';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261113d';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -100,6 +100,12 @@ export function parseTime(q, now) {
   if (/이번달|이달|금월/.test(q)) return month(y, m);
   const ym = q.match(/(20\d\d)년(\d{1,2})월/);
   if (ym) return month(Number(ym[1]), Number(ym[2]) - 1);
+  // '내년 2월', '올해 12월', '작년 3월': 해를 말로 하고 달까지 말하면 그 달
+  const rel = q.match(/(재작년|작년|지난해|전년|올해|금년|내년|다음해|명년|내후년|후년)(\d{1,2})월/);
+  if (rel && Number(rel[2]) >= 1 && Number(rel[2]) <= 12) {
+    const off = { 재작년: -2, 작년: -1, 지난해: -1, 전년: -1, 올해: 0, 금년: 0, 내년: 1, 다음해: 1, 명년: 1, 내후년: 2, 후년: 2 }[rel[1]];
+    return month(y + off, Number(rel[2]) - 1);
+  }
   const yy = q.match(/(20\d\d)년/);
   if (yy) return year(Number(yy[1]));
   if (/작년|지난해|전년/.test(q)) return year(y - 1);

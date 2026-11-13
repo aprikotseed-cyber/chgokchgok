@@ -143,3 +143,15 @@ test('대출: 일정 제목의 연도(2027년)에 끌려가지 않고 그 달 �
   // 일정 제목으로 물으면 여전히 그 일정
   assert.match(ask('2027년 대학원 수업 언제야?', data, market, now, agenda).text, /대학원 수업/);
 });
+
+test('때: "내년 2월"처럼 해를 말로 하고 달을 말하면 그 달만', () => {
+  const t = parseTime('내년2월예상상환금액은', now);
+  assert.equal(t.kind, 'month');
+  assert.equal(t.label, '2027년 2월');
+  assert.equal(parseTime('올해12월', now).label, '12월');
+  assert.equal(parseTime('작년3월', now).label, '2025년 3월');
+  assert.equal(parseTime('내년', now).kind, 'year');
+  const a = A('내년 2월 예상 상환 금액은?').text;
+  assert.match(a, /2월 17일/);
+  assert.doesNotMatch(a, /1월 18일|3월 17일/);
+});
