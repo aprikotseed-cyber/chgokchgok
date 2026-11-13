@@ -303,6 +303,14 @@ details > summary::after {
 details[open] > summary::after { transform: rotate(-135deg) translateY(-2px); }
 .panel > details, .pad + details, .chart-box + details, .caption + details { border-top: 1px solid var(--border); }
 .panel.month + .panel.month { margin-top: 8px; }
+/* 설정 → 처음 한 번 설정: 단계 이름 + 됐는지 */
+.panel.setup > details:first-child { border-top: 0; }
+.setup-name { display: flex; flex-direction: column; gap: 2px; margin-right: auto; min-width: 0; }
+.setup-name b { font-weight: 600; color: var(--text-primary); }
+.setup-name .hint { font-size: 12px; }
+.setup-tag { flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); color: var(--text-muted); }
+.setup-tag.ok { color: var(--down); }
+.setup-tag.todo { background: var(--hot-bg); color: var(--hot-ink); }
 .panel.month > summary { color: var(--text-primary); padding: 14px 18px; }
 .panel.month > summary b { font-size: 15px; }
 .panel.month > summary span { margin-left: auto; font-size: 13px; color: var(--text-muted); }

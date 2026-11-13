@@ -1,7 +1,7 @@
 // 할일: 차곡차곡에 직접 저장해요 (users/{uid}/tasks/{id}). 여러 기기에서 함께 보여요.
 // 구글 태스크는 앱에서 시간·반복을 넣을 수 없어서, 할일은 차곡차곡이 직접 관리하고 일정만 구글 캘린더와 연동해요.
 // task: { id, title, notes, due: 'YYYY-MM-DD'|'', time: 'HH:MM'|'', repeat: 규칙|null, series, done, completedAt, createdAt, updatedAt }
-import { nextFrom } from './agenda.js?v=20261113e';
+import { nextFrom } from './agenda.js?v=20261113f';
 
 const rid = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 

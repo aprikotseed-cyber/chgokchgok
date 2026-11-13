@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261113e';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261113e';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261113e';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261113e';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261113e';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261113e';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261113e';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261113e';
-import { estimateMonths } from './estimate.js?v=20261113e';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261113e';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261113e';
-import { addFeedback, feedbackText } from './feedback.js?v=20261113e';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261113e';
-import { createGoogle, freshServerToken } from './google.js?v=20261113e';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261113e';
-import { createDemoGoogle } from './google-demo.js?v=20261113e';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261113e';
-import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261113e';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261113e';
+import { connect, isDemo } from './store.js?v=20261113f';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261113f';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261113f';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261113f';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261113f';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261113f';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261113f';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261113f';
+import { estimateMonths } from './estimate.js?v=20261113f';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261113f';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261113f';
+import { addFeedback, feedbackText } from './feedback.js?v=20261113f';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261113f';
+import { createGoogle, freshServerToken } from './google.js?v=20261113f';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261113f';
+import { createDemoGoogle } from './google-demo.js?v=20261113f';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261113f';
+import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261113f';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261113f';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1112,64 +1112,88 @@ function viewSettings() {
   const p = state.push;
   const vapid = state.data.settings?.vapidKey || '';
   const mine = localStorage.getItem('chgok-push-token');
+  const token = state.secrets?.githubToken;
   const standaloneIOS = /iPhone|iPad/.test(navigator.userAgent) && !matchMedia('(display-mode: standalone)').matches;
-  let pushBody;
-  if (isDemo()) pushBody = '<p class="hint pad">체험 모드에서는 알림을 켤 수 없어요.</p>';
-  else if (!p.loaded) pushBody = '<p class="hint pad">확인 중…</p>';
-  else if (!p.supported) pushBody = `<p class="hint pad">${standaloneIOS ? '아이폰·아이패드는 Safari 공유 버튼 → 홈 화면에 추가한 뒤, 그 앱에서 알림을 켤 수 있어요.' : '이 브라우저는 푸시 알림을 지원하지 않아요.'}</p>`;
-  else pushBody = `
-    ${p.devices.length ? `<div class="list">${p.devices.map((x) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(x.device || '기기')}${x.token === mine ? ' <span class="badge">이 기기</span>' : ''}</span><span class="row-meta">${dateTime(x.addedAt)} 등록</span></span><button class="link-btn" data-action="push-remove" data-token="${esc(x.token)}">해제</button></div>`).join('')}</div>` : ''}
-    ${pushCheck(p, mine)}
-    ${p.devices.length && state.secrets?.githubToken ? '<div class="pad"><button class="btn" data-action="push-test">알림 시험 보내기 (서버에서 모든 기기로)</button></div>' : ''}
-    ${vapid ? `<div class="pad"><button class="btn primary" data-action="push-enable">${p.devices.some((x) => x.token === mine) ? '이 기기 다시 등록' : '이 기기에서 알림 받기'}</button></div>` : ''}
-    ${details('vapid', vapid ? '웹 푸시 키 바꾸기' : '처음 한 번: 웹 푸시 키 넣기', `<div class="pad">
+
+  // ── 알림: 받는 기기와 버튼만, 점검·설명은 접어 둬요 ──
+  let push;
+  if (isDemo()) push = '<p class="hint pad">체험 모드에서는 알림을 켤 수 없어요.</p>';
+  else if (!p.loaded) push = '<p class="hint pad">확인 중…</p>';
+  else if (!p.supported) push = `<p class="hint pad">${standaloneIOS ? '아이폰·아이패드는 Safari 공유 버튼 → 홈 화면에 추가한 뒤, 그 앱에서 알림을 켤 수 있어요.' : '이 브라우저는 푸시 알림을 지원하지 않아요.'}</p>`;
+  else if (!vapid) push = '<p class="pad">알림을 받으려면 아래 <b>처음 한 번 설정 → 웹 푸시 키</b>를 먼저 넣어 주세요.</p>';
+  else push = `
+    ${p.devices.map((x) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(x.device || '기기')}${x.token === mine ? ' <span class="badge">이 기기</span>' : ''}</span><span class="row-meta">${dateTime(x.addedAt)} 등록</span></span><button class="link-btn" data-action="push-remove" data-token="${esc(x.token)}">해제</button></div>`).join('')}
+    <div class="pad actions"><button class="btn primary" data-action="push-enable">${p.devices.some((x) => x.token === mine) ? '이 기기 다시 등록' : '이 기기에서 알림 받기'}</button>${p.devices.length && token ? '<button class="btn" data-action="push-test">시험 알림 보내기</button>' : ''}</div>
+    ${details('push-check', '알림이 안 올 때 점검하기', pushCheck(p, mine))}`;
+  const notify = `<div class="panel list">
+    <p class="pad">아침 <b>7시 30분 브리핑</b>, 시간 넣은 할일·일정은 <b>30분 전</b>에 알려 드려요.</p>
+    ${push}
+    ${details('notify-more', '어떤 알림이 오나요?', `<div class="pad"><p class="hint">아침 브리핑: 오늘 일정, 오늘 마감 할일과 지난 할일, 오늘이 상환일·출금일인 대출과 고정지출.<br>30분 전 알림: 시간을 넣은 할일과 구글 캘린더 일정(반려자·종일 일정 빼고), 한 번만.<br>앱 화면 알림 카드: 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p></div>`)}
+  </div>`;
+
+  // ── 주가·환율 ──
+  const market = `<div class="panel list">
+    <div class="row static"><span class="row-main"><span class="row-title">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)}</span><span class="row-meta">주택 실거래가 ${dateTime(state.market?.updatedAt)}</span></span></div>
+    ${token ? '<div class="pad actions"><button class="btn primary" data-action="refresh" data-kind="quotes">지금 업데이트</button><button class="btn" data-action="refresh" data-kind="full">실거래가까지</button></div>' : '<p class="pad hint">아래 <b>GitHub 토큰</b>을 넣으면 여기서 바로 업데이트할 수 있어요.</p>'}
+    ${details('market-more', '자동 업데이트는 언제 되나요?', '<div class="pad"><p class="hint">앱을 열 때 시세가 오래됐으면 알아서 새로 받아요. 아침 6시 20분이 지나 처음 열면 미국 주가 마감가·주택 실거래가까지, 평일 장중(9시~3시 50분)에는 주가·환율이 1시간 넘게 지났으면, 장 마감 뒤에는 마감가를 받아요. 1분쯤 뒤 저절로 반영돼요. 자산 탭 주식 제목 옆 업데이트 버튼도 같은 일을 해요.</p></div>')}
+  </div>`;
+
+  // ── 비서 개선 목록 ──
+  const misses = state.data.assistantMisses || [];
+  const fb = `<div class="panel list">${misses.length
+    ? `${misses.map((m, i) => ({ m, i })).reverse().map(({ m, i }) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(m.q)}</span><span class="row-meta">${[m.kind === 'wrong' || m.a ? '엉뚱한 답' : '모른다고 답함', m.want ? `원래 원한 것: ${esc(m.want)}` : '', dateTime(m.at)].filter(Boolean).join(' · ')}</span></span><button class="link-btn" data-action="fb-del" data-i="${i}">지우기</button></div>`).join('')}
+      <div class="pad actions"><button class="btn primary" data-action="fb-copy">목록 복사하기</button><button class="btn" data-action="misses-clear">목록 비우기</button></div>
+      <p class="hint pad">복사해서 Claude에게 붙여 넣으면 알아듣게 고치고 점검 질문에 더해 둬요. 금액은 N으로 가려져요.</p>`
+    : empty('비서 답이 엉뚱하면 말풍선 아래 ‘이 답이 맞지 않았나요?’를 눌러 주세요. 모르는 질문도 여기에 저절로 모여요.')}</div>`;
+
+  // ── 처음 한 번 설정: 한곳에 모아 접어 두고, 됐는지 표시 ──
+  const nv = state.agenda?.naver;
+  const tokenBody = `${token ? `<div class="row static"><span class="row-main"><span class="row-title">토큰 저장됨</span><span class="row-meta">${esc(token.slice(0, 15))}… · 이 계정의 모든 기기에서 사용</span></span><button class="link-btn" data-action="token-clear">지우기</button></div>` : ''}<div class="pad">
+      <p class="hint">주가 바로 업데이트, 자동 동기화, 알람, 단축어가 모두 이 토큰으로 GitHub 작업을 깨워요.</p>
+      <ol class="steps">
+        <li>PC에서 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub 새 토큰 만들기</a>를 열어요 (Fine-grained token).</li>
+        <li><b>Token name</b>: 차곡차곡 업데이트 · <b>Expiration</b>: 1년(또는 원하는 기간)</li>
+        <li><b>Repository access</b>: Only select repositories → <b>chgokchgok</b> 하나만</li>
+        <li><b>Permissions → Repository permissions → Actions</b>: <b>Read and write</b> (다른 권한은 그대로)</li>
+        <li>맨 아래 <b>Generate token</b> → github_pat_ 로 시작하는 토큰을 복사해서 아래에 붙여 넣고 저장</li>
+      </ol>
+      <p class="hint">토큰은 덕준님 계정에만 저장되고 공개 코드에는 들어가지 않아요. 이 저장소의 작업 실행밖에 할 수 없어요.</p>
+      <div class="inline"><input id="gh-token" type="password" placeholder="github_pat_…" autocomplete="off"><button class="btn" data-action="token-save">저장</button></div>
+    </div>`;
+  const vapidBody = `<div class="pad">
       <p class="hint">Firebase 콘솔 → 프로젝트 설정 → 클라우드 메시징 → 웹 푸시 인증서에서 <b>키 쌍 생성</b> 후 나온 키를 붙여 넣으세요. 공개용 키라 저장해도 안전해요.</p>
       <div class="inline"><input id="vapid" type="text" value="${esc(vapid)}" placeholder="B로 시작하는 긴 키" autocomplete="off"><button class="btn" data-action="vapid-save">저장</button></div>
-    </div>`)}`;
+    </div>`;
+  const steps = isDemo() ? [] : [
+    ['g-guide', '구글 연결 준비', 'PC에서 10분', !!gset().clientId, googleGuide()],
+    ['gh-token-guide', 'GitHub 토큰', 'PC에서 3분', !!token, tokenBody],
+    ['g-auto', '일정 자동 동기화', '앱을 안 열어도 최신 일정', autoLinked(), autoSyncGuide()],
+    ['vapid', '웹 푸시 키', '알림 받기 준비', !!vapid, vapidBody],
+    ['brief-clock', '아침 브리핑 정각 알람', 'cron-job.org, 5분', null, briefingClock()],
+    ['remind-clock', '30분 전 알림 알람', 'cron-job.org, 3분', null, remindClock()],
+    ['sc-guide', '아이폰 단축어', '앱을 안 열고 일정·할일·메모 넣기', null, shortcutPanel()],
+    ['naver-guide', '반려자 네이버 캘린더', '읽기만', nv && !nv.error ? true : null, naverGuide()],
+  ];
+  const tag = (done) => (done === true ? '<span class="setup-tag ok">완료</span>' : done === false ? '<span class="setup-tag todo">해야 함</span>' : '<span class="setup-tag">안내</span>');
+  const setup = steps.length ? `<div class="panel setup">${steps.map(([key, title, sub, done, body], n) => details(key, `<span class="setup-name"><b>${n + 1}. ${title}</b><span class="hint">${sub}</span></span>${tag(done)}`, body)).join('')}</div>` : '<div class="panel"><p class="hint pad">체험 모드에서는 연결 설정이 필요 없어요.</p></div>';
+  const known = steps.filter((x) => x[3] !== null);
 
   return `
   <div class="cols"><div class="col-main">
-  ${section('구글 캘린더·할일', googleSettings())}
-  ${section('아이폰 단축어', shortcutPanel())}
-  ${section('화면 잠금', lockSettings())}
-  ${section('비서 알림', `<div class="panel">
-      <p class="pad">매일 오전 7시 30분에 <b>아침 브리핑</b>을 보내 드려요: 오늘 일정, 오늘 마감 할일과 지난 할일, 그리고 <b>오늘이 상환일·출금일인</b> 대출 상환과 고정지출. 앱 화면(PC 알림 카드)에서는 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p>
-      ${pushBody}
-      ${briefingClock()}
-      ${remindClock()}
-    </div>`)}
-  ${section('비서 개선 목록', `<div class="panel list">${(state.data.assistantMisses || []).length
-      ? `${state.data.assistantMisses.map((m, i) => ({ m, i })).reverse().map(({ m, i }) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(m.q)}</span><span class="row-meta">${[m.kind === 'wrong' || m.a ? '엉뚱한 답' : '모른다고 답함', m.want ? `원래 원한 것: ${esc(m.want)}` : '', dateTime(m.at)].filter(Boolean).join(' · ')}</span></span><button class="link-btn" data-action="fb-del" data-i="${i}">지우기</button></div>`).join('')}
-        <div class="pad actions"><button class="btn primary" data-action="fb-copy">목록 복사하기</button><button class="btn" data-action="misses-clear">목록 비우기</button></div>
-        <p class="hint pad">복사한 내용을 Claude와의 대화에 붙여 넣으면, 이 질문들을 알아듣게 고치고 다시 틀리지 않도록 시험 문제로 저장해 둘게요. 금액은 N으로 가려져요.</p>`
-      : empty('비서 답이 엉뚱하면 말풍선 아래 ‘이 답이 맞지 않았나요?’를 눌러 주세요. 모르는 질문도 여기에 저절로 모여요.')}</div>`)}
-  ${section('지금 업데이트 버튼', `<div class="panel">
-      <p class="pad">자산 탭 주식 제목 옆 <b>업데이트</b>를 누르면 GitHub에서 Run workflow를 누른 것처럼 바로 주가·환율을 받아와요. 처음 한 번 GitHub 토큰을 넣어 주세요.</p>
-      ${state.secrets?.githubToken
-        ? `<div class="list"><div class="row static"><span class="row-main"><span class="row-title">토큰 저장됨</span><span class="row-meta">${esc(state.secrets.githubToken.slice(0, 15))}… · 이 계정의 모든 기기에서 사용</span></span><button class="link-btn" data-action="token-clear">지우기</button></div></div>
-           <div class="pad actions"><button class="btn primary" data-action="refresh" data-kind="quotes">주가·환율 지금 업데이트</button><button class="btn" data-action="refresh" data-kind="full">주택 실거래가까지</button></div>`
-        : ''}
-      ${details('gh-token-guide', state.secrets?.githubToken ? '토큰 바꾸기' : '처음 한 번: GitHub 토큰 넣기', `<div class="pad">
-        <ol class="steps">
-          <li>PC에서 <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub 새 토큰 만들기</a>를 열어요 (Fine-grained token).</li>
-          <li><b>Token name</b>: 차곡차곡 업데이트 · <b>Expiration</b>: 1년(또는 원하는 기간)</li>
-          <li><b>Repository access</b>: Only select repositories → <b>chgokchgok</b> 하나만</li>
-          <li><b>Permissions → Repository permissions → Actions</b>: <b>Read and write</b> (다른 권한은 그대로)</li>
-          <li>맨 아래 <b>Generate token</b> → github_pat_ 로 시작하는 토큰을 복사해서 아래에 붙여 넣고 저장</li>
-        </ol>
-        <p class="hint">토큰은 덕준님 계정에만 저장되고 공개 코드에는 들어가지 않아요. 이 저장소의 업데이트 작업을 실행하는 것밖에 할 수 없어요.</p>
-        <div class="inline"><input id="gh-token" type="password" placeholder="github_pat_…" autocomplete="off"><button class="btn" data-action="token-save">저장</button></div>
-      </div>`)}
-    </div>`)}
-  ${section('시세 자동 업데이트', `<div class="panel"><p class="pad">앱을 열 때 시세가 오래됐으면 알아서 새로 받아요. 아침 6시 20분이 지나 처음 열면 미국 주가 마감가·주택 실거래가까지, 평일 장중(9시~3시 50분)에는 주가·환율이 1시간 넘게 지났으면, 장 마감 뒤에는 마감가를 받아요. 1분쯤 뒤 저절로 반영돼요. GitHub 예약 실행도 그대로 두지만 몇 시간씩 늦을 수 있어요.</p><p class="hint pad">주가·환율 ${dateTime(state.market?.quotesAt || state.market?.updatedAt)} · 주택 실거래가 ${dateTime(state.market?.updatedAt)}</p></div>`)}
+  ${section('일정·캘린더', googleSettings())}
+  ${section('알림', notify)}
+  ${section('주가·환율', market)}
+  ${section('비서 개선 목록', fb, { sum: misses.length ? `${misses.length}개` : '' })}
+  ${section('처음 한 번 설정', setup, { sum: known.length ? `${known.filter((x) => x[3]).length}/${known.length} 완료` : '' })}
   </div><div class="col-side">
-  ${section('백업', `<div class="panel"><div class="pad actions">
-      <button class="btn" data-action="export">백업 파일 받기</button>
-      <label class="btn">백업 불러오기<input type="file" accept="application/json" id="import" hidden></label>
-    </div></div>`)}
   ${section('계정', `<div class="panel list">
       <div class="row static"><span class="row-main"><span class="row-title">${esc(state.user?.email || '')}</span><span class="row-meta">앱 버전 ${esc(APP_VERSION)} · <a href="privacy.html" target="_blank" rel="noopener">개인정보처리방침</a></span></span><button class="link-btn" data-action="logout">${isDemo() ? '체험 끝내기' : '로그아웃'}</button></div>
     </div>`)}
+  ${section('화면 잠금', lockSettings())}
+  ${section('백업', `<div class="panel"><div class="pad actions">
+      <button class="btn" data-action="export">백업 파일 받기</button>
+      <label class="btn">백업 불러오기<input type="file" accept="application/json" id="import" hidden></label>
+    </div><p class="hint pad">모든 기록을 파일 하나로 받아 둬요. 다른 기기나 새 계정으로 옮길 때 불러오면 돼요.</p></div>`)}
   </div></div>`;
 }
 
@@ -1180,11 +1204,10 @@ function pushCheck(p, mine) {
   const PERM = { granted: '허용됨', denied: '차단됨', default: '아직 묻지 않음', unsupported: '지원 안 함' };
   const ok = perm === 'granted' && registered;
   return `<div class="pad push-check">
-    <b class="mini-title">이 기기 알림 점검</b>
     <div class="check-line"><span>알림 권한</span><b class="${perm === 'granted' ? 'ok' : 'bad'}">${PERM[perm]}</b></div>
     <div class="check-line"><span>알림 받을 기기로 등록</span><b class="${registered ? 'ok' : 'bad'}">${registered ? '등록됨' : '안 됨'}</b></div>
     <div class="actions"><button class="btn" data-action="push-local">이 기기에서 바로 띄워 보기</button></div>
-    <p class="hint">바로 띄운 알림은 보이는데 ‘알림 시험 보내기’는 안 오면 → 위 <b>이 기기 다시 등록</b>을 눌러 주세요. 바로 띄운 알림도 안 보이면 → 기기 설정에서 이 앱(브라우저)의 알림이 꺼져 있거나 방해 금지·집중 모드가 켜져 있어요.${ok ? '' : ' 권한이 허용되고 등록돼야 알림을 받을 수 있어요.'}</p>
+    <p class="hint">바로 띄운 알림은 보이는데 ‘시험 알림 보내기’는 안 오면 → 위 <b>이 기기 다시 등록</b>을 눌러 주세요. 바로 띄운 알림도 안 보이면 → 기기 설정에서 이 앱(브라우저)의 알림이 꺼져 있거나 방해 금지·집중 모드가 켜져 있어요.${ok ? '' : ' 권한이 허용되고 등록돼야 알림을 받을 수 있어요.'}</p>
   </div>`;
 }
 
@@ -1473,7 +1496,13 @@ function autoSyncPanel() {
       ${err}<div class="pad actions"><button class="btn" data-action="g-auto-now">지금 새로 받기 (GitHub)</button></div>`;
   }
   if (sc.googleAuthCode && !sc.googleLinkError) return '<p class="pad">자동 동기화를 연결하는 중이에요. 1~2분 걸려요.</p>';
-  return `${err}${details('g-auto', '자동 동기화 켜기 (앱을 안 열어도 최신 일정·할일)', `<div class="pad">
+  return `${err}<div class="row static"><span class="row-main"><span class="row-title">자동 동기화 꺼짐</span><span class="row-meta">앱을 열 때만 새로 받아요. 켜는 방법은 아래 ‘처음 한 번 설정’에 있어요.</span></span></div>`;
+}
+
+/** 자동 동기화 켜는 방법 (처음 한 번) */
+function autoSyncGuide() {
+  if (autoLinked()) return '<p class="pad hint">켜져 있어요. 끄려면 위 ‘일정·캘린더’에서 끄기를 누르세요.</p>';
+  return `<div class="pad">
     <p class="hint">켜 두면 GitHub이 1시간마다 구글에서 일정·할일을 받아 둬요. 아침 브리핑과 비서가 늘 최신 내용으로 답하고, 앱에서도 구글 연결 없이 최신 일정이 보여요. 처음 한 번만 해 주세요.</p>
     <ol class="steps">
       <li><a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">구글 콘솔 → 사용자 인증 정보</a>에서 만들어 둔 <b>OAuth 클라이언트</b>(웹 애플리케이션)를 눌러요.</li>
@@ -1481,16 +1510,16 @@ function autoSyncPanel() {
       <li><a href="https://github.com/${repoFromLocation(location).owner}/${repoFromLocation(location).repo}/settings/secrets/actions/new" target="_blank" rel="noopener">GitHub 새 Secret 만들기</a>를 열어 Name에 <b>GOOGLE_CLIENT_SECRET</b>, Secret에 복사한 값을 넣고 Add secret.</li>
       <li>아래 <b>자동 동기화 켜기</b>를 누르고 구글 화면에서 허용해요.</li>
     </ol>
-    <p class="hint">보안 비밀번호는 GitHub Secrets에만 들어가고 공개 코드나 앱에는 들어가지 않아요. 앱 안 업데이트 버튼에 쓰는 GitHub 토큰이 필요해요${state.secrets?.githubToken ? ' (저장돼 있어요)' : ' (아래 ‘지금 업데이트 버튼’에서 먼저 넣어 주세요)'}.</p>
+    <p class="hint">보안 비밀번호는 GitHub Secrets에만 들어가고 공개 코드나 앱에는 들어가지 않아요. 앱 안 업데이트 버튼에 쓰는 GitHub 토큰이 필요해요${state.secrets?.githubToken ? ' (저장돼 있어요)' : ' (먼저 ‘GitHub 토큰’을 넣어 주세요)'}.</p>
     <button class="btn primary" data-action="g-auto-on">자동 동기화 켜기</button>
-  </div>`)}`;
+  </div>`;
 }
 
 /** 아침 브리핑을 8시 정각에: GitHub 예약은 몇 시간씩 늦어서 외부 알람(cron-job.org)이 깨워요 */
 function briefingClock() {
   const { owner, repo } = repoFromLocation(location);
   const code = (label, value, copy) => `<div class="sc-row"><span class="sc-label">${label}</span><code>${esc(value)}</code>${copy ? `<button class="link-btn" data-action="sc-copy" data-what="${copy}">복사</button>` : ''}</div>`;
-  return details('brief-clock', '아침 브리핑 7시 30분 정각에 받기 (처음 한 번, 5분)', `<div class="pad">
+  return `<div class="pad">
     <p class="hint">GitHub 무료 예약 실행은 붐비는 시간에 몇 시간씩 늦거나 건너뛰어요. 그래서 무료 알람 서비스가 매일 7시 30분에 GitHub을 깨우게 해요. 같은 날 두 번 오지 않고, GitHub 예약이 늦게(10시 30분 넘어) 돌면 보내지 않아요.</p>
     <ol class="steps">
       <li><a href="https://cron-job.org/en/signup/" target="_blank" rel="noopener">cron-job.org</a>에 무료로 가입하고 로그인해요.</li>
@@ -1503,18 +1532,18 @@ function briefingClock() {
     </ol>
     <div class="sc-codes">
       ${code('①', `https://api.github.com/repos/${owner}/${repo}/actions/workflows/notify.yml/dispatches`, 'notify-url')}
-      ${code('②', state.secrets?.githubToken ? 'GitHub 토큰 (저장된 것)' : '아래 ‘지금 업데이트 버튼’에서 먼저 넣어 주세요', state.secrets?.githubToken ? 'gh-token' : '')}
+      ${code('②', state.secrets?.githubToken ? 'GitHub 토큰 (저장된 것)' : '먼저 ‘GitHub 토큰’을 넣어 주세요', state.secrets?.githubToken ? 'gh-token' : '')}
       ${code('③', '{"ref":"main"}', 'ref-body')}
     </div>
     <p class="hint">GitHub 토큰은 이 저장소의 작업 실행 권한만 있어요. 그만 쓰려면 cron-job.org에서 이 알람을 지우면 돼요.</p>
-  </div>`);
+  </div>`;
 }
 
 /** 할일·일정 30분 전 알림: cron-job.org가 5분마다 GitHub을 깨워요 */
 function remindClock() {
   const { owner, repo } = repoFromLocation(location);
   const code = (label, value, copy) => `<div class="sc-row"><span class="sc-label">${label}</span><code>${esc(value)}</code>${copy ? `<button class="link-btn" data-action="sc-copy" data-what="${copy}">복사</button>` : ''}</div>`;
-  return details('remind-clock', '할일·일정 30분 전 알림 받기 (처음 한 번, 3분)', `<div class="pad">
+  return `<div class="pad">
     <p class="hint">시간을 넣은 할일과 구글 캘린더 일정(반려자·종일 일정 빼고)을 시작 30분 전에 한 번 알려 드려요. 5분마다 확인해서 몇 분 차이가 날 수 있어요. 아침 브리핑 알람을 만든 것과 같은 방법이에요.</p>
     <ol class="steps">
       <li><a href="https://cron-job.org/" target="_blank" rel="noopener">cron-job.org</a> → <b>Dashboard</b> → <b>CREATE CRONJOB</b>
@@ -1525,10 +1554,10 @@ function remindClock() {
     </ol>
     <div class="sc-codes">
       ${code('①', `https://api.github.com/repos/${owner}/${repo}/actions/workflows/remind.yml/dispatches`, 'remind-url')}
-      ${code('②', state.secrets?.githubToken ? 'GitHub 토큰 (저장된 것)' : '아래 ‘지금 업데이트 버튼’에서 먼저 넣어 주세요', state.secrets?.githubToken ? 'gh-token' : '')}
+      ${code('②', state.secrets?.githubToken ? 'GitHub 토큰 (저장된 것)' : '먼저 ‘GitHub 토큰’을 넣어 주세요', state.secrets?.githubToken ? 'gh-token' : '')}
       ${code('③', '{"ref":"main"}', 'ref-body')}
     </div>
-  </div>`);
+  </div>`;
 }
 
 /** 아이폰 단축어: 일정·할일·메모를 앱을 열지 않고 넣기 */
@@ -1536,9 +1565,9 @@ function shortcutPanel() {
   const { owner, repo } = repoFromLocation(location);
   const code = (label, value, copy) => `<div class="sc-row"><span class="sc-label">${label}</span><code>${esc(value)}</code>${copy ? `<button class="link-btn" data-action="sc-copy" data-what="${copy}">복사</button>` : ''}</div>`;
   const ready = autoLinked() && state.secrets?.githubToken;
-  return `<div class="panel"><p class="pad">단축어나 시리로 ‘일정 · 할일 · 메모’를 고르고 말하면, 앱을 열지 않아도 30초~1분 뒤 구글 캘린더·태스크와 메모에 들어가고 휴대폰 알림으로 알려드려요.</p>
-    ${ready ? '' : `<p class="pad warn">먼저 ${autoLinked() ? '' : '위의 <b>자동 동기화</b>와 '}아래 <b>지금 업데이트 버튼</b>의 GitHub 토큰을 준비해 주세요.</p>`}
-    ${details('sc-guide', '단축어 만들기 (처음 한 번, 아이폰에서)', `<div class="pad">
+  return `<div class="pad">
+      <p class="hint">단축어나 시리로 ‘일정 · 할일 · 메모’를 고르고 말하면, 앱을 열지 않아도 30초~1분 뒤 구글 캘린더와 차곡차곡에 들어가고 휴대폰 알림으로 알려드려요. 아이폰에서 만들어요.</p>
+      ${ready ? '' : `<p class="warn">먼저 ${autoLinked() ? '' : '<b>자동 동기화</b>와 '}<b>GitHub 토큰</b>을 준비해 주세요.</p>`}
       <p class="hint">말한 내용은 덕준님만 읽을 수 있는 Firestore 받은편지함에 먼저 넣고, GitHub에는 ‘처리해 줘’ 신호만 보내요. 저장소가 공개라서 내용이 공개 기록에 남지 않게 하려는 거예요.</p>
       <ol class="steps">
         <li>단축어 앱 → <b>+</b> → 이름을 <b>차곡차곡에 추가</b>로 해요. (시리에게 이 이름으로 부를 수 있어요)</li>
@@ -1555,11 +1584,10 @@ function shortcutPanel() {
         ${code('②', '단축어 키 (로그인 유지 토큰, 길어요)', 'key')}
         ${code('③', 'https://firestore.googleapis.com/v1/projects/chgokchgok/databases/(default)/documents/users/[user_id]/inbox', 'inbox-url')}
         ${code('④', `https://api.github.com/repos/${owner}/${repo}/actions/workflows/agenda-sync.yml/dispatches`, 'gh-url')}
-        ${code('⑤', state.secrets?.githubToken ? 'GitHub 토큰 (저장된 것)' : '아래 ‘지금 업데이트 버튼’에서 먼저 넣어 주세요', state.secrets?.githubToken ? 'gh-token' : '')}
+        ${code('⑤', state.secrets?.githubToken ? 'GitHub 토큰 (저장된 것)' : '먼저 ‘GitHub 토큰’을 넣어 주세요', state.secrets?.githubToken ? 'gh-token' : '')}
       </div>
       <p class="hint">단축어 키와 GitHub 토큰은 이 아이폰 단축어 안에만 두세요. 비밀번호를 바꾸면 단축어 키가 바뀌니 ②를 다시 복사해 넣으면 돼요. 일정은 말한 캘린더 이름(‘라이프에 …’) → 나만의 낱말 → 기본 규칙 순서로 캘린더를 골라요.</p>
-    </div>`)}
-  </div>`;
+    </div>`;
 }
 
 /** 나만의 낱말: '라스런' → Life 처럼, 이 낱말이 들어간 일정은 정한 캘린더로 */
@@ -1575,14 +1603,19 @@ function keywordPanel() {
 }
 
 /** 반려자 네이버 캘린더 (GitHub 자동 동기화가 CalDAV로 읽어 와요) */
-function naverPanel() {
+function naverStatus() {
   const nv = state.agenda?.naver;
   const cals = (state.agenda?.calendars || []).filter((c) => c.ext === 'naver');
   const status = nv?.error
     ? `<p class="pad warn">네이버 캘린더를 받지 못했어요: ${esc(nv.error)} (${dateTime(nv.at)})</p>`
     : nv ? `<div class="row static"><span class="row-main"><span class="row-title">네이버 캘린더 연결됨</span><span class="row-meta">${cals.map((c) => esc(c.name)).join(', ') || '캘린더 없음'} · 일정 ${nv.count}개 · ${dateTime(nv.at)}</span></span></div>
       ${nv.debug?.length ? details('naver-debug', '진단 정보 (일정이 안 보이면 캡처해서 Claude에게 보여 주세요)', `<div class="pad"><pre class="debug">${esc(nv.debug.map((d) => Object.entries(d).map(([k, v]) => `${k}: ${v}`).join(' · ')).join('\n\n'))}</pre></div>`) : ''}` : '';
-  return `${status}${details('naver-guide', nv && !nv.error ? '네이버 캘린더 설정 다시 보기' : '반려자 네이버 캘린더 연결 (읽기만)', `<div class="pad">
+  return status;
+}
+
+/** 반려자 네이버 캘린더 연결 방법 (처음 한 번) */
+function naverGuide() {
+  return `<div class="pad">
     <p class="hint">GitHub 자동 동기화가 1시간마다 반려자분의 네이버 캘린더를 읽어 와서, 반려자 일정으로 하루 맨 뒤에 보여줘요. 네이버 캘린더를 바꾸지는 않아요. 자동 동기화가 켜져 있어야 해요.</p>
     <ol class="steps">
       <li><b>반려자분 휴대폰·PC</b>에서 <a href="https://nid.naver.com" target="_blank" rel="noopener">네이버 내정보</a> → 보안설정을 열어 <b>2단계 인증</b>을 켜요 (이미 켜져 있으면 건너뛰기).</li>
@@ -1591,7 +1624,7 @@ function naverPanel() {
       <li>위의 <b>지금 새로 받기 (GitHub)</b>를 누르고 1~2분 기다려요. 네이버 캘린더가 ‘보여줄 캘린더’ 목록에 ‘(네이버)’로 생기고, 반려자로 체크돼 있어요.</li>
     </ol>
     <p class="hint">비밀번호는 GitHub Secrets에만 들어가요. 반려자분이 네이버 보안설정에서 그 애플리케이션 비밀번호를 지우면 언제든 연결이 끊겨요.</p>
-  </div>`)}`;
+  </div>`;
 }
 
 /** 구글 연결 상태 한 줄 (일정·할일 화면 위) */
@@ -1782,36 +1815,40 @@ function lockSettings() {
   </div>`;
 }
 
-/** 설정 → 구글 캘린더·할일 */
-function googleSettings() {
+/** 구글 연결 준비 방법 (처음 한 번) */
+function googleGuide() {
   const gs = gset();
-  const a = state.agenda;
-  const guide = details('g-guide', gs.clientId ? '클라이언트 ID 바꾸기 · 설정 방법 다시 보기' : '처음 한 번: 구글 연결 준비 (PC에서 10분)', `<div class="pad">
+  return `<div class="pad">
     <ol class="steps">
       <li><a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">구글 클라우드 콘솔</a>에서 새 프로젝트를 만들어요 (이름: 차곡차곡).</li>
-      <li>API 및 서비스 → 라이브러리에서 <b>Google Calendar API</b>와 <b>Google Tasks API</b>를 각각 찾아 <b>사용</b>을 눌러요.</li>
+      <li>API 및 서비스 → 라이브러리에서 <b>Google Calendar API</b>를 찾아 <b>사용</b>을 눌러요.</li>
       <li>API 및 서비스 → OAuth 동의 화면: 사용자 유형 <b>외부</b>, 앱 이름 차곡차곡, 이메일은 덕준님 주소. 테스트 사용자에 덕준님 구글 계정을 추가하고, 마지막에 <b>앱 게시</b>(프로덕션으로)를 눌러 두면 연결이 7일마다 끊기지 않아요.</li>
       <li>API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → <b>OAuth 클라이언트 ID</b> → 유형 <b>웹 애플리케이션</b>. 승인된 자바스크립트 원본에 <b>https://aprikotseed-cyber.github.io</b> 를 넣고 만들기.</li>
       <li>나온 <b>클라이언트 ID</b>(….apps.googleusercontent.com)를 아래에 붙여 넣고 저장 → 구글 연결하기.</li>
     </ol>
     <p class="hint">클라이언트 ID는 공개돼도 괜찮은 값이에요. 연결할 때 구글 화면에서 ‘확인되지 않은 앱’이 나오면 고급 → 차곡차곡(으)로 이동을 누르면 돼요 (덕준님이 직접 만든 앱이라 그래요).</p>
     <div class="inline"><input id="g-client" type="text" value="${esc(gs.clientId || '')}" placeholder="…apps.googleusercontent.com" autocomplete="off"><button class="btn" data-action="g-client-save">저장</button></div>
-  </div>`);
-  if (isDemo()) return `<div class="panel"><p class="pad">체험 모드에서는 예시 일정·할일을 보여줘요. 실제 구글 연결은 로그인한 앱에서 할 수 있어요.</p>${keywordPanel()}</div>`;
-  if (!gs.clientId) return `<div class="panel"><p class="pad">구글 캘린더 일정을 앱에서 함께 보고, 여기서 넣고 고친 일정은 구글 캘린더에도 그대로 기록돼요. (할일은 차곡차곡에 저장돼요)</p>${guide}</div>`;
+  </div>`;
+}
+
+/** 설정 → 일정·캘린더: 지금 상태와 자주 쓰는 것만 */
+function googleSettings() {
+  const gs = gset();
+  const a = state.agenda;
+  if (isDemo()) return `<div class="panel"><p class="pad">체험 모드에서는 예시 일정을 보여줘요. 실제 구글 연결은 로그인한 앱에서 할 수 있어요.</p>${keywordPanel()}</div>`;
+  if (!gs.clientId) return '<div class="panel"><p class="pad">구글 캘린더를 아직 연결하지 않았어요. 아래 <b>처음 한 번 설정 → 구글 연결 준비</b>부터 해 주세요.</p></div>';
   const conn = gConnected();
   const cals = a?.calendars || [];
   return `<div class="panel list">
     <div class="row static"><span class="row-main"><span class="row-title">${conn ? '연결됨' : a ? '저장된 일정을 보여주는 중' : '아직 연결 전'}</span><span class="row-meta">${a?.syncedAt ? `마지막으로 받은 때 ${dateTime(a.syncedAt)}` : '구글 연결하기를 누르면 구글 화면에서 허용을 눌러 주세요'}${conn ? ' · 이 창에서 1시간 동안 연결돼요' : ''}</span></span>
       ${conn ? '<button class="link-btn" data-action="g-disconnect">연결 끊기</button>' : ''}</div>
     <div class="pad actions"><button class="btn primary" data-action="g-sync">${conn ? '지금 새로 받기' : '구글 연결하기'}</button></div>
-    ${cals.length ? `<div class="pad"><b class="mini-title">보여줄 캘린더</b><div class="cal-prefs">${cals.filter((c) => !calPref(c).hidden).map((c) => { const p = calPref(c); return `<div class="cal-pref"><label><input type="checkbox" data-cal-show="${esc(c.id)}" ${p.show ? 'checked' : ''}><span class="ev-dot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</label><span class="cal-opts"><label class="hint"><input type="checkbox" data-cal-partner="${esc(c.id)}" ${p.partner ? 'checked' : ''}>반려자</label><button class="link-btn" data-action="cal-hide" data-id="${esc(c.id)}">숨기기</button></span></div>`; }).join('')}</div>
+    ${cals.length ? details('cal-list', `보여줄 캘린더 <span class="hint">${cals.filter((c) => calPref(c).show && !calPref(c).hidden).length}개 켜짐</span>`, `<div class="pad"><div class="cal-prefs">${cals.filter((c) => !calPref(c).hidden).map((c) => { const p = calPref(c); return `<div class="cal-pref"><label><input type="checkbox" data-cal-show="${esc(c.id)}" ${p.show ? 'checked' : ''}><span class="ev-dot" style="--c:${esc(c.color)}"></span>${esc(c.name)}</label><span class="cal-opts"><label class="hint"><input type="checkbox" data-cal-partner="${esc(c.id)}" ${p.partner ? 'checked' : ''}>반려자</label><button class="link-btn" data-action="cal-hide" data-id="${esc(c.id)}">숨기기</button></span></div>`; }).join('')}</div>
       ${cals.some((c) => calPref(c).hidden) ? details('cal-hidden', `숨긴 캘린더 ${cals.filter((c) => calPref(c).hidden).length}개`, `<div class="cal-prefs">${cals.filter((c) => calPref(c).hidden).map((c) => `<div class="cal-pref"><span class="hint"><span class="ev-dot" style="--c:${esc(c.color)}"></span> ${esc(c.name)}</span><button class="link-btn" data-action="cal-unhide" data-id="${esc(c.id)}">다시 보이기</button></div>`).join('')}</div>`) : ''}
-      <p class="hint">반려자 캘린더 일정은 하루 일정 맨 뒤에 보여줘요. 새로 켠 캘린더는 다음에 받아올 때부터 보여요.</p></div>` : ''}
-    ${autoSyncPanel()}
-    ${naverPanel()}
+      <p class="hint">반려자 캘린더 일정은 하루 일정 맨 뒤에 보여줘요. 새로 켠 캘린더는 다음에 받아올 때부터 보여요.</p></div>`) : ''}
     ${keywordPanel()}
-    ${guide}
+    ${autoSyncPanel()}
+    ${naverStatus()}
   </div>`;
 }
 
