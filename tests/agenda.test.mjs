@@ -89,9 +89,9 @@ import { parseEventInput, pickLocation } from '../js/agenda.js';
 test('일정의 장소: "장소는 …"을 장소 칸으로', () => {
   const now = new Date('2026-11-13T10:00:00+09:00');
   const cals = [{ name: 'Life' }, { name: 'Work' }];
-  const p = parseEventInput('11월 19일 오후 5시~6시반 대학원 수업 . 장소는 인천캠퍼스 예지관 107호', now, cals);
+  const p = parseEventInput('11월 19일 오후 5시~6시반 대학원 수업 . 장소는 본관 201호', now, cals);
   assert.equal(p.title, '대학원 수업');
-  assert.equal(p.location, '인천캠퍼스 예지관 107호');
+  assert.equal(p.location, '본관 201호');
   assert.equal(p.time, '17:00');
   assert.equal(p.endTime, '18:30');
   assert.equal(p.calName, 'Life');

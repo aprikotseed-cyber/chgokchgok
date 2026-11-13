@@ -1,7 +1,7 @@
 // 매달 정해진 날짜에 나가는 돈(대출 상환, 고정지출)의 일정과 알림.
 // 화면과 GitHub Actions 알림 스크립트가 함께 씁니다. 날짜는 시각 없이 '그날'로만 다룹니다.
-import { currentPayment, loanBalance } from './projection.js?v=20261113d';
-import { nextScheduled, ymd } from './schedule.js?v=20261113d';
+import { currentPayment, loanBalance } from './projection.js?v=20261113e';
+import { nextScheduled, ymd } from './schedule.js?v=20261113e';
 
 const DAY = 86_400_000;
 

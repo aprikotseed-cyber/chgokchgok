@@ -505,7 +505,7 @@ export function pickCalendar(text, calendars = [], keywords = []) {
 }
 
 /** 일정 한 줄 → 일정 + 캘린더 이름 (말한 캘린더 / 나만의 낱말 / 기본 규칙 순) */
-/** '장소는 인천캠퍼스 예지관 107호' → 장소를 떼어 내요 (장소 말은 맨 뒤에 붙는 게 보통이에요) */
+/** '장소는 본관 201호' → 장소를 떼어 내요 (장소 말은 맨 뒤에 붙는 게 보통이에요) */
 const PLACE_RE = /(?:^|[\s.,·])장소\s*(?:는|은|:|：)\s*(.+)$|(?:^|[\s.,·])장소\s+(.+)$/;
 export function pickLocation(text) {
   const s = String(text || '');
