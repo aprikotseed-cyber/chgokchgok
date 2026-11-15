@@ -9,10 +9,6 @@ on:
         description: '브리핑 대신 시험 알림만 보내기'
         type: boolean
         default: false
-      preview:
-        description: '오늘 브리핑을 지금 그대로 보내 보기 (오늘 보낸 기록은 남기지 않아요)'
-        type: boolean
-        default: false
 
 jobs:
   notify:
@@ -37,4 +33,3 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           TEST: ${{ inputs.test }}
-          PREVIEW: ${{ inputs.preview }}
