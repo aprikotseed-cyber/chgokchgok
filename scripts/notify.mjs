@@ -37,15 +37,13 @@ if (process.env.TEST === 'true') {
   }
   process.exit(0);
 }
-// 설정의 '아침 브리핑 지금 받아 보기': 오늘 브리핑을 그대로 보내 보되, 오늘 보낸 기록은 남기지 않아요
-const preview = process.env.PREVIEW === 'true';
 const mobile = (d) => /iPhone|iPad|Android/.test(d || '');
 
 for (const doc of mains) {
-  if (late && !preview) break;
+  if (late) break;
   const pushRef = doc.ref.parent.doc('push');
   // 하루에 한 번만 (외부 알람과 GitHub 예약이 둘 다 돌아도)
-  if (!preview && (await pushRef.get()).data()?.lastBriefing === todayKey) { console.log('오늘 브리핑은 이미 보냈어요'); continue; }
+  if ((await pushRef.get()).data()?.lastBriefing === todayKey) { console.log('오늘 브리핑은 이미 보냈어요'); continue; }
   // 앱에서 구글 캘린더를 받아 저장해 둔 일정
   const agenda = (await doc.ref.parent.doc('agenda').get()).data() || null;
   // 할일은 차곡차곡에 직접 저장된 것 (users/{uid}/tasks)
@@ -66,9 +64,9 @@ for (const doc of mains) {
       fcmOptions: { link: `${APP_URL}#home` },
     },
   })));
-  console.log(`보냄 ${res.successCount}, 실패 ${res.failureCount}${preview ? ' (미리 받아 보기)' : ''}`);
+  console.log(`보냄 ${res.successCount}, 실패 ${res.failureCount}`);
   res.responses.forEach((r, i) => console.log(`· ${devices[i].device || '기기'}: ${r.success ? '보냄' : r.error?.code}`));
-  if (res.successCount && !preview) await pushRef.set({ lastBriefing: todayKey }, { merge: true });
+  if (res.successCount) await pushRef.set({ lastBriefing: todayKey }, { merge: true });
 
   // 앱을 지웠거나 알림을 끈 기기는 목록에서 정리
   const dead = new Set();

@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261116a';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261116a';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261116a';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261116a';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261116a';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261116a';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261116a';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261116a';
-import { estimateMonths } from './estimate.js?v=20261116a';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261116a';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261116a';
-import { addFeedback, feedbackText } from './feedback.js?v=20261116a';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261116a';
-import { createGoogle, freshServerToken } from './google.js?v=20261116a';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261116a';
-import { createDemoGoogle } from './google-demo.js?v=20261116a';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261116a';
-import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261116a';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261116a';
+import { connect, isDemo } from './store.js?v=20261116b';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261116b';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261116b';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261116b';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261116b';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261116b';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261116b';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261116b';
+import { estimateMonths } from './estimate.js?v=20261116b';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261116b';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261116b';
+import { addFeedback, feedbackText } from './feedback.js?v=20261116b';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261116b';
+import { createGoogle, freshServerToken } from './google.js?v=20261116b';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261116b';
+import { createDemoGoogle } from './google-demo.js?v=20261116b';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261116b';
+import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261116b';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261116b';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1123,7 +1123,7 @@ function viewSettings() {
   else if (!vapid) push = '<p class="pad">알림을 받으려면 아래 <b>처음 한 번 설정 → 웹 푸시 키</b>를 먼저 넣어 주세요.</p>';
   else push = `
     ${p.devices.map((x) => `<div class="row static"><span class="row-main"><span class="row-title">${esc(x.device || '기기')}${x.token === mine ? ' <span class="badge">이 기기</span>' : ''}</span><span class="row-meta">${dateTime(x.addedAt)} 등록</span></span><button class="link-btn" data-action="push-remove" data-token="${esc(x.token)}">해제</button></div>`).join('')}
-    <div class="pad actions"><button class="btn primary" data-action="push-enable">${p.devices.some((x) => x.token === mine) ? '이 기기 다시 등록' : '이 기기에서 알림 받기'}</button>${p.devices.length && token ? '<button class="btn" data-action="push-test">시험 알림 보내기</button><button class="btn" data-action="push-brief">아침 브리핑 지금 받아 보기</button>' : ''}</div>
+    <div class="pad actions"><button class="btn primary" data-action="push-enable">${p.devices.some((x) => x.token === mine) ? '이 기기 다시 등록' : '이 기기에서 알림 받기'}</button>${p.devices.length && token ? '<button class="btn" data-action="push-test">시험 알림 보내기</button>' : ''}</div>
     ${details('push-check', '알림이 안 올 때 점검하기', pushCheck(p, mine))}`;
   const notify = `<div class="panel list">
     <p class="pad">아침 <b>7시 30분 브리핑</b>, 시간 넣은 할일·일정은 <b>30분 전</b>에 알려 드려요.</p>
@@ -2778,12 +2778,6 @@ function bind() {
         await reg.showNotification('차곡차곡', { body: '이 기기에서 바로 띄운 알림이에요. 이게 보이면 기기 설정은 괜찮아요.', icon: 'icon-192.png', tag: `local-${Date.now()}` });
         toast('알림을 띄웠어요. 화면 위나 알림 센터를 확인해 주세요.');
       } catch (err) { toast(`띄우지 못했어요: ${err.message}`); }
-    }
-    if (a === 'push-brief') {
-      try {
-        await dispatchWorkflow(repoFromLocation(location), state.secrets.githubToken, 'notify.yml', fetch, { preview: 'true' });
-        toast('오늘 아침 브리핑을 그대로 다시 보내요. 1분 안에 와요.');
-      } catch (err) { toast(err.message); }
     }
     if (a === 'push-test') {
       try {
