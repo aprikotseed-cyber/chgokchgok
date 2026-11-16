@@ -8,7 +8,7 @@ function schedule() {
   for (let n = 1; n <= 360 && bal > 0; n++) {
     const d = new Date(2024, 2 + n, 17);
     const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-17`;
-    const interest = Math.round(bal * 0.0325);
+    const interest = Math.round((bal * 0.0325) / 12);
     const principal = Math.min(bal, 600_000 + n * 1000);
     bal -= principal;
     rows.push({ n, due: ds, date: ds, payment: principal + interest, principal, interest, balance: bal });
@@ -30,8 +30,8 @@ export const DATA = {
   ],
   homes: [{ id: 'h1', name: '우리 집', aptName: '예시마을', share: 100, useAuto: false, manualPrice: 950_000_000, purchasePrice: 830_000_000 }],
   debts: [
-    { id: 'd1', name: '보금자리론', kind: '주택담보대출', schedule: schedule() },
-    { id: 'd2', name: '교직원공제회', kind: '교직원공제회', original: 50_000_000, balance: 40_000_000, rate: 4.1, payDay: 17, method: 'equal', maturity: '2031-03' },
+    { id: 'd1', name: '보금자리론', kind: '주택담보대출', schedule: schedule(), prepayFee: 1.2, feeEnd: '2027-06' },
+    { id: 'd2', name: '교직원공제회', kind: '교직원공제회', original: 50_000_000, balance: 40_000_000, rate: 4.1, payDay: 17, method: 'equal', maturity: '2031-03', prepayFee: 0 },
   ],
   fixed: [
     { id: 'f1', name: '아파트 관리비', category: '주거', amount: 238_000, day: 25, account: '주거래 통장' },

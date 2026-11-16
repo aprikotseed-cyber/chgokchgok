@@ -1,12 +1,13 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261116b';
-import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261116b';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261116b';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261116b';
-import { won, wonExact, mdw, pct } from './format.js?v=20261116b';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261116b';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261116c';
+import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261116c';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261116c';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261116c';
+import { won, wonExact, mdw, pct } from './format.js?v=20261116c';
+import { simulatePrepay, prepayFee } from './prepay.js?v=20261116c';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261116c';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -235,6 +236,8 @@ function route(question, data, market, now, agenda, memos) {
   // '와이파이 비번 바뀜 메모해줘', '메모: …': 메모 남기기 (바로 저장) / '와이파이 메모 찾아줘': 메모 찾기
   if (MEMO_SAVE.test(q) || /^메모\s*[:：]/.test(question.trim())) return { via: 'memoSave', ...memoSave(question) };
   if (q.includes('메모')) return { via: 'memoFind', ...memoFind(q, memos) };
+  // '보금자리 3천만원 먼저 갚으면 월상환액 얼마로 줄어?': 중도상환 계산
+  if ((data.debts || []).length && asksPrepay(q)) return { via: 'prepay', ...prepayAnswer(ctx, question) };
   // '목요일 면담을 수요일 2시로 옮겨줘', '면담 일정 지워줘': 일정 옮기기·지우기 (확인 카드로)
   if (agenda && (MOVE_RE.test(q) || DEL_RE.test(q)) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) {
     const r = changeAnswer(ctx, now);
@@ -881,6 +884,139 @@ function changeAnswer(ctx, now) {
 }
 const toMin = (hm) => (hm ? Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) : 0);
 const hmOf = (m) => `${String(Math.floor(Math.min(m, 1439) / 60)).padStart(2, '0')}:${String(Math.min(m, 1439) % 60).padStart(2, '0')}`;
+
+
+// ───── 중도상환 ─────
+const KDIGIT = { 영: 0, 공: 0, 일: 1, 이: 2, 삼: 3, 사: 4, 오: 5, 육: 6, 칠: 7, 팔: 8, 구: 9 };
+const KSMALL = { 십: 10, 백: 100, 천: 1000 };
+/** '3천', '오백', '1500', '1.5' → 숫자 (만·억 단위 앞부분) */
+function smallNum(seg) {
+  if (!seg) return 0;
+  if (/^\d+(\.\d+)?$/.test(seg)) return Number(seg);
+  let total = 0;
+  let cur = null;
+  for (const m of seg.matchAll(/\d+(?:\.\d+)?|[영공일이삼사오육칠팔구십백천]/g)) {
+    const t = m[0];
+    if (/\d/.test(t)) cur = Number(t);
+    else if (t in KDIGIT) cur = KDIGIT[t];
+    else { total += (cur ?? 1) * KSMALL[t]; cur = null; }
+  }
+  return total + (cur ?? 0);
+}
+/**
+ * 질문 속 금액(원). '3천만원', '3,000만 원', '1억 5천', '오백만원', '천만원', '1.5억', '30000000원', '500'(만원으로 봐요)
+ * 연도·날짜·회차(2027년, 12월, 3회…)는 빼요.
+ */
+export function parseAmount(raw) {
+  const s = String(raw || '').replace(/,/g, '').replace(/\s+/g, '');
+  const re = /(?:\d+(?:\.\d+)?|[일이삼사오육칠팔구]?[십백천]|[일이삼사오육칠팔구](?=[십백천만억]))[\d.일이삼사오육칠팔구십백천만억]*(원(?!금))?/g;
+  for (const m of s.matchAll(re)) {
+    const tok = m[0];
+    const nextCh = s[m.index + tok.length] || '';
+    // '2027년', '12월', '3회', '5%'처럼 단위 없는 숫자 뒤에 날짜·횟수가 붙으면 금액이 아니에요
+    if (/^[년월일회개%시분번주살층평호]/.test(nextCh) && !/[만억원천백]/.test(tok)) continue;
+    let t = tok.replace(/원$/, '');
+    // '500만만 갚아도', '1억만 갚아도': 끝의 '만'은 '…만(only)'
+    if (/[만억]만$/.test(t)) t = t.slice(0, -1);
+    if (!/\d|[십백천만억]/.test(t)) continue;
+    let v = 0;
+    let rest = t;
+    const eok = rest.split('억');
+    if (eok.length > 1) {
+      v += smallNum(eok[0] || '1') * 1e8;
+      rest = eok.slice(1).join('');
+      // '1억 5천'은 1억 5천만이에요
+      if (rest && !rest.includes('만') && smallNum(rest) < 10000) { v += smallNum(rest) * 1e4; rest = ''; }
+    }
+    const man = rest.split('만');
+    if (man.length > 1) { v += smallNum(man[0] || '1') * 1e4; rest = man.slice(1).join(''); }
+    v += smallNum(rest);
+    if (!v) continue;
+    // 단위 없이 '500', '3000'만 말하면 만원으로 (대출 이야기에서 500원·3000원을 갚을 일은 없어요)
+    if (!/[만억원]/.test(tok) && v < 100000) v *= 1e4;
+    if (v < 10000) continue;
+    return Math.round(v);
+  }
+  return null;
+}
+
+const PREPAY_RE = /갚아도|상환해도|갚아버려도|중도상환|중도에갚|조기상환|미리갚|먼저갚|미리상환|먼저상환|일부상환|부분상환|추가상환|추가로갚|더갚|선상환|원금상환|원금을?갚|원금만갚|목돈|털어|털면|갚으면|갚는다면|갚을경우|갚는경우|갚아버리면|갚았을때|갚을때|상환하면|상환한다면|상환시|상환할경우|상환했을때|넣으면|넣는다면|중도상환수수료|상환수수료/;
+const PAYOFF_ALL_RE = /(전액|전부|다|한번에|한꺼번에|싹|완전히|몽땅)(상환|갚)/;
+function asksPrepay(q) {
+  const loanTalk = /대출|원금|상환|중도|빚|주담대|공제회|보금자리|대출금|월상환|월납입|납입금/.test(q);
+  if (!loanTalk && !/갚/.test(q)) return false;
+  if (/중도상환|조기상환|상환수수료|일부상환|부분상환|추가상환|선상환/.test(q)) return true;
+  if (PAYOFF_ALL_RE.test(q) && /얼마|필요|드는|들어|수수료|하려면|으려면|있어야/.test(q)) return true;
+  return PREPAY_RE.test(q) && parseAmount(q) != null;
+}
+
+const monthsText = (n) => (n >= 12 ? `${Math.floor(n / 12)}년${n % 12 ? ` ${n % 12}개월` : ''}` : `${n}개월`);
+const yearRate = (sim, loan) => (loan.schedule?.length && sim.balance ? (sim.next ? (loanFirstInterest(loan, sim) / sim.balance) * 1200 : 0) : Number(loan.rate) || 0);
+function loanFirstInterest(loan, sim) {
+  const r = loan.schedule.find((x) => x.date === sim.next?.date);
+  return r ? r.interest : 0;
+}
+function feeLine(f) {
+  if (!f.known) return '· 중도상환수수료: 수수료율을 넣지 않아서 빼고 계산했어요. 부채 탭에서 대출을 눌러 넣을 수 있어요.';
+  if (!f.rate) return '· 중도상환수수료: 없어요.';
+  if (f.ended) return '· 중도상환수수료: 수수료 기간이 끝나서 없어요.';
+  return `· 중도상환수수료: 약 ${wonExact(f.fee)} (${pct(f.rate, 2)}${f.feeEnd && f.ratio < 1 ? `, ${Number(f.feeEnd.slice(0, 4))}년 ${Number(f.feeEnd.slice(5))}월까지 남은 기간만큼 줄어든 금액` : ''})`;
+}
+
+function prepayAnswer(ctx, raw) {
+  const { list, picked } = loansOf(ctx);
+  const q = ctx.q;
+  const wantsAll = PAYOFF_ALL_RE.test(q);
+  const amount = parseAmount(raw);
+  if (!wantsAll && amount == null) {
+    // 금액 없이 물으면: 대출별 남은 원금과 수수료, 그리고 물어보는 법
+    return {
+      text: `얼마를 먼저 갚을지 말씀해 주시면 월상환액과 아끼는 이자를 계산해 드릴게요.\n${list.map((l) => {
+        const f = prepayFee(l, 10_000_000, ctx.now);
+        const fee = !f.known ? '수수료율 미입력' : !f.rate ? '수수료 없음' : f.ended ? '수수료 기간 끝남' : `수수료 ${pct(f.rate, 2)}${f.feeEnd ? ` (${Number(f.feeEnd.slice(0, 4))}년 ${Number(f.feeEnd.slice(5))}월까지)` : ''}, 1천만원 갚으면 약 ${wonExact(f.fee)}`;
+        return `· ${l.name}: 남은 원금 ${wonExact(simulatePrepay(l, 0, ctx.now).balance)} · ${fee}`;
+      }).join('\n')}\n예: ‘${list[0]?.name || '대출'} 3천만원 먼저 갚으면?’`,
+      chips: list.slice(0, 2).map((l) => ask1(`${l.name} 1000만원 먼저 갚으면?`)),
+    };
+  }
+  const focusTerm = /기간|만기|일찍|빨리|단축|몇년|몇개월|언제끝/.test(q);
+  const blocks = [];
+  const sims = [];
+  for (const l of list) {
+    const sim = simulatePrepay(l, wantsAll ? Infinity : amount, ctx.now);
+    sims.push({ l, sim });
+    if (sim.empty) { blocks.push(`${l.name}: 남은 원금이 없어요.`); continue; }
+    const f = sim.fee;
+    if (sim.all) {
+      const need = sim.balance + (f.fee || 0);
+      blocks.push(`${l.name}${wantsAll ? `${josa(l.name, '을', '를')} 한 번에 다 갚으려면` : `${josa(l.name, '은', '는')} 남은 원금이 ${wonExact(sim.balance)}이라 다 갚게 돼요. 그러려면`} ${wonExact(need)}이 필요해요.${f.fee ? ` (원금 ${wonExact(sim.balance)} + 수수료 ${wonExact(f.fee)})` : ''}${sim.interestBefore ? `\n· 앞으로 낼 이자 약 ${won(sim.interestBefore)}을 아껴요.` : ''}\n${feeLine(f)}`);
+      continue;
+    }
+    const lines = [`${l.name}에 ${wonExact(sim.amount)}을 먼저 갚으면${sim.next.date ? ` (${mdw(toDate(sim.next.date))} 회차부터)` : ''}`];
+    const monthly = `· 월상환액: ${wonExact(sim.next.before)} → 약 ${wonExact(sim.next.after)} (${wonExact(sim.next.before - sim.next.after)} 줄어요)${l.method === 'graduated' || l.schedule?.length ? ' · 다음 회차 기준' : ''}`;
+    if (!sim.term) {
+      lines.push(`· 매달 이자: 약 ${wonExact(sim.monthlyInterestSaved)} 줄어요.`, `· 남은 원금: ${wonExact(sim.balance)} → ${wonExact(sim.after)}`);
+    } else {
+      const shorter = sim.shorter ? `· 기간을 줄이면: 월상환액은 그대로, ${monthsText(sim.shorter.months)} 일찍 끝나고 이자 약 ${won(sim.shorter.saved)}을 아껴요.` : '';
+      const lower = `· 월상환액을 줄이면: 만기까지 이자 약 ${won(sim.lower.saved)}을 아껴요.`;
+      if (focusTerm && shorter) lines.push(shorter, monthly, lower);
+      else lines.push(monthly, lower, shorter);
+      lines.push(`· 남은 원금: ${wonExact(sim.balance)} → ${wonExact(sim.after)}`);
+    }
+    lines.push(feeLine(f));
+    blocks.push(lines.filter(Boolean).join('\n'));
+  }
+  let tail = '\n\n금리가 그대로라고 보고 계산한 예상이에요. 실제 금액은 은행에서 확인해 주세요.';
+  if (wantsAll && sims.length > 1) {
+    const need = sims.reduce((a, x) => a + (x.sim.empty ? 0 : x.sim.balance + (x.sim.fee.fee || 0)), 0);
+    blocks.unshift(`대출을 모두 갚으려면 ${wonExact(need)}이 필요해요.`);
+  }
+  if (!picked && sims.length > 1 && !wantsAll) {
+    const rated = sims.filter((x) => !x.sim.empty).map((x) => ({ ...x, rate: yearRate(x.sim, x.l) })).sort((a, b) => b.rate - a.rate);
+    if (rated.length > 1 && rated[0].rate) tail = `\n\n어느 대출에 갚을지 고르신다면: 보통 금리가 높은 쪽부터 갚는 게 이득이에요. ${rated.map((x) => `${x.l.name} 연 약 ${pct(x.rate, 2)}`).join(', ')}.${rated[0].sim.fee.fee ? ` 다만 ${rated[0].l.name}${josa(rated[0].l.name, '은', '는')} 수수료 약 ${wonExact(rated[0].sim.fee.fee)}도 함께 따져 보세요.` : ''}${tail}`;
+  }
+  return { text: `${blocks.join('\n\n')}${tail}` };
+}
 
 // ───── 메모 ─────
 const MEMO_SAVE = /(메모해|메모로남겨|메모남겨|메모해둬|적어둬|기억해둬|기억해줘)/;
