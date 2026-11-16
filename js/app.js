@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261116c';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261116c';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261116c';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261116c';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261116c';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261116c';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261116c';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261116c';
-import { estimateMonths } from './estimate.js?v=20261116c';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261116c';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261116c';
-import { addFeedback, feedbackText } from './feedback.js?v=20261116c';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261116c';
-import { createGoogle, freshServerToken } from './google.js?v=20261116c';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261116c';
-import { createDemoGoogle } from './google-demo.js?v=20261116c';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261116c';
-import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261116c';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261116c';
+import { connect, isDemo } from './store.js?v=20261116d';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261116d';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261116d';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261116d';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261116d';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261116d';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261116d';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261116d';
+import { estimateMonths } from './estimate.js?v=20261116d';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261116d';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261116d';
+import { addFeedback, feedbackText } from './feedback.js?v=20261116d';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261116d';
+import { createGoogle, freshServerToken } from './google.js?v=20261116d';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261116d';
+import { createDemoGoogle } from './google-demo.js?v=20261116d';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261116d';
+import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261116d';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261116d';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -86,7 +86,7 @@ const FORMS = {
     title: '할일',
     fields: [
       { key: 'title', label: '할일', type: 'text', required: true },
-      { key: 'due', label: '마감일', type: 'date', optional: true, hint: '비워 두면 날짜 없는 할일이에요.' },
+      { key: 'due', label: '마감일', type: 'date', optional: true, hint: '새 할일은 오늘로 들어가요. 지우면 날짜 없는 할일이에요.' },
       { key: 'time', label: '시간', type: 'time', hint: '선택. 시간을 넣으면 30분 전에 알려 드려요.' },
       { key: 'repeat', label: '반복', type: 'select', options: REPEAT_CHOICES, hint: '끝내면 다음 차례 할일을 만들어 드려요' },
       { key: 'notes', label: '메모', type: 'text', placeholder: '선택' },
@@ -1320,15 +1320,17 @@ function putTask(t) {
 function addTask(text) {
   const { title, due, repeat, time } = parseQuickTask(text, now());
   if (!title) return false;
-  addTaskItem(title, due, { time, repeat });
+  addTaskItem(title, due || today(), { time, repeat }); // 날짜를 안 쓰면 오늘 할일로
   return true;
 }
 
 /** 할일 미리보기 한 줄 */
 function taskPreview(text) {
-  const { title, due, repeat, time } = parseQuickTask(text, now());
+  const p = parseQuickTask(text, now());
+  const { title, repeat, time } = p;
   if (!title) return ENTER_HINT;
-  return `‘${title}’ · ${due ? `${dueLabel(due, today())}${time ? ` ${time}` : ''}${due <= today() || repeat ? '' : '까지'}` : time ? `${time}` : '날짜 없음'}${repeat ? ` · ${repeatLabel(repeat, due)}` : ''}${time ? ' · 30분 전 알림' : ''}`;
+  const due = p.due || today(); // 날짜를 안 쓰면 오늘
+  return `‘${title}’ · ${dueLabel(due, today())}${time ? ` ${time}` : ''}${due <= today() || repeat ? '' : '까지'}${p.due ? '' : ' (날짜를 안 써서 오늘)'}${repeat ? ` · ${repeatLabel(repeat, due)}` : ''}${time ? ' · 30분 전 알림' : ''}`;
 }
 
 async function addTaskItem(title, due, { time = '', repeat = null, notes = '' } = {}, quiet = false) {
@@ -2123,6 +2125,7 @@ function openForm(kind, item, preset = {}) {
   const spec = FORMS[kind];
   editing = { kind, id: item?.id };
   let v = item || { ...preset };
+  if (kind === 'task' && !item && !v.due) v.due = today(); // 새 할일은 오늘 날짜로 시작
   editing.schedule = item?.schedule || null;
   if (kind === 'stocks' && !item) {
     const mk = state.stockTabShown || 'us';

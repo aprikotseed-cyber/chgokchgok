@@ -93,7 +93,9 @@ async function handleInbox(userRef, item, ctx) {
     return `${cal.name}: ${eventLine(ev)}${ev.repeat ? ` (${repeatLabel(ev.repeat, ev.date)})` : ''}`;
   }
   // 할일: 차곡차곡에 직접 저장 (시간·반복도 그대로)
-  const { title, due, repeat, time } = parseQuickTask(text, new Date());
+  const p = parseQuickTask(text, new Date());
+  const { title, repeat, time } = p;
+  const due = p.due || dayKey(new Date()); // 날짜를 안 쓰면 오늘 할일로
   if (!title) throw new Error('할일 내용을 알아듣지 못했어요');
   const t = makeTask({ title, due, time, repeat });
   const { id, ...doc } = t;
