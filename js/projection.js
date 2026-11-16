@@ -1,4 +1,4 @@
-import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261116b';
+import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261116c';
 // 자산·부채 계산과 연도별 예측. 화면(app.js)과 테스트가 함께 쓰는 순수 함수만 둡니다.
 // 금액 단위는 모두 '원'입니다.
 
@@ -248,4 +248,30 @@ export function graduatedInfo(loan, now = new Date()) {
   if (l.method !== 'graduated' || l._gradD == null) return null;
   const n = (monthsFrom(now, l.maturity) ?? 0) - (l._grace || 0);
   return { step: l._gradD, now: l._payNow, last: l._payNow + (n - 1) * l._gradD, months: n };
+}
+
+/**
+ * 앞으로 낼 회차들 [{date?, payment, principal, interest}] (오늘 이후). 중도상환 계산용
+ *  - 상환스케줄을 불러온 대출: 스케줄 그대로
+ *  - 그 밖: 금리·상환 방식·만기로 매달 계산 (만기가 없으면 term: false)
+ */
+export function loanRows(loan, now = new Date()) {
+  if (loan.schedule?.length) {
+    const key = ymd(now);
+    return { balance: scheduleBalanceAt(loan.schedule, key), term: true, rows: loan.schedule.filter((r) => r.date > key).map((r) => ({ date: r.date, payment: r.payment, principal: r.principal, interest: r.interest })) };
+  }
+  const l = prepareLoan(loan, now);
+  let b = Number(loan.balance) || 0;
+  const balance = b;
+  if (monthsFrom(now, loan.maturity) == null) {
+    const m = loanMonth(b, l, 1);
+    return { balance, term: false, rows: [{ payment: m.interest + m.principal, principal: m.principal, interest: m.interest }] };
+  }
+  const rows = [];
+  for (let step = 1; step <= 600 && b > 0.5; step++) {
+    const m = loanMonth(b, l, step);
+    rows.push({ payment: m.interest + m.principal, principal: m.principal, interest: m.interest });
+    b -= m.principal;
+  }
+  return { balance, term: true, rows };
 }

@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261116b';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261116b';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261116b';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261116b';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261116b';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261116b';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261116b';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261116b';
-import { estimateMonths } from './estimate.js?v=20261116b';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261116b';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261116b';
-import { addFeedback, feedbackText } from './feedback.js?v=20261116b';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261116b';
-import { createGoogle, freshServerToken } from './google.js?v=20261116b';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261116b';
-import { createDemoGoogle } from './google-demo.js?v=20261116b';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261116b';
-import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261116b';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261116b';
+import { connect, isDemo } from './store.js?v=20261116c';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261116c';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261116c';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261116c';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261116c';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261116c';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261116c';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261116c';
+import { estimateMonths } from './estimate.js?v=20261116c';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261116c';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261116c';
+import { addFeedback, feedbackText } from './feedback.js?v=20261116c';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261116c';
+import { createGoogle, freshServerToken } from './google.js?v=20261116c';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261116c';
+import { createDemoGoogle } from './google-demo.js?v=20261116c';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261116c';
+import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261116c';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261116c';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -161,6 +161,8 @@ const FORMS = {
       { key: 'maturity', label: '만기', type: 'month', noSchedule: true },
       { key: 'graceEnd', label: '거치기간 끝 (선택)', type: 'month', showIf: { method: ['annuity', 'equal', 'graduated'] }, noSchedule: true, hint: '이때까지는 이자만 내요' },
       { key: 'account', label: '출금 계좌', type: 'text', placeholder: '예: 신한 주거래 통장', hint: '상환일 알림과 일정에 함께 보여드려요' },
+      { key: 'prepayFee', label: '중도상환수수료율', type: 'pct', def: '', hint: '수수료가 없는 상품은 0. 비서가 원금을 먼저 갚을 때의 수수료를 계산해요' },
+      { key: 'feeEnd', label: '수수료 없어지는 때', type: 'month', hint: '보통 대출 받은 날로부터 3년 뒤. 그때까지 남은 기간만큼 수수료가 줄어드는 걸로 계산해요' },
     ],
   },
   fixed: {
