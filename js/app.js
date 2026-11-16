@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261116d';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261116d';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261116d';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261116d';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261116d';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261116d';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261116d';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261116d';
-import { estimateMonths } from './estimate.js?v=20261116d';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261116d';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261116d';
-import { addFeedback, feedbackText } from './feedback.js?v=20261116d';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261116d';
-import { createGoogle, freshServerToken } from './google.js?v=20261116d';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261116d';
-import { createDemoGoogle } from './google-demo.js?v=20261116d';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261116d';
-import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261116d';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261116d';
+import { connect, isDemo } from './store.js?v=20261116e';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261116e';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261116e';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261116e';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261116e';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261116e';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261116e';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261116e';
+import { estimateMonths } from './estimate.js?v=20261116e';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261116e';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261116e';
+import { addFeedback, feedbackText } from './feedback.js?v=20261116e';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261116e';
+import { createGoogle, freshServerToken } from './google.js?v=20261116e';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261116e';
+import { createDemoGoogle } from './google-demo.js?v=20261116e';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261116e';
+import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261116e';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261116e';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -2861,19 +2861,22 @@ function bind() {
       const input = $('#event-input');
       const p = parseEventInput(input.value, now(), writableCals(), gset().keywords);
       if (!p.title) return;
-      createEvent({ ...p, date: p.date || today(), calId: defaultCal(p.title, p.calName)?.id });
+      // 넣으면 화면을 바로 다시 그려요. 쓰던 글 지키기가 옛 글을 되살리지 않게 먼저 비워요
       input.value = '';
       $('#event-preview').textContent = ENTER_HINT;
+      createEvent({ ...p, date: p.date || today(), calId: defaultCal(p.title, p.calName)?.id });
       return;
     }
     if (e.target.id !== 'task-add') return;
     e.preventDefault();
     const input = $('#task-input');
-    if (!input.value.trim()) return input.focus();
-    if (!addTask(input.value)) return input.focus(); // 시간이 있으면 넣지 않고 글은 그대로 둬요
+    const text = input.value;
+    if (!text.trim()) return input.focus();
+    // 넣으면 화면을 바로 다시 그려요. 쓰던 글 지키기가 옛 글을 되살리지 않게 먼저 비워요
     input.value = '';
     $('#task-preview').textContent = ENTER_HINT;
-    input.focus();
+    if (!addTask(text)) { input.value = text; $('#task-preview').textContent = taskPreview(text); }
+    $('#task-input')?.focus(); // 다시 그린 뒤의 새 입력칸
   });
   $('#view').addEventListener('change', async (e) => {
     const cs = e.target.dataset.calShow || e.target.dataset.calPartner;
