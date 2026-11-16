@@ -1,13 +1,13 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261116e';
-import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261116e';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261116e';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261116e';
-import { won, wonExact, mdw, pct } from './format.js?v=20261116e';
-import { simulatePrepay, prepayFee } from './prepay.js?v=20261116e';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261116e';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261116f';
+import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261116f';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261116f';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261116f';
+import { won, wonExact, mdw, pct } from './format.js?v=20261116f';
+import { simulatePrepay, prepayFee } from './prepay.js?v=20261116f';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261116f';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -759,8 +759,8 @@ function tasksAnswer(ctx) {
 }
 
 // ───── 일정·할일 넣기 ─────
-const ADD_RE = /(추가|넣어|넣기|넣자|잡아줘|잡아줄|잡자|등록|저장해줘|적어줘|기록해줘|메모해줘)/;
-const CMD_RE = /\s*(을|를)?\s*(일정|할일|할 일|약속|스케줄|투두)?\s*(을|를|으로|로|에)?\s*(캘린더|구글|달력|목록)?(에|에다)?\s*(좀\s*)?(추가|넣어|넣기|넣자|잡아|잡자|등록|저장|적어|기록|메모)(해|하|줘|줄래|주세요|줘요|주라|요|좀|\s)*/;
+const ADD_RE = /(추가|넣어|넣기|넣자|잡아줘|잡아줄|잡자|등록|저장해줘|적어줘|기록해줘|메모해줘|입력|기입|써줘|써놔|써둬|만들어줘|생성)/;
+const CMD_RE = /\s*(을|를)?\s*(일정|할일|할 일|약속|스케줄|투두)?\s*(을|를|으로|로|에)?\s*(캘린더|구글|달력|목록)?(에|에다)?\s*(좀\s*)?(추가|넣어|넣기|넣자|잡아|잡자|등록|저장|적어|기록|메모|입력|기입|써|만들어|생성)(해|하|줘|줄래|주세요|줘요|주라|요|좀|놔|둬|\s)*/;
 
 /**
  * 질문에서 넣을 내용만: '내일 3시 상담 일정 잡아 줘' → '내일 3시 상담'
@@ -995,7 +995,9 @@ function prepayAnswer(ctx, raw) {
     const lines = [`${l.name}에 ${wonExact(sim.amount)}을 먼저 갚으면${sim.next.date ? ` (${mdw(toDate(sim.next.date))} 회차부터)` : ''}`];
     const monthly = `· 월상환액: ${wonExact(sim.next.before)} → 약 ${wonExact(sim.next.after)} (${wonExact(sim.next.before - sim.next.after)} 줄어요)${l.method === 'graduated' || l.schedule?.length ? ' · 다음 회차 기준' : ''}`;
     if (!sim.term) {
-      lines.push(`· 매달 이자: 약 ${wonExact(sim.monthlyInterestSaved)} 줄어요.`, `· 남은 원금: ${wonExact(sim.balance)} → ${wonExact(sim.after)}`);
+      // 만기가 없으면 원금 상환 계획을 알 수 없어서 이자만으로 계산해요 (만기일시는 원래 이자만 내요)
+      lines.push(`· 월상환액: ${wonExact(sim.next.before)} → 약 ${wonExact(sim.next.after)} (${wonExact(sim.next.before - sim.next.after)} 줄어요)`, `· 남은 원금: ${wonExact(sim.balance)} → ${wonExact(sim.after)}`);
+      if (l.method !== 'bullet') lines.push('· 만기가 입력되지 않아서 이자만으로 계산했어요. 부채 탭에서 이 대출의 만기를 넣으면 원금까지 포함한 월상환액과 아끼는 이자를 계산해 드려요.');
     } else {
       const shorter = sim.shorter ? `· 기간을 줄이면: 월상환액은 그대로, ${monthsText(sim.shorter.months)} 일찍 끝나고 이자 약 ${won(sim.shorter.saved)}을 아껴요.` : '';
       const lower = `· 월상환액을 줄이면: 만기까지 이자 약 ${won(sim.lower.saved)}을 아껴요.`;

@@ -38,3 +38,12 @@ test('금액 읽기: 숫자·한글·만/억 섞어 써도', () => {
   for (const [q, v] of Object.entries(cases)) assert.equal(parseAmount(q), v, q);
   for (const q of ['이자 3%', '10월에 상환한 원금', '2027년 2월', '3회차']) assert.equal(parseAmount(q), null, q);
 });
+
+test('중도상환: 만기를 안 넣은 대출도 월상환액 줄도록 보여 주고, 만기를 넣으라고 안내', async () => {
+  const { ask } = await import('../js/assistant.js');
+  const data = { debts: [{ id: 'd2', name: '교직원공제회', kind: '교직원공제회', balance: 40_000_000, rate: 4.1, payDay: 17, method: 'annuity' }], fixed: [], savings: [] };
+  const r = ask('교직원공제회 대출 1000만원을 중도상환하면 월 상환액이 얼마가 돼?', data, {}, now);
+  assert.equal(r.via, 'prepay');
+  assert.match(r.text, /월상환액: 136,667원 → 약 102,500원/);
+  assert.match(r.text, /만기가 입력되지 않아서/);
+});
