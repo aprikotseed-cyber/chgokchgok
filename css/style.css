@@ -277,6 +277,11 @@ a.stat:hover { background: var(--surface-2); }
 .row-title:has(.log-acct) { min-width: 0; }
 .row-title:has(.log-acct) .date, .log-acct { flex-shrink: 0; white-space: nowrap; }
 .log-acct { color: var(--text-muted); font-weight: 400; }
+.log-chips { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--border); }
+.log-chips .pill.on { border-color: var(--text-primary); color: var(--text-primary); font-weight: 600; }
+.sort-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; vertical-align: -2px; }
+.sort-btn.on { color: var(--text-primary); }
+.log-total { background: var(--surface-2); }
 .log-memo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge {
   display: inline-block; flex-shrink: 0; min-width: 40px; text-align: center;
