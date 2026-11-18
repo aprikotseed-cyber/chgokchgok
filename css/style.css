@@ -273,6 +273,11 @@ a.stat:hover { background: var(--surface-2); }
 .cal-day { width: 2.4em; flex-shrink: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
 .cal-day small { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-left: 1px; }
 .date { display: inline-block; min-width: 2.6em; color: var(--text-muted); font-weight: 400; }
+/* 저축 내역: 날짜 · 계좌(흐리게) · 입금 내역을 한 줄로, 길면 내역만 … 으로 줄여요 */
+.row-title:has(.log-acct) { min-width: 0; }
+.row-title:has(.log-acct) .date, .log-acct { flex-shrink: 0; white-space: nowrap; }
+.log-acct { color: var(--text-muted); font-weight: 400; }
+.log-memo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge {
   display: inline-block; flex-shrink: 0; min-width: 40px; text-align: center;
   font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 6px;
