@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261118c';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker } from './projection.js?v=20261118c';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261118c';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261118c';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261118c';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261118c';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261118c';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261118c';
-import { estimateMonths } from './estimate.js?v=20261118c';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261118c';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261118c';
-import { addFeedback, feedbackText } from './feedback.js?v=20261118c';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261118c';
-import { createGoogle, freshServerToken } from './google.js?v=20261118c';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261118c';
-import { createDemoGoogle } from './google-demo.js?v=20261118c';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261118c';
-import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261118c';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261118c';
+import { connect, isDemo } from './store.js?v=20261118d';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261118d';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261118d';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261118d';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261118d';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261118d';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261118d';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261118d';
+import { estimateMonths } from './estimate.js?v=20261118d';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261118d';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261118d';
+import { addFeedback, feedbackText } from './feedback.js?v=20261118d';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261118d';
+import { createGoogle, freshServerToken } from './google.js?v=20261118d';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261118d';
+import { createDemoGoogle } from './google-demo.js?v=20261118d';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261118d';
+import { depositTotal, yearTable, depositYears } from './deposits.js?v=20261118d';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf } from './agenda.js?v=20261118d';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -96,7 +96,8 @@ const FORMS = {
     title: '저축·현금',
     fields: [
       { key: 'name', label: '이름', type: 'text', placeholder: '주거래 적금', required: true },
-      { key: 'kind', label: '종류', type: 'select', options: ['예금', '적금', '파킹통장', '연금', '청약', '보증금', '기타'] },
+      { key: 'kind', label: '종류', type: 'select', options: ['예금', '적금', '파킹통장', '연금', '청약', '보증금', '증권', '기타'] },
+      { key: 'stockGroup', label: '이 계좌로 사는 주식', type: 'select', options: [['all', '전체 주식'], ['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']], showIf: { kind: '증권' }, hint: '이 계좌에 넣은 돈(잔액)이 총자산에 들어가니, 고른 묶음의 주식은 평가손익만 더해요. 그래야 두 번 세지 않아요' },
       { key: 'balance', label: '현재 잔액', type: 'won' },
       { key: 'monthly', label: '매달 넣는 돈', type: 'won' },
       { key: 'rate', label: '연 이자율', type: 'pct' },
@@ -461,7 +462,7 @@ function viewAssets() {
   // 계좌는 잔액만: 입금은 아래 '저축 내역'에서, 출금은 잔액을 직접 고쳐요
   const sav = (d.savings || []).map((s) => row({
     kind: 'savings', id: s.id, title: esc(s.name),
-    meta: [s.kind, s.monthly ? `매달 ${won(s.monthly)}` : '', s.rate ? `연 ${pct(s.rate)}` : ''].filter(Boolean).join(' · '),
+    meta: [s.kind === '증권' ? `증권 · ${{ kr: '국내주식', us: '해외주식', pension: '연금저축' }[s.stockGroup] || '전체 주식'}` : s.kind, s.monthly ? `매달 ${won(s.monthly)}` : '', s.rate ? `연 ${pct(s.rate)}` : ''].filter(Boolean).join(' · '),
     value: won(s.balance),
   })).join('');
 
@@ -491,7 +492,7 @@ function viewAssets() {
   const A = assetsSummary(d, m);
   return `
   <section class="hero m-only">
-    <div class="eyebrow">자산 합계 · 저축·현금 + 주식 + 주택</div>
+    <div class="eyebrow">자산 합계 · 저축·현금 + 주식${coveredMarkets(d.savings).size ? ' 손익' : ''} + 주택</div>
     <div class="hero-num">${won(A.value)}</div>
     <div class="delta ${A.gain >= 0 ? 'up' : 'down'}">${A.gain >= 0 ? '+' : '−'}${won(Math.abs(A.gain))} (${A.gain >= 0 ? '+' : ''}${pct(A.rate, 2)})<span>산 가격 대비</span></div>
   </section>
@@ -560,23 +561,31 @@ function depositSection(d) {
 }
 const num0 = (v) => Number(v) || 0;
 
-/** 자산 탭 '저축 내역': 어느 계좌에 언제 얼마 넣었는지 (넣으면 계좌 잔액에 더해져요) */
+/** 자산 탭 '저축 내역': 어느 계좌에 언제 얼마 넣었는지 (넣으면 계좌 잔액에 더해져요). 깔때기로 계좌 하나만 볼 수 있어요 */
+const FUNNEL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 7.5V18l-4 2v-7.5L4 5Z"/></svg>';
 function savingLogSection(d) {
-  const recs = (d.records || []).filter((r) => r.type === 'saving').sort((a, b) => b.date.localeCompare(a.date) || (b.id > a.id ? 1 : -1));
+  const all = (d.records || []).filter((r) => r.type === 'saving').sort((a, b) => b.date.localeCompare(a.date) || (b.id > a.id ? 1 : -1));
   const name = (id) => (d.savings || []).find((x) => x.id === id)?.name || '지운 계좌';
+  const accts = [...new Set(all.map((r) => r.targetId))].sort((a, b) => (d.savings || []).findIndex((x) => x.id === a) - (d.savings || []).findIndex((x) => x.id === b));
+  const pick = accts.includes(state.logAcct) ? state.logAcct : '';
+  const recs = pick ? all.filter((r) => r.targetId === pick) : all;
   const year = String(now().getFullYear());
-  const yearSum = recs.filter((r) => r.date.startsWith(year)).reduce((a, r) => a + (Number(r.amount) || 0), 0);
+  const sumOf = (list) => list.reduce((a, r) => a + (Number(r.amount) || 0), 0);
+  const yearSum = sumOf(recs.filter((r) => r.date.startsWith(year)));
+  // 한 줄로: 날짜 · 계좌 · 입금 내역 (계좌 하나만 볼 땐 계좌는 빼요)
   const line = (r) => row({
     kind: 'record', id: r.id, action: 'edit-rec',
-    // 한 줄로: 날짜 · 계좌 · 입금 내역 (줄이 늘어나지 않게)
-    title: `<span class="date">${r.date.slice(2).replaceAll('-', '.')}</span><span class="log-acct">${esc(name(r.targetId))}</span>${r.memo ? `<span class="log-memo">${esc(r.memo)}</span>` : ''}`,
+    title: `<span class="date">${r.date.slice(2).replaceAll('-', '.')}</span>${pick ? '' : `<span class="log-acct">${esc(name(r.targetId))}</span>`}${r.memo ? `<span class="log-memo">${esc(r.memo)}</span>` : pick ? '<span class="log-acct">입금</span>' : ''}`,
     meta: '',
     value: `<span class="up">+${won(r.amount)}</span>`,
   });
+  const chips = state.logFilterOpen && accts.length ? `<div class="pad log-chips">${[['', '전체'], ...accts.map((id) => [id, name(id)])].map(([id, label]) => `<button class="pill${pick === id ? ' on' : ''}" data-action="log-acct" data-id="${esc(id)}" aria-pressed="${pick === id}">${esc(label)}</button>`).join('')}</div>` : '';
+  const head = pick ? `<div class="row static log-total"><span class="row-main"><span class="row-title">${esc(name(pick))}</span><span class="row-meta">${recs.length}건 · 올해 ${won(yearSum)}</span></span><span class="row-side"><span class="row-value">${won(sumOf(recs))}</span><span class="row-meta">모두 입금한 돈</span></span></div>` : '';
   const shown = recs.slice(0, 10);
-  const more = recs.length > 10 ? details('saving-log-more', `이전 내역 ${recs.length - 10}건 더 보기`, `<div class="list">${recs.slice(10, 60).map(line).join('')}</div>${recs.length > 60 ? '<div class="pad"><a class="link-btn" href="#records">기록 탭에서 전체 보기</a></div>' : ''}`) : '';
-  const add = '<button class="link-btn" data-action="add-rec" data-type="saving">+ 추가</button>';
-  return section('저축 내역', `<div class="panel list">${shown.length ? shown.map(line).join('') + more : empty('어느 계좌에 언제 얼마를 넣었는지 기록해 보세요. 넣은 금액은 그 계좌 잔액에 더해져요.')}</div>`, { sum: yearSum ? `${year}년 ${won(yearSum)}` : '', action: add });
+  const more = recs.length > 10 ? details(`saving-log-more${pick ? `-${pick}` : ''}`, `이전 내역 ${recs.length - 10}건 더 보기`, `<div class="list">${recs.slice(10, 60).map(line).join('')}</div>${recs.length > 60 ? '<div class="pad"><a class="link-btn" href="#records">기록 탭에서 전체 보기</a></div>' : ''}`) : '';
+  const filterBtn = accts.length > 1 || pick ? `<button class="link-btn sort-btn${pick || state.logFilterOpen ? ' on' : ''}" data-action="log-filter" aria-label="계좌별로 보기" aria-expanded="${!!state.logFilterOpen}" title="계좌별로 보기">${FUNNEL}</button>` : '';
+  const add = `<span class="head-actions">${filterBtn}<button class="link-btn" data-action="add-rec" data-type="saving">+ 추가</button></span>`;
+  return section('저축 내역', `<div class="panel list">${chips}${head}${shown.length ? shown.map(line).join('') + more : empty('어느 계좌에 언제 얼마를 넣었는지 기록해 보세요. 넣은 금액은 그 계좌 잔액에 더해져요.')}</div>`, { sum: yearSum ? `${pick ? `${esc(name(pick))} · ` : ''}${year}년 ${won(yearSum)}` : '', action: add });
 }
 
 const MARKETS = [['kr', '국내주식'], ['us', '해외주식'], ['pension', '연금저축']];
@@ -589,11 +598,15 @@ function assetsSummary(d, m) {
   const savings = (d.savings || []).reduce((a, s) => a + (Number(s.balance) || 0), 0);
   let value = savings;
   let cost = savings; // 저축은 원금 그대로로 봐요
+  const covered = coveredMarkets(d.savings);
   for (const s of d.stocks || []) {
     if (!(Number(s.qty) > 0)) continue;
     const x = stockDetail(s, m);
+    const c = x.costKrw || x.valueKrw;
+    // 증권 계좌가 맡은 묶음: 넣은 돈은 계좌 잔액에 이미 있으니 손익만
+    if (covered.has(stockMarket(s))) { value += x.valueKrw - c; continue; }
     value += x.valueKrw;
-    cost += x.costKrw || x.valueKrw;
+    cost += c;
   }
   for (const h of d.homes || []) {
     const v = homeValue(h, m);
@@ -2697,6 +2710,8 @@ function bind() {
     if (a === 'deposit') openForm(b.dataset.type, null, { targetId: id, amount: b.dataset.amount });
     if (a === 'add-sub') openForm('fixed', null, { category: '구독', cycle: 'monthly', active: true });
     if (a === 'dep-year') { state.depYear = Number(b.dataset.key); render(); }
+    if (a === 'log-filter') { state.logFilterOpen = !state.logFilterOpen; render(); }
+    if (a === 'log-acct') { state.logAcct = b.dataset.id || ''; render(); }
     if (a === 'trade-undo') {
       const s = state.data.stocks.find((x) => x.id === id);
       const last = s?.trades?.at(-1);

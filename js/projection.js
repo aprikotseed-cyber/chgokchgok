@@ -1,4 +1,4 @@
-import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261118c';
+import { scheduleBalanceAt, nextScheduled, ymd } from './schedule.js?v=20261118d';
 // 자산·부채 계산과 연도별 예측. 화면(app.js)과 테스트가 함께 쓰는 순수 함수만 둡니다.
 // 금액 단위는 모두 '원'입니다.
 
@@ -155,13 +155,35 @@ export function loanBalance(loan, now = new Date()) {
   return Number(loan.balance) || 0;
 }
 
+/**
+ * 증권 계좌가 맡는 주식 묶음(kr·us·pension). 저축·현금에 종류 '증권' 계좌를 넣으면
+ * 그 계좌 잔액(넣은 원금)이 이미 저축에 들어가 있어서, 그 묶음 주식은 평가손익만 더해요.
+ */
+export function coveredMarkets(savings) {
+  const out = new Set();
+  for (const s of savings || []) {
+    if (s.kind !== '증권') continue;
+    if (!s.stockGroup || s.stockGroup === 'all') ['kr', 'us', 'pension'].forEach((k) => out.add(k));
+    else out.add(s.stockGroup);
+  }
+  return out;
+}
+
+/** 총자산에 넣을 주식 금액: 증권 계좌가 맡은 묶음은 평가손익만, 아니면 평가금액 전체 */
+export function stockCounted(s, market, covered) {
+  const x = stockDetail(s, market);
+  if (!covered?.has(stockMarket(s))) return x.valueKrw;
+  return x.valueKrw - (x.costKrw || x.valueKrw); // 매입금액을 모르면 손익 0으로
+}
+
 export function currentTotals(data, market, now = new Date()) {
   const savings = (data.savings || []).reduce((a, s) => a + (Number(s.balance) || 0), 0);
-  const stocks = (data.stocks || []).reduce((a, s) => a + stockValue(s, market), 0);
+  const covered = coveredMarkets(data.savings);
+  const stocks = (data.stocks || []).reduce((a, s) => a + stockCounted(s, market, covered), 0);
   const homes = (data.homes || []).reduce((a, h) => a + homeValue(h, market), 0);
   const debts = (data.debts || []).reduce((a, d) => a + loanBalance(d, now), 0);
   const assets = savings + stocks + homes;
-  return { savings, stocks, homes, assets, debts, net: assets - debts };
+  return { savings, stocks, stocksCovered: covered.size > 0, homes, assets, debts, net: assets - debts };
 }
 
 /** 대출별 이번 달 예상 원금·이자 */
@@ -189,7 +211,7 @@ export function project(data, market, { years = 15, now = new Date() } = {}) {
     monthly: Number(s.monthly) || 0,
     r: (Number(s.rate) || 0) / 100 / 12,
   }));
-  let stock = currentTotals({ stocks: data.stocks }, market).stocks;
+  let stock = currentTotals({ stocks: data.stocks, savings: data.savings }, market).stocks; // 증권 계좌가 맡은 묶음은 손익만
   const homes = (data.homes || []).map((h) => ({ v: homeValue(h, market) })); // 집값 상승률은 가정하지 않아요
   const loans = (data.debts || []).map((d) => ({ d: prepareLoan(d, now), bal: loanBalance(d, now), schedule: d.schedule?.length ? d.schedule : null }));
 

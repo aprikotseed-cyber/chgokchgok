@@ -166,3 +166,22 @@ test('거치 후 원리금균등: 거치 기간에는 이자만, 끝나면 원�
   const expect = (120_000_000 * i) / (1 - Math.pow(1 + i, -215));
   assert.ok(Math.abs(after - expect) < 1, `${after} vs ${expect}`);
 });
+
+test('증권 계좌: 그 계좌가 맡은 주식 묶음은 평가손익만 더해서 두 번 세지 않아요', async () => {
+  const { currentTotals, coveredMarkets } = await import('../js/projection.js');
+  const market = { stocks: { '360750': { price: 32_000, currency: 'KRW' }, '005930': { price: 70_000, currency: 'KRW' } } };
+  const stocks = [
+    { id: 'p', name: 'TIGER S&P', ticker: '360750', market: 'pension', qty: 200, avgPrice: 30_000, avgCur: 'KRW' }, // 600만 → 640만 (+40만)
+    { id: 'k', name: '삼성전자', ticker: '005930', market: 'kr', qty: 10, avgPrice: 60_000, avgCur: 'KRW' },    // 70만
+  ];
+  const savings = [{ id: 's', name: '연금저축', kind: '증권', stockGroup: 'pension', balance: 10_000_000 }];
+  const t = currentTotals({ savings, stocks }, market);
+  assert.deepEqual([...coveredMarkets(savings)], ['pension']);
+  assert.equal(t.savings, 10_000_000);
+  assert.equal(t.stocks, 400_000 + 700_000); // 연금저축은 손익만, 국내주식은 평가금액 전체
+  assert.equal(t.assets, 11_100_000);
+  // 증권 계좌가 없으면 예전처럼 평가금액 전체
+  assert.equal(currentTotals({ stocks }, market).stocks, 6_400_000 + 700_000);
+  // '전체 주식'으로 고르면 모든 묶음이 손익만
+  assert.equal(currentTotals({ savings: [{ kind: '증권', stockGroup: 'all', balance: 1 }], stocks }, market).stocks, 400_000 + 100_000);
+});
