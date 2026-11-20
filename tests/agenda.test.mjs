@@ -99,3 +99,10 @@ test('일정의 장소: "장소는 …"을 장소 칸으로', () => {
   assert.equal(pickLocation('금요일 헬스 장소는 판교 헬스장으로 넣어줘').location, '판교 헬스장');
   assert.equal(parseEventInput('토요일 점심 약속', now, cals).location, undefined);
 });
+
+test('음력 날짜: 날짜 옆에 붙일 "월.일"', async () => {
+  const { lunarDay } = await import('../js/agenda.js');
+  assert.equal(lunarDay(new Date(2026, 10, 28)), '10.20');
+  assert.equal(lunarDay(new Date(2026, 1, 17)), '1.1'); // 설날
+  assert.equal(lunarDay(new Date(2025, 6, 25)), '윤6.1'); // 윤달
+});

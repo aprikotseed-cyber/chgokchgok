@@ -541,3 +541,21 @@ export function inboxKind(raw) {
   if (tk) return 'task';
   return 'memo'; // 메모·📝·🗒 또는 알 수 없으면 메모로 (내용을 잃지 않게)
 }
+
+/** 음력 날짜 '10.20' (윤달은 '윤6.1'). 브라우저가 한국 음력(dangi)을 모르면 '' */
+let lunarFmt;
+export function lunarDay(d) {
+  try {
+    if (lunarFmt === undefined) {
+      const f = new Intl.DateTimeFormat('ko-KR-u-ca-dangi', { month: 'numeric', day: 'numeric', timeZone: 'Asia/Seoul' });
+      lunarFmt = ['dangi', 'chinese'].includes(f.resolvedOptions().calendar) ? f : null;
+    }
+    if (!lunarFmt) return '';
+    // 그날 낮 12시(한국 시간) 기준으로 계산해요
+    const noon = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 3));
+    const parts = lunarFmt.formatToParts(noon);
+    const m = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    return m && day ? `${m}.${day}` : '';
+  } catch { return ''; }
+}
