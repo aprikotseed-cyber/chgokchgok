@@ -53,3 +53,33 @@ export function depositYears(deposits, todayKey) {
   const first = Math.min(now, ...(deposits || []).map((d) => Number(String(d.start || '').slice(0, 4)) || now));
   return Array.from({ length: now - first + 1 }, (_, i) => first + i);
 }
+
+/** 가입일~만기일 사이 달 수 (만기일이 가입일보다 이른 날이면 그달은 빼요) */
+export function depositMonths(dep) {
+  if (!dep.start || !dep.maturity) return 0;
+  const [sy, sm, sd] = dep.start.split('-').map(Number);
+  const [my, mm, md] = dep.maturity.split('-').map(Number);
+  const n = (my - sy) * 12 + (mm - sm) - (md < sd ? 1 : 0);
+  return Math.max(0, n);
+}
+
+export const INTEREST_TAX = 0.154; // 일반과세: 이자소득세 14% + 지방소득세 1.4%
+
+/**
+ * 예상 만기액 (단리, 매달 같은 금액을 넣는다고 보고)
+ *  - 적금: 원금 = 월납입 × n, 세전 이자 = 월납입 × 연이율/12 × n(n+1)/2
+ *  - 예금: 원금 = 맡긴 돈, 세전 이자 = 맡긴 돈 × 연이율 × n/12
+ *  - 세금: 비과세(taxFree)면 0, 아니면 이자의 15.4%
+ * 가입일·만기일·금액이 없으면 null
+ */
+export function maturityEstimate(dep) {
+  const n = depositMonths(dep);
+  const amt = num(dep.amount);
+  if (!n || !amt) return null;
+  const r = num(dep.rate) / 100;
+  const saving = dep.type !== '예금';
+  const principal = saving ? amt * n : amt;
+  const interest = saving ? (amt * r / 12) * (n * (n + 1)) / 2 : amt * r * (n / 12);
+  const tax = dep.taxFree ? 0 : Math.floor(interest * INTEREST_TAX / 10) * 10; // 세금은 10원 아래 버림
+  return { months: n, principal, interest: Math.round(interest), tax, total: Math.round(principal + interest - tax) };
+}

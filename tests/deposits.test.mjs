@@ -38,3 +38,22 @@ test('연도 표: 이전 해 합·1~12월·총액', () => {
   assert.equal(t.total.total, 1300);
   assert.deepEqual(depositYears(deps, today), [2025, 2026]);
 });
+
+test('예상 만기액: 적금은 월납입 단리, 예금은 원금 단리, 과세면 이자의 15.4%를 빼요', async () => {
+  const { maturityEstimate, depositMonths } = await import('../js/deposits.js');
+  // 월 50만원 × 12개월, 연 4% → 세전 이자 = 500000 × 0.04/12 × 78 = 130,000
+  const s = { type: '적금', amount: 500_000, rate: 4, start: '2026-01-15', maturity: '2027-01-15' };
+  assert.equal(depositMonths(s), 12);
+  const taxed = maturityEstimate(s);
+  assert.equal(taxed.principal, 6_000_000);
+  assert.equal(taxed.interest, 130_000);
+  assert.equal(taxed.tax, 20_020);
+  assert.equal(taxed.total, 6_109_980);
+  assert.equal(maturityEstimate({ ...s, taxFree: true }).total, 6_130_000);
+  // 예금 1,000만원 × 연 3% × 12개월 = 300,000
+  const d = maturityEstimate({ type: '예금', amount: 10_000_000, rate: 3, start: '2026-03-01', maturity: '2027-03-01' });
+  assert.equal(d.interest, 300_000);
+  assert.equal(d.total, 10_000_000 + 300_000 - 46_200);
+  // 만기일이 없으면 계산 안 해요
+  assert.equal(maturityEstimate({ type: '적금', amount: 1, rate: 1, start: '2026-01-01' }), null);
+});
