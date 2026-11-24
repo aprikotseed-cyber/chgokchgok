@@ -1,24 +1,24 @@
-import { connect, isDemo } from './store.js?v=20261124i';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124i';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124i';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124i';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124i';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124i';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124i';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124i';
-import { estimateMonths } from './estimate.js?v=20261124i';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124i';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124i';
-import { addFeedback, feedbackText } from './feedback.js?v=20261124i';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124i';
-import { createGoogle, freshServerToken } from './google.js?v=20261124i';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124i';
-import { createDemoGoogle } from './google-demo.js?v=20261124i';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124i';
-import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261124i';
-import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124i';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124i';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124i';
+import { connect, isDemo } from './store.js?v=20261124j';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124j';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124j';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124j';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124j';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124j';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124j';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124j';
+import { estimateMonths } from './estimate.js?v=20261124j';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124j';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124j';
+import { addFeedback, feedbackText } from './feedback.js?v=20261124j';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124j';
+import { createGoogle, freshServerToken } from './google.js?v=20261124j';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124j';
+import { createDemoGoogle } from './google-demo.js?v=20261124j';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124j';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261124j';
+import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124j';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124j';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124j';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -508,8 +508,6 @@ function openBook(id) {
   $('#book-head').textContent = b ? '책 수정' : '책 추가';
   $('#bk-title').value = bookEditing.title || '';
   $('#bk-author').value = bookEditing.author || '';
-  $('#bk-url').value = bookEditing.cover && !bookEditing.cover.startsWith('data:') ? bookEditing.cover : '';
-  $('#bk-url-field').hidden = true;
   $('#bk-start').value = bookEditing.start || '';
   $('#bk-end').value = bookEditing.end || '';
   $('#bk-review').value = bookEditing.review || '';
@@ -570,8 +568,8 @@ async function findBook() {
     if (!res.ok) throw new Error(`검색 오류 ${res.status}`);
     const found = parseGoogleBooks(await res.json());
     state.bookFound = found;
-    box.innerHTML = found.length ? found.map((r, i) => `<button type="button" class="bk-cand" data-cand="${i}"><span class="cover${r.cover ? ' has' : ''}">${coverHtml(r)}</span><span class="bt-title">${esc(r.title)}</span><span class="bt-meta">${esc(r.author)}</span></button>`).join('') : '<p class="hint">찾지 못했어요. 사진을 올리거나 주소를 넣어 주세요.</p>';
-  } catch (err) { box.innerHTML = `<p class="hint">찾지 못했어요 (${esc(err.message)}). 사진을 올리거나 주소를 넣어 주세요.</p>`; }
+    box.innerHTML = found.length ? found.map((r, i) => `<button type="button" class="bk-cand" data-cand="${i}"><span class="cover${r.cover ? ' has' : ''}">${coverHtml(r)}</span><span class="bt-title">${esc(r.title)}</span><span class="bt-meta">${esc(r.author)}</span></button>`).join('') : '<p class="hint">찾지 못했어요. 표지 삽입으로 넣어 주세요.</p>';
+  } catch (err) { box.innerHTML = `<p class="hint">찾지 못했어요 (${esc(err.message)}). 표지 삽입으로 넣어 주세요.</p>`; }
 }
 function saveBook() {
   bookRead();
@@ -2317,7 +2315,8 @@ function smoothDialog(d) {
     d.classList.add('closing');
     setTimeout(() => { d.classList.remove('closing'); close(v); }, 190);
   };
-  d.addEventListener('cancel', (e) => { e.preventDefault(); d.close(); });
+  // Esc로 닫기. 창 안의 파일 고르기를 취소해도 'cancel'이 올라오는데, 그건 창을 닫지 않아요
+  d.addEventListener('cancel', (e) => { if (e.target !== d) return; e.preventDefault(); d.close(); });
 }
 
 /** 펼치기·접기: 높이가 부드럽게 늘고 줄어요 */
@@ -3270,9 +3269,7 @@ function bind() {
     if (!file) return;
     try { bookRead(); bookEditing.cover = await shrinkCover(file); bookPaint(); } catch (err) { toast(err.message); }
   });
-  $('#bk-url-btn').addEventListener('click', () => { $('#bk-url-field').hidden = false; $('#bk-url').focus(); });
-  $('#bk-url').addEventListener('change', (e) => { bookRead(); bookEditing.cover = e.target.value.trim(); bookPaint(); });
-  $('#bk-cover-clear').addEventListener('click', () => { bookRead(); bookEditing.cover = ''; $('#bk-url').value = ''; bookPaint(); });
+  $('#bk-cover-clear').addEventListener('click', () => { bookRead(); bookEditing.cover = ''; bookPaint(); });
   $('#bk-status').addEventListener('click', (e) => {
     const v = e.target.closest('[data-v]')?.dataset.v;
     if (!v) return;
