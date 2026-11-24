@@ -1156,10 +1156,11 @@ dialog.memo-dialog form { padding: 14px 16px 12px; }
 .diary-cal .mini-head { align-items: center; padding-top: 8px; }
 .diary-cal .icon-btn { border: 0; background: none; box-shadow: none; width: 30px; height: 30px; }
 .diary-cal .icon-btn svg { width: 16px; height: 16px; }
-@media (max-width: 899px) { .diary-cal { max-width: 360px; } .dday { height: 28px; font-size: 12px; } .dday.has i { bottom: 1px; } }
+/* 휴대폰: 달력도 아래 일기 카드와 같은 폭으로 꽉 차게 (칸이 넓어져도 날짜 동그라미는 그대로) */
+@media (max-width: 899px) { .dday { height: 30px; font-size: 13px; } .dday.has i { bottom: 1px; } .dcal-grid { padding: 4px 16px 0; } }
 .dcal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 4px 12px 0; text-align: center; }
 .dwd { font-size: 11px; color: var(--text-muted); padding: 4px 0; }
-.dday { position: relative; display: grid; place-items: center; height: 32px; font-size: 13px; color: var(--text-secondary); border: 0; background: none; border-radius: 50%; font-family: inherit; }
+.dday { position: relative; display: grid; place-items: center; justify-self: center; width: 32px; height: 32px; font-size: 13px; color: var(--text-secondary); border: 0; background: none; border-radius: 50%; font-family: inherit; }
 .dday.today { font-weight: 700; color: var(--text-primary); }
 .dday.has { cursor: pointer; color: var(--text-primary); }
 .dday.has:hover { background: var(--surface-2); }
