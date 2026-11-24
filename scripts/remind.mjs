@@ -87,6 +87,22 @@ for (const main of mains) {
     }
   }
 
+  // 밤 11시가 지나면 일기 알림 한 번 (그날 일기를 아직 안 썼고, 설정에서 끄지 않았으면)
+  const dayKey = `${kst.getFullYear()}-${String(kst.getMonth() + 1).padStart(2, '0')}-${String(kst.getDate()).padStart(2, '0')}`;
+  if (kst.getHours() >= 23 && data.settings?.diaryNudge !== false && push.lastDiaryNudge !== dayKey) {
+    const written = (await userRef.collection('diary').doc(dayKey).get()).exists;
+    let ok = written; // 이미 썼으면 그날은 더 확인하지 않아요
+    if (!written) {
+      const dr = await messaging.sendEachForMulticast({
+        tokens: devices.map((x) => x.token),
+        webpush: { notification: { title: '📔 오늘 하루 어땠어요?', body: '행복했던 일, 인상 깊었던 일, 감사했던 일, 고민거리. 한 줄씩 남겨 볼까요?', icon: `${APP_URL}icon-192.png`, tag: `chgok-diary-${dayKey}`, renotify: true }, fcmOptions: { link: `${APP_URL}#diary-today` } },
+      });
+      console.log(`일기 알림 보냄 ${dr.successCount}, 실패 ${dr.failureCount}`);
+      ok = dr.successCount > 0;
+    }
+    if (ok) await dataRef.doc('push').set({ lastDiaryNudge: dayKey }, { merge: true });
+  }
+
   const sent = push.reminded || {};
   const due = remindersDue(items, NOW, sent);
   console.log(`알림 후보 ${items.length}개 중 보낼 것 ${due.length}개`); // 제목은 남기지 않아요

@@ -1,23 +1,23 @@
-import { connect, isDemo } from './store.js?v=20261124f';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124f';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124f';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124f';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124f';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124f';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124f';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124f';
-import { estimateMonths } from './estimate.js?v=20261124f';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124f';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124f';
-import { addFeedback, feedbackText } from './feedback.js?v=20261124f';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124f';
-import { createGoogle, freshServerToken } from './google.js?v=20261124f';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124f';
-import { createDemoGoogle } from './google-demo.js?v=20261124f';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124f';
-import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124f';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124f';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124f';
+import { connect, isDemo } from './store.js?v=20261124g';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124g';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124g';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124g';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124g';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124g';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124g';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124g';
+import { estimateMonths } from './estimate.js?v=20261124g';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124g';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124g';
+import { addFeedback, feedbackText } from './feedback.js?v=20261124g';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124g';
+import { createGoogle, freshServerToken } from './google.js?v=20261124g';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124g';
+import { createDemoGoogle } from './google-demo.js?v=20261124g';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124g';
+import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124g';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124g';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124g';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -28,7 +28,7 @@ const EMPTY = () => ({
 
 const state = {
   user: null, data: EMPTY(), market: {}, sync: '',
-  tab: location.hash.slice(1) || 'home',
+  tab: location.hash.slice(1) === 'diary-today' ? 'home' : location.hash.slice(1) || 'home',
   recYear: String(new Date().getFullYear()),
   day: today(),          // 날짜가 바뀌면 화면을 다시 그리기 위해 기억
   open: new Set(),       // 펼쳐 둔 <details> (실시간 갱신 때도 유지)
@@ -41,6 +41,7 @@ const state = {
   reorder: null,        // 순서 바꾸는 중인 목록 (예: 'savings')
   dragging: false,
   memos: [],            // 메모 [{id, text, pinned, createdAt, updatedAt}]
+  diary: {},            // 일기 { 'YYYY-MM-DD': {happy, moved, thanks, worry, updatedAt} }
   agenda: null,         // 구글 캘린더에서 받아 둔 일정 {calendars, events, syncedAt}
   tasks: [],            // 할일 (차곡차곡에 직접 저장)
   gsync: '',            // '' | 'busy' | 'auth'(다시 연결 필요) | 오류 문구
@@ -103,6 +104,16 @@ const FORMS = {
       { key: 'balance', label: '현재 잔액', type: 'won' },
       { key: 'monthly', label: '매달 넣는 돈', type: 'won' },
       { key: 'rate', label: '연 이자율', type: 'pct' },
+    ],
+  },
+  diary: {
+    title: '일기',
+    fields: [
+      { key: 'date', label: '날짜', type: 'date' },
+      { key: 'happy', label: '행복했던 일', type: 'textarea', rows: 2, grow: true },
+      { key: 'moved', label: '인상 깊었던 일', type: 'textarea', rows: 2, grow: true },
+      { key: 'thanks', label: '감사했던 일', type: 'textarea', rows: 2, grow: true },
+      { key: 'worry', label: '고민거리', type: 'textarea', rows: 2, grow: true },
     ],
   },
   goals: {
@@ -370,7 +381,105 @@ function viewHome() {
     <button class="ask-send" type="submit">보내기</button>
   </form>
   ${todayBlock()}
+  ${diaryToday()}
   ${monthBlock()}`;
+}
+
+// ───────────────────────── 기록 → 일기 ─────────────────────────
+// 밤 11시 일기 알림(#diary-today)을 눌러 들어오면 오늘 탭에서 일기 창을 바로 열어요 (일기를 받아 온 뒤에)
+let wantDiary = location.hash.slice(1) === 'diary-today';
+if (wantDiary) history.replaceState(null, '', '#home');
+let diaryLoaded = false;
+function openDiaryFromLink() {
+  if (!wantDiary || !state.user || !diaryLoaded) return;
+  wantDiary = false;
+  openDiary(today());
+}
+/** 일기 칸: 쓰는 만큼 저절로 늘어나요 */
+function growBox(t) { t.style.height = 'auto'; t.style.height = `${t.scrollHeight + 2}px`; }
+const DIARY_PARTS = [['happy', '행복했던 일'], ['moved', '인상 깊었던 일'], ['thanks', '감사했던 일'], ['worry', '고민거리']];
+const diaryHas = (e) => !!e && DIARY_PARTS.some(([k]) => String(e[k] || '').trim());
+
+/** 일기 한 장 (일기 목록과 오늘 탭에서 같은 모양). 누르면 고치기 창 */
+function diaryCard(key, e) {
+  const d = fromKey(key);
+  const rows = DIARY_PARTS.filter(([k]) => String(e[k] || '').trim()).map(([k, l]) => k === 'worry'
+    ? `<details class="diary-worry"><summary>${l}</summary><p>${esc(e[k]).replace(/\n/g, '<br>')}</p></details>`
+    : `<div class="diary-line"><span class="diary-label">${l}</span><p>${esc(e[k]).replace(/\n/g, '<br>')}</p></div>`).join('');
+  return `<article class="panel diary-card" id="diary-${key}">
+    <button class="diary-head" data-action="diary-write" data-key="${key}" aria-label="${mdw(d)} 일기 고치기"><b>${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})</b>${d.getFullYear() !== now().getFullYear() ? `<span class="hint">${d.getFullYear()}년</span>` : ''}<span class="hint">고치기</span></button>
+    <div class="diary-body">${rows}</div>
+  </article>`;
+}
+
+/** 오늘 탭: 안 썼으면 한 줄, 썼으면 오늘 일기 */
+function diaryToday() {
+  const k = today();
+  const e = state.diary[k];
+  if (diaryHas(e)) return `<section class="block">${diaryCard(k, e)}</section>`;
+  return `<section class="block"><button class="panel diary-empty" data-action="diary-write" data-key="${k}">오늘 일기를 기록해 보세요.</button></section>`;
+}
+
+function openDiary(key) {
+  const e = state.diary[key];
+  openForm('diary', diaryHas(e) ? { id: key, date: key, ...e } : null, { date: key });
+}
+
+function saveDiaryForm(vals) {
+  const key = vals.date || today();
+  const entry = Object.fromEntries(DIARY_PARTS.map(([k]) => [k, String(vals[k] || '').trim()]));
+  const old = editing.id || '';
+  if (!diaryHas(entry)) { // 다 비우면 저장하지 않아요 (고치던 일기면 지워요)
+    if (old) store.deleteDiary(old).catch(() => {});
+    return;
+  }
+  if (key !== old && diaryHas(state.diary[key]) && !confirm(`${mdw(fromKey(key))}에는 이미 일기가 있어요. 새로 쓴 걸로 바꿀까요?`)) return false;
+  if (old && old !== key) store.deleteDiary(old).catch(() => {});
+  state.diary = { ...state.diary, [key]: { ...entry, updatedAt: Date.now() } };
+  store.saveDiary(key, { ...entry, updatedAt: Date.now() }).catch((e) => toast(`저장하지 못했어요: ${e.message}`));
+  toast('일기를 저장했어요.');
+}
+
+/** 달력에서 고른 날로 목록을 스크롤 (창을 띄우지 않아요) */
+function goDiary(key) {
+  const el = document.getElementById(`diary-${key}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+  el.classList.remove('flash');
+  void el.offsetWidth;
+  el.classList.add('flash');
+}
+
+/** 기록 → 일기: 왼쪽 날짜순 목록, 오른쪽(휴대폰은 위) 작은 달력 */
+function viewDiary() {
+  const keys = Object.keys(state.diary).filter((k) => diaryHas(state.diary[k])).sort().reverse();
+  const ym = state.diaryMonth || today().slice(0, 7);
+  const [y, m] = ym.split('-').map(Number);
+  const first = new Date(y, m - 1, 1);
+  const days = new Date(y, m, 0).getDate();
+  const shift = (n) => { const d = new Date(y, m - 1 + n, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  const cells = [];
+  for (let i = 0; i < first.getDay(); i++) cells.push('<span></span>');
+  for (let dd = 1; dd <= days; dd++) {
+    const k = `${ym}-${String(dd).padStart(2, '0')}`;
+    const has = diaryHas(state.diary[k]);
+    cells.push(has ? `<button class="dday has${k === today() ? ' today' : ''}" data-action="diary-go" data-key="${k}" aria-label="${m}월 ${dd}일 일기로 가기">${dd}<i></i></button>` : `<span class="dday${k === today() ? ' today' : ''}">${dd}</span>`);
+  }
+  const cal = `<div class="panel diary-cal">
+    <div class="mini-head"><button class="icon-btn" data-action="diary-month" data-key="${shift(-1)}" aria-label="이전 달"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg></button><b>${y}년 ${m}월</b><button class="icon-btn" data-action="diary-month" data-key="${shift(1)}" aria-label="다음 달"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></button></div>
+    <div class="dcal-grid">${'일월화수목금토'.split('').map((w) => `<span class="dwd">${w}</span>`).join('')}${cells.join('')}</div>
+  </div>`;
+  const todayDone = diaryHas(state.diary[today()]);
+  const list = keys.length ? keys.map((k) => diaryCard(k, state.diary[k])).join('') : `<div class="panel">${empty('아직 쓴 일기가 없어요.')}</div>`;
+  return `<div class="diary-wrap">
+    <div class="diary-side">${cal}</div>
+    <div class="diary-main">${section('일기', `<div class="diary-list">${list}</div>`, { sum: keys.length ? `${keys.length}편` : '', action: `<button class="link-btn" data-action="diary-write" data-key="${todayDone ? ymd(new Date(now().getFullYear(), now().getMonth(), now().getDate() - 1)) : today()}">${todayDone ? '+ 어제 일기 쓰기' : '+ 오늘 일기 쓰기'}</button>` })}</div>
+  </div>`;
+}
+
+/** 아직 만들지 않은 작은 탭 */
+function viewSoon() {
+  return `<div class="panel">${empty('다음 업데이트에서 만들어요.')}</div>`;
 }
 
 /** 오늘 탭 '올해 목표': 진행률 막대, 직접 세는 목표는 +1 */
@@ -1197,6 +1306,7 @@ function viewSettings() {
   const notify = `<div class="panel list">
     <p class="pad">아침 <b>7시 30분 브리핑</b>, 시간 넣은 할일·일정은 <b>30분 전</b>에 알려 드려요.</p>
     <div class="row static"><span class="row-main"><span class="row-title">일요일 저녁 8시 주간 돌아보기</span><span class="row-meta">이번 주 운동·할일·저축·목표와 다음 주 미리보기 (30분 전 알림 알람으로 함께 와요)</span></span><button class="link-btn" data-action="weekly-toggle">${state.data.settings?.weekly === false ? '켜기' : '끄기'}</button></div>
+    <div class="row static"><span class="row-main"><span class="row-title">밤 11시 일기 알림</span><span class="row-meta">그날 일기를 아직 안 썼을 때만 와요. 누르면 오늘 일기 창이 바로 열려요</span></span><button class="link-btn" data-action="diary-nudge-toggle">${state.data.settings?.diaryNudge === false ? '켜기' : '끄기'}</button></div>
     ${push}
     ${details('notify-more', '어떤 알림이 오나요?', `<div class="pad"><p class="hint">아침 브리핑: 오늘 일정, 오늘 마감 할일과 지난 할일, 오늘이 상환일·출금일인 대출과 고정지출.<br>30분 전 알림: 시간을 넣은 할일과 구글 캘린더 일정(반려자·종일 일정 빼고), 한 번만.<br>앱 화면 알림 카드: 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p></div>`)}
   </div>`;
@@ -1941,11 +2051,14 @@ function setGoogle(patch) {
 }
 
 // ───────────────────────── 그리기 ─────────────────────────
-const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, memo: viewMemo, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
-const TITLES = { home: '오늘', money: '자산 홈', calendar: '일정', tasks: '할일', memo: '메모', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
+const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, memo: viewMemo, diary: viewDiary, books: viewSoon, workout: viewSoon, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
+const TITLES = { home: '오늘', money: '자산 홈', calendar: '일정', tasks: '할일', memo: '메모', diary: '기록', books: '기록', workout: '기록', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
+// 기록 메뉴 안의 작은 탭: 일기 | 독서 | 운동
+const JOURNAL_TABS = [['diary', '일기'], ['books', '독서'], ['workout', '운동']];
+const journalNav = () => `<nav class="segment subnav" aria-label="기록 메뉴">${JOURNAL_TABS.map(([k, l]) => `<a href="#${k}" role="tab" aria-selected="${state.tab === k}">${l}</a>`).join('')}</nav>`;
 // 자산 메뉴 안의 작은 탭: 자산 | 부채 | 고정지출
 const MONEY_TABS = [['money', '홈'], ['assets', '자산'], ['debts', '부채'], ['fixed', '고정지출'], ['records', '기록']];
-const navTab = (t) => (MONEY_TABS.some(([k]) => k === t) ? 'money' : t);
+const navTab = (t) => (MONEY_TABS.some(([k]) => k === t) ? 'money' : JOURNAL_TABS.some(([k]) => k === t) ? 'diary' : t);
 const subNav = () => `<nav class="segment subnav" aria-label="자산 메뉴">${MONEY_TABS.map(([k, l]) => `<a href="#${k}" role="tab" aria-selected="${state.tab === k}">${l}</a>`).join('')}</nav>`;
 const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라인', demo: '체험 모드' };
 
@@ -1959,8 +2072,9 @@ function render() {
   renderSync();
   renderAlerts();
   const money = navTab(state.tab) === 'money';
+  const journal = navTab(state.tab) === 'diary';
   const kept = lastTab === state.tab ? keepTyping() : null;
-  $('#view').innerHTML = `${state.tab === 'home' ? goalsBlock() : ''}<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : state.tab === 'debts' ? debtsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
+  $('#view').innerHTML = `${state.tab === 'home' ? goalsBlock() : ''}<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : state.tab === 'debts' ? debtsTitleSum() : ''}</h1>${money ? subNav() : journal ? journalNav() : ''}${VIEWS[state.tab]()}`;
   // 메뉴를 옮겼을 때만 새 화면이 살짝 떠오르며 나타나요 (실시간 갱신 때는 그대로)
   if (lastTab !== state.tab) {
     const v = $('#view');
@@ -1968,7 +2082,7 @@ function render() {
     if (lastTab && !reduceMotion()) {
       void v.offsetWidth;
       v.classList.add('enter');
-      if (money && navTab(lastTab) === 'money') v.classList.add('sub'); // 자산 안 작은 탭끼리는 탭 줄은 그대로
+      if ((money || journal) && navTab(lastTab) === navTab(state.tab)) v.classList.add('sub'); // 작은 탭끼리는 탭 줄은 그대로
       clearTimeout(v._t);
       v._t = setTimeout(() => v.classList.remove('enter', 'sub'), 700);
     }
@@ -2272,7 +2386,7 @@ function openForm(kind, item, preset = {}) {
     } else if (f.type === 'date') {
       input = `<input id="${id}" name="${f.key}" type="date" value="${esc(val)}" ${f.optional ? '' : 'required'}>`;
     } else if (f.type === 'textarea') {
-      input = `<textarea id="${id}" name="${f.key}" rows="8" ${f.required ? 'required' : ''}>${esc(val)}</textarea>`;
+      input = `<textarea id="${id}" name="${f.key}" rows="${f.rows || 8}" ${f.grow ? 'data-grow' : ''} ${f.required ? 'required' : ''}>${esc(val)}</textarea>`;
     } else if (f.type === 'time') {
       input = `<input id="${id}" name="${f.key}" type="time" value="${esc(val)}" step="300">`;
     } else if (f.type === 'month') {
@@ -2303,6 +2417,8 @@ function openForm(kind, item, preset = {}) {
     $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint">${item.recurring ? '반복 일정이라 이 날 하나만 바뀌어요. ' : ''}${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noopener">구글 캘린더에서 열기</a>` : ''}</p>`);
   }
   $('#editor').showModal();
+  $('#editor-fields').querySelectorAll('textarea[data-grow]').forEach(growBox);
+  if (kind === 'diary') setTimeout(() => $('#f-happy')?.focus(), 50); // 날짜 칸보다 첫 칸에 바로 쓰게
   syncShowIf();
   $('#editor-fields').querySelectorAll('[data-money], [data-cmoney]').forEach(previewMoney);
   if (matchMedia('(hover: hover)').matches) $('#editor-fields input')?.focus();
@@ -2374,6 +2490,7 @@ function saveForm() {
   if (editing.kind === 'task') return saveTask(vals);
   if (editing.kind === 'event') return saveEvent(vals);
   if (editing.kind === 'memo') return saveMemo(vals);
+  if (editing.kind === 'diary') return saveDiaryForm(vals);
   if (editing.kind === 'fx') d.settings = { ...(d.settings || {}), usdKrw: vals.usdKrw };
   else if (isRecord(editing.kind)) {
     upsertRecord(d, { id: editing.id || crypto.randomUUID().slice(0, 8), type: editing.kind, ...vals });
@@ -2400,6 +2517,11 @@ function saveForm() {
 }
 
 function deleteItem() {
+  if (editing.kind === 'diary') {
+    if (!confirm('이 날 일기를 지울까요?')) return false;
+    store.deleteDiary(editing.id).catch((e) => toast(`지우지 못했어요: ${e.message}`));
+    return true;
+  }
   if (editing.kind === 'memo') {
     if (!confirm('이 메모를 지울까요?')) return false;
     store.deleteMemo(editing.id).catch((e) => toast(`지우지 못했어요: ${e.message}`));
@@ -2695,8 +2817,10 @@ function bind() {
 
   window.addEventListener('hashchange', () => {
     state.tab = location.hash.slice(1) || 'home';
+    if (state.tab === 'diary-today') { wantDiary = true; state.tab = 'home'; history.replaceState(null, '', '#home'); }
     render();
     window.scrollTo(0, 0);
+    openDiaryFromLink();
   });
 
   $('#login-form').addEventListener('submit', async (e) => {
@@ -2786,6 +2910,10 @@ function bind() {
     if (a === 'task-toggle') toggleTask(id);
     if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openMemoEditor(m); }
     if (a === 'memo-pin') toggleMemoPin(id);
+    if (a === 'diary-write') openDiary(b.dataset.key || today());
+    if (a === 'diary-month') { state.diaryMonth = b.dataset.key; render(); }
+    if (a === 'diary-go') goDiary(b.dataset.key);
+    if (a === 'diary-nudge-toggle') { state.data.settings = { ...(state.data.settings || {}), diaryNudge: state.data.settings?.diaryNudge === false }; commit(); }
     if (a === 'add-routine') openForm('task', null, { title: '', due: today(), routine: true, repeat: { freq: 'daily', interval: 1 } });
     if (a === 'goal-inc') { const g = (state.data.goals || []).find((x) => x.id === id); if (g) { g.current = (Number(g.current) || 0) + 1; commit(); } }
     if (a === 'weekly-toggle') { state.data.settings = { ...(state.data.settings || {}), weekly: state.data.settings?.weekly === false }; commit(); }
@@ -3065,6 +3193,7 @@ function bind() {
     e.target.value = '';
   });
   $('#editor-fields').addEventListener('input', (e) => {
+    if (e.target.matches('textarea[data-grow]')) growBox(e.target);
     // 새 종목에서 구분을 바꾸면 통화도 그에 맞게 (해외 → $)
     if (e.target.name === 'market' && !editing.id) {
       const cur = e.target.value === 'us' ? 'USD' : 'KRW';
@@ -3178,6 +3307,7 @@ async function main() {
     onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'money') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
     onMemos: (list) => { state.memos = list || []; if (state.tab === 'memo') render(); },
+    onDiary: (map) => { state.diary = map || {}; diaryLoaded = true; if (state.tab === 'diary' || state.tab === 'home') render(); openDiaryFromLink(); },
     onTasks: (list) => { state.tasks = (list || []).map(normLocalTask); render(); },
     onAgenda: (a) => {
       const first = !agendaLoaded;
