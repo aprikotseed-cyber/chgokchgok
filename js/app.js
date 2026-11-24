@@ -1,23 +1,23 @@
-import { connect, isDemo } from './store.js?v=20261124d';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124d';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124d';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124d';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124d';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124d';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124d';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124d';
-import { estimateMonths } from './estimate.js?v=20261124d';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124d';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124d';
-import { addFeedback, feedbackText } from './feedback.js?v=20261124d';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124d';
-import { createGoogle, freshServerToken } from './google.js?v=20261124d';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124d';
-import { createDemoGoogle } from './google-demo.js?v=20261124d';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261124d';
-import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124d';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124d';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124d';
+import { connect, isDemo } from './store.js?v=20261124f';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124f';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124f';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124f';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124f';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124f';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124f';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124f';
+import { estimateMonths } from './estimate.js?v=20261124f';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124f';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124f';
+import { addFeedback, feedbackText } from './feedback.js?v=20261124f';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124f';
+import { createGoogle, freshServerToken } from './google.js?v=20261124f';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124f';
+import { createDemoGoogle } from './google-demo.js?v=20261124f';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124f';
+import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124f';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124f';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124f';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -90,6 +90,7 @@ const FORMS = {
       { key: 'due', label: '마감일', type: 'date', optional: true, hint: '새 할일은 오늘로 들어가요. 지우면 날짜 없는 할일이에요.' },
       { key: 'time', label: '시간', type: 'time', hint: '선택. 시간을 넣으면 30분 전에 알려 드려요.' },
       { key: 'repeat', label: '반복', type: 'select', options: REPEAT_CHOICES, hint: '끝내면 다음 차례 할일을 만들어 드려요' },
+      { key: 'routine', label: '루틴으로 따로 보기', type: 'check', hint: '켜면 오늘 탭 ‘루틴’ 칸과 할일 탭 ‘루틴’에 모여요. 반복 할일은 처음부터 켜져 있어요' },
       { key: 'notes', label: '메모', type: 'text', placeholder: '선택' },
     ],
   },
@@ -368,7 +369,6 @@ function viewHome() {
     <textarea id="home-ask-input" rows="3" enterkeyhint="send" aria-label="비서에게 메시지"></textarea>
     <button class="ask-send" type="submit">보내기</button>
   </form>
-  ${goalsBlock()}
   ${todayBlock()}
   ${monthBlock()}`;
 }
@@ -389,7 +389,8 @@ function goalsBlock() {
       <span class="row-side"><span class="row-value">${done ? '달성' : `${Math.floor(p.pct)}%`}</span>${g.kind === 'custom' ? `<button class="pill" data-action="goal-inc" data-id="${esc(g.id)}" aria-label="${esc(g.title)} 하나 더">+1</button>` : ''}</span>
     </div>`;
   }).join('');
-  return section(`${now().getFullYear()}년 목표`, `<div class="panel list">${rows || empty('올해 이루고 싶은 걸 적어 두면 진행률을 보여 드려요.')}</div>`, { action: addBtn('goals') });
+  const FLAG = `<svg class="goal-flag" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg><span class="sr-only">${now().getFullYear()}년 목표</span>`;
+  return section(FLAG, `<div class="panel list">${rows || empty('올해 이루고 싶은 걸 적어 두면 진행률을 보여 드려요.')}</div>`, { action: addBtn('goals') });
 }
 
 // 자산 → 홈: 총자산, 자산 추이, 고정지출·상환 일정
@@ -1400,8 +1401,8 @@ function taskPreview(text) {
   return `‘${title}’ · ${dueLabel(due, today())}${time ? ` ${time}` : ''}${due <= today() || repeat ? '' : '까지'}${p.due ? '' : ' (날짜를 안 써서 오늘)'}${repeat ? ` · ${repeatLabel(repeat, due)}` : ''}${time ? ' · 30분 전 알림' : ''}`;
 }
 
-async function addTaskItem(title, due, { time = '', repeat = null, notes = '' } = {}, quiet = false) {
-  const t = makeTask({ title, due, time, repeat, notes });
+async function addTaskItem(title, due, { time = '', repeat = null, notes = '', routine } = {}, quiet = false) {
+  const t = makeTask({ title, due, time, repeat, notes, routine });
   const ok = await putTask(t);
   if (ok && !quiet) toast(`‘${title}’${due ? ` · ${dueLabel(due, today())}${time ? ` ${time}` : ''}` : ''}${repeat ? ` · ${repeatLabel(repeat, due)}` : ''} 추가했어요.`);
   return ok;
@@ -1414,9 +1415,11 @@ function toggleTask(id) {
   const done = !t.done;
   state.justToggled = done ? id : '';
   setTimeout(() => { state.justToggled = ''; }, 0);
-  putTask({ ...t, done, completedAt: done ? today() : '', updatedAt: Date.now() });
+  // 어제 못 한 루틴을 오늘 체크하면 오늘 한 걸로 (다음 차례는 내일부터)
+  const due = done && isRoutine(t) && t.due && t.due < today() ? today() : t.due;
+  putTask({ ...t, due, done, completedAt: done ? today() : '', updatedAt: Date.now() });
   if (done && t.repeat) {
-    const next = nextRepeatTask(t, state.tasks, today());
+    const next = nextRepeatTask({ ...t, due }, state.tasks, today());
     if (next) { putTask(next); toast(`잘했어요! 다음 차례 ${mdw(fromKey(next.due))} 할일을 만들어 뒀어요.`); }
   }
 }
@@ -1426,10 +1429,10 @@ function saveTask(vals) {
   const due = vals.due || '';
   const repeat = vals.repeat ? ruleFromChoice(vals.repeat, due || today(), editing.rule) : null;
   if (repeat && !due) { toast('반복 할일은 날짜가 있어야 해요.'); return false; }
-  if (!id) { addTaskItem(vals.title, due, { time: vals.time || '', repeat, notes: vals.notes || '' }); return; }
+  if (!id) { addTaskItem(vals.title, due, { time: vals.time || '', repeat, notes: vals.notes || '', routine: !!vals.routine }); return; }
   const old = findTask(id);
   if (!old) return;
-  putTask({ ...old, title: vals.title, due, time: vals.time || '', notes: vals.notes || '', repeat, series: repeat ? old.series || old.id : '', updatedAt: Date.now() });
+  putTask({ ...old, title: vals.title, due, time: vals.time || '', notes: vals.notes || '', repeat, series: repeat ? old.series || old.id : '', routine: !!vals.routine, updatedAt: Date.now() });
 }
 
 function removeTask(id) {
@@ -1740,10 +1743,10 @@ function eventRow(e, dayKey) {
   return e.money ? `<a class="${cls}" href="${e.link}">${inner}</a>` : `<a class="${cls}" href="${esc(e.link)}" target="_blank" rel="noopener">${inner}</a>`;
 }
 
-function taskRow(t) {
-  const label = t.due ? dueLabel(t.due, today()) : '';
-  const late = t.due && t.due < today() && !t.done;
-  const meta = [label ? `<span class="${late ? 'late' : ''}">${label}${t.time ? ` ${t.time}` : ''}</span>` : t.time || '', t.repeat ? esc(repeatLabel(t.repeat, t.due)) : '', esc(String(t.notes || '').split('\n')[0])].filter(Boolean).join(' · ');
+function taskRow(t, { routine = false } = {}) {
+  const label = routine ? '' : t.due ? dueLabel(t.due, today()) : '';
+  const late = !routine && t.due && t.due < today() && !t.done;
+  const meta = routine ? [t.time || '', t.repeat ? esc(repeatLabel(t.repeat, t.due)) : ''].filter(Boolean).join(' · ') : [label ? `<span class="${late ? 'late' : ''}">${label}${t.time ? ` ${t.time}` : ''}</span>` : t.time || '', t.repeat ? esc(repeatLabel(t.repeat, t.due)) : '', esc(String(t.notes || '').split('\n')[0])].filter(Boolean).join(' · ');
   return `<div class="row task${t.done ? ' done' : ''}">
     <button class="tcheck${state.justToggled === t.id ? ' just' : ''}" data-action="task-toggle" data-id="${esc(t.id)}" role="checkbox" aria-checked="${t.done}" aria-label="${esc(t.title)} ${t.done ? '완료 취소' : '완료'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button>
     <button class="row-main" data-action="task-edit" data-id="${esc(t.id)}"><span class="row-title">${esc(t.title)}</span>${meta ? `<span class="row-meta">${meta}</span>` : ''}</button>
@@ -1758,10 +1761,13 @@ function todayBlock() {
   const key = today();
   const evs = a ? eventsOn([...agendaEvents(), ...moneyEvents(0)], key) : [];
   const g = groupTasks(state.tasks, key);
-  const due = todayTasks(state.tasks, key); // 오늘 끝낸 할일도 체크된 채로 남아요
-  return section(title, `<div class="today">
+  const due = todayTasks(state.tasks, key).filter((t) => !isRoutine(t)); // 오늘 끝낸 할일도 체크된 채로 남아요
+  const routines = routinesToday(state.tasks, key);
+  const left = routines.filter((t) => !t.done).length;
+  return section(title, `<div class="today three">
       <div class="panel list"><div class="mini-head">일정 <a class="link-btn" href="#calendar">전체</a></div>${!a ? connectCta('오늘 일정이') : evs.length ? evs.map((e) => eventRow(e, key)).join('') : empty('오늘은 일정이 없어요.')}</div>
-      <div class="panel list"><div class="mini-head">할일 <a class="link-btn" href="#tasks">전체</a></div>${due.length ? due.map(taskRow).join('') : empty(g.tomorrow.length ? `오늘 할일은 끝! 내일 할일이 ${g.tomorrow.length}개 있어요.` : '오늘 할일이 없어요.')}</div>
+      <div class="panel list"><div class="mini-head">루틴${routines.length ? ` <span class="hint">${left ? `${left}개 남음` : '다 했어요'}</span>` : ''} <button class="link-btn" data-action="add-routine">+ 추가</button></div>${routines.length ? routines.map((t) => taskRow(t, { routine: true })).join('') : empty('매일·매주 하는 일을 루틴으로 넣어 두면 여기서 체크해요.')}</div>
+      <div class="panel list"><div class="mini-head">할일 <a class="link-btn" href="#tasks">전체</a></div>${due.length ? due.map((t) => taskRow(t)).join('') : empty(g.tomorrow.length ? `오늘 할일은 끝! 내일 할일이 ${g.tomorrow.length}개 있어요.` : '오늘 할일이 없어요.')}</div>
     </div>`, { action: a ? gsyncLine() : '' });
 }
 
@@ -1855,11 +1861,17 @@ function composer(formId, inputId, label, verb, previewId) {
 
 const TASK_GROUPS = [['overdue', '지난 할일'], ['today', '오늘'], ['tomorrow', '내일'], ['week', '이번 주'], ['later', '나중에'], ['nodate', '날짜 없음']];
 function viewTasks() {
-  const g = groupTasks(state.tasks, today());
+  const g = groupTasks(state.tasks.filter((t) => !isRoutine(t)), today());
   const open = TASK_GROUPS.filter(([k]) => g[k].length);
   const old = ymd(new Date(now().getFullYear(), now().getMonth(), now().getDate() - 30));
   const done = g.done.filter((t) => !t.completedAt || t.completedAt >= old);
+  // 루틴: 반복마다 다음 차례 하나만 (지난 것도 지남 없이)
+  const seen = new Set();
+  const routines = state.tasks.filter((t) => isRoutine(t) && !t.done).sort((a, b) => (a.due || '9').localeCompare(b.due || '9'))
+    .filter((t) => { const k = t.series || t.id; if (seen.has(k)) return false; seen.add(k); return true; });
+  const routineSec = section('루틴', `<div class="panel list">${routines.length ? routines.map((t) => taskRow(t, { routine: true })).join('') : empty('매일·매주 하는 일을 루틴으로 넣어 두면 할일과 따로 모아 봐요.')}</div>`, { sum: routines.length ? `${routines.length}` : '', action: '<button class="link-btn" data-action="add-routine">+ 추가</button>' });
   return `${composer('task-add', 'task-input', '새 할일', '추가', 'task-preview')}
+  ${routineSec}
   ${open.length ? open.map(([k, l]) => section(l, `<div class="panel list">${g[k].map(taskRow).join('')}</div>`, { sum: `${g[k].length}` })).join('') : section('남은 할일', `<div class="panel">${empty('남은 할일이 없어요. 위에서 새로 추가해 보세요.')}</div>`)}
   ${done.length ? `<section class="block"><div class="panel">${details('tasks-done', `완료한 일 <span class="hint">최근 30일 ${done.length}개</span>`, `<div class="list">${done.map(taskRow).join('')}</div>`)}</div></section>` : ''}
   <p class="hint">할일은 차곡차곡에 저장돼서 PC·휴대폰 어디서나 함께 보여요. 시간을 넣은 할일은 30분 전에 알려 드려요.</p>`;
@@ -1948,7 +1960,7 @@ function render() {
   renderAlerts();
   const money = navTab(state.tab) === 'money';
   const kept = lastTab === state.tab ? keepTyping() : null;
-  $('#view').innerHTML = `<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : state.tab === 'debts' ? debtsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
+  $('#view').innerHTML = `${state.tab === 'home' ? goalsBlock() : ''}<h1 class="page-title">${TITLES[state.tab]}${state.tab === 'assets' ? assetsTitleSum() : state.tab === 'debts' ? debtsTitleSum() : ''}</h1>${money ? subNav() : ''}${VIEWS[state.tab]()}`;
   // 메뉴를 옮겼을 때만 새 화면이 살짝 떠오르며 나타나요 (실시간 갱신 때는 그대로)
   if (lastTab !== state.tab) {
     const v = $('#view');
@@ -2208,6 +2220,7 @@ function openForm(kind, item, preset = {}) {
     editing.rule = rule || null;
   }
   if (kind === 'task') v = { ...(item || preset), repeat: choiceOf(editing.rule) };
+  if (kind === 'task') v.routine = isRoutine({ ...v, repeat: editing.rule });
   if (kind === 'event') {
     spec.fields.find((f) => f.key === 'calId').options = writableCals().map((c) => [c.id, c.name]);
     const e = item || preset;
@@ -2222,7 +2235,7 @@ function openForm(kind, item, preset = {}) {
     if (!first) return toast(kind === 'repayment' ? '직접 기록할 대출이 없어요. 상환스케줄을 불러온 대출은 자동으로 기록돼요.' : '먼저 자산에서 저축 계좌를 추가해 주세요.');
     v = { targetId: first.id, date: today(), ...recordDefaults(kind, first.id), ...(preset.amount ? { amount: Number(preset.amount), kind: '적금 납입' } : {}) };
   }
-  $('#editor-title').textContent = kind === 'fx' || kind === 'trade' ? spec.title : `${spec.title} ${item ? '수정' : '추가'}`;
+  $('#editor-title').textContent = kind === 'fx' || kind === 'trade' ? spec.title : `${kind === 'task' && isRoutine(v) ? '루틴' : spec.title} ${item ? '수정' : '추가'}`;
   $('#editor-fields').innerHTML = spec.fields.map((f) => {
     const val = v[f.key] ?? f.def ?? '';
     const id = `f-${f.key}`;
@@ -2773,6 +2786,7 @@ function bind() {
     if (a === 'task-toggle') toggleTask(id);
     if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openMemoEditor(m); }
     if (a === 'memo-pin') toggleMemoPin(id);
+    if (a === 'add-routine') openForm('task', null, { title: '', due: today(), routine: true, repeat: { freq: 'daily', interval: 1 } });
     if (a === 'goal-inc') { const g = (state.data.goals || []).find((x) => x.id === id); if (g) { g.current = (Number(g.current) || 0) + 1; commit(); } }
     if (a === 'weekly-toggle') { state.data.settings = { ...(state.data.settings || {}), weekly: state.data.settings?.weekly === false }; commit(); }
     if (a === 'memo-del') removeMemoQuick(id);

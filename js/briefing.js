@@ -1,7 +1,8 @@
 // 아침 브리핑 알림 (GitHub Actions가 매일 아침 보내요): 오늘 일정 · 할일 · 오늘 나가는 돈.
 // 대출 상환과 고정지출은 '오늘'이 상환일·출금일일 때만 넣어요.
-import { upcoming } from './reminders.js?v=20261124d';
-import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261124d';
+import { upcoming } from './reminders.js?v=20261124f';
+import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261124f';
+import { routinesToday, isRoutine } from './tasks.js?v=20261124f';
 
 const WEEK = '일월화수목금토';
 const list = (items, n = 4) => items.slice(0, n).join(', ') + (items.length > n ? ` 외 ${items.length - n}개` : '');
@@ -29,11 +30,14 @@ export function morningBriefing(data, agenda, today, tasks = agenda?.tasks || []
     } else lines.push('└ 일정 : 앱을 한 번 열면 새로 받아와요');
   }
   // 할일은 차곡차곡에 저장된 것 (구글 연결과 상관없어요)
-  const g = groupTasks(tasks || [], key);
+  // 루틴(반복 할일)은 할일과 따로 개수만
+  const routines = routinesToday(tasks || [], key).filter((t) => !t.done);
+  const g = groupTasks((tasks || []).filter((t) => !isRoutine(t)), key);
   const todo = g.today.map((t) => `${t.time ? `${t.time} ` : ''}${t.title}`);
   if (linked || todo.length || g.overdue.length) {
     lines.push(todo.length ? `└ 할일 ${numEmoji(todo.length)} : ${list(todo)}` : '└ 할일 ❌');
     if (g.overdue.length) lines.push(`└ 지난 할일 : ${numEmoji(g.overdue.length)}개 있어요. 참고!`);
+    if (routines.length) lines.push(`└ 루틴 ${numEmoji(routines.length)} : ${list(routines.map((t) => t.title))}`);
   }
   // 오늘이 출금일·상환일인 것만 (이름만)
   const due = upcoming(data, today, 0).filter((x) => x.dday === 0);

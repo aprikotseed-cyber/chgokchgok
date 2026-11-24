@@ -617,6 +617,10 @@ svg.pin { width: 14px; height: 14px; flex-shrink: 0; }
 .today { display: grid; gap: 12px; }
 /* 일정·할일 칸은 각자 내용만큼만 높이를 가져요 (한쪽이 길어도 다른 쪽이 늘어나지 않게) */
 @media (min-width: 900px) { .today { grid-template-columns: 1fr 1fr; align-items: start; } }
+/* 일정 · 루틴 · 할일 세 칸: 넓은 화면에서 나란히 */
+@media (min-width: 1100px) { .today.three { grid-template-columns: 1fr 1fr 1fr; } }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.goal-flag { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; vertical-align: -3px; }
 .mini-head { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 18px 4px; font-size: 13px; font-weight: 700; color: var(--text-secondary); }
 .list > .mini-head + .row, .list > .mini-head + .empty { border-top: 0; }
 .mini-head + .empty { padding-top: 8px; }
