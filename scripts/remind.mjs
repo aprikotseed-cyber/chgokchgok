@@ -10,6 +10,8 @@ import { getMessaging } from 'firebase-admin/messaging';
 import { fetchAgenda, keepExternal, visibleEvents } from '../js/agenda.js';
 import { listApi } from '../js/google.js';
 import { kstMs, remindersDue, reminderText } from '../js/tasks.js';
+import { weeklyReview } from '../js/goals.js';
+import { outflowsBetween } from '../js/assistant.js';
 
 const APP_URL = process.env.APP_URL || 'https://aprikotseed-cyber.github.io/chgokchgok/';
 const SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
@@ -48,9 +50,9 @@ for (const main of mains) {
   const devices = push.devices || [];
   if (!devices.length) continue;
 
+  const allTasks = (await userRef.collection('tasks').get()).docs.map((d) => ({ id: d.id, ...d.data() }));
   // 할일 (날짜·시간이 있고 안 끝낸 것)
-  const tasks = (await userRef.collection('tasks').get()).docs.map((d) => ({ id: d.id, ...d.data() }))
-    .filter((t) => !t.done && t.due && t.time);
+  const tasks = allTasks.filter((t) => !t.done && t.due && t.time);
   const items = tasks.map((t) => ({ key: `t:${t.id}:${t.due}T${t.time}`, start: kstMs(t.due, t.time), title: t.title, time: t.time, kind: 'task' }));
 
   // 일정 (받아 둔 지 30분이 넘었으면 새로)
@@ -69,16 +71,34 @@ for (const main of mains) {
     items.push({ key: `e:${e.calId}:${e.id}:${e.startKey}T${e.time}`, start: kstMs(e.startKey, e.time), title: e.title, time: e.time, kind: 'event' });
   }
 
+  // 일요일 저녁 8시가 지나면 주간 돌아보기를 한 번 (설정에서 끄지 않았으면)
+  const kst = new Date(NOW); // 워크플로가 TZ=Asia/Seoul
+  const data = main.data() || {};
+  if (kst.getDay() === 0 && kst.getHours() >= 20 && data.settings?.weekly !== false) {
+    const market = (await dataRef.doc('market').get()).data() || {};
+    const r = weeklyReview({ data, agenda, tasks: allTasks, market, today: kst, outflows: (a, b) => outflowsBetween(data, a, b, kst) });
+    if (push.lastWeekly !== r.week) {
+      const wr = await messaging.sendEachForMulticast({
+        tokens: devices.map((x) => x.token),
+        webpush: { notification: { title: r.title, body: r.body, icon: `${APP_URL}icon-192.png`, tag: `chgok-weekly-${NOW}`, renotify: true }, fcmOptions: { link: `${APP_URL}#home` } },
+      });
+      console.log(`주간 돌아보기 보냄 ${wr.successCount}, 실패 ${wr.failureCount}`);
+      if (wr.successCount) await dataRef.doc('push').set({ lastWeekly: r.week }, { merge: true });
+    }
+  }
+
   const sent = push.reminded || {};
   const due = remindersDue(items, NOW, sent);
   console.log(`알림 후보 ${items.length}개 중 보낼 것 ${due.length}개`); // 제목은 남기지 않아요
   if (!due.length) continue;
 
   const n = reminderText(due);
-  const res = await messaging.sendEachForMulticast({
-    tokens: devices.map((x) => x.token),
-    webpush: { notification: { title: n.title, body: n.body, icon: `${APP_URL}icon-192.png`, tag: `chgok-remind-${NOW}`, renotify: true, requireInteraction: true }, fcmOptions: { link: `${APP_URL}#home` } },
-  });
+  // 닫을 때까지 남기기(requireInteraction)는 PC에만: 아이폰은 이 옵션이 있으면 안 뜰 때가 있어요 (아침 브리핑과 같아요)
+  const mobile = (d) => /iPhone|iPad|Android/.test(d || '');
+  const res = await messaging.sendEach(devices.map((d) => ({
+    token: d.token,
+    webpush: { notification: { title: n.title, body: n.body, icon: `${APP_URL}icon-192.png`, tag: `chgok-remind-${NOW}`, renotify: true, ...(mobile(d.device) ? {} : { requireInteraction: true }) }, fcmOptions: { link: `${APP_URL}#home` } },
+  })));
   console.log(`보냄 ${res.successCount}, 실패 ${res.failureCount}`);
   // 보낸 것 기록 (이틀 지난 기록은 정리)
   const keep = Object.fromEntries(Object.entries(sent).filter(([, t]) => NOW - t < 2 * 86400_000));

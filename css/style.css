@@ -294,6 +294,12 @@ a.stat:hover { background: var(--surface-2); }
 
 .progress { display: block; height: 4px; margin: 10px 0 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; }
 .progress span { display: block; height: 100%; background: var(--series-3); }
+/* 오늘 탭 '올해 목표' */
+.row.goal { align-items: center; }
+.row.goal > .row-main { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.row.goal .progress { margin: 8px 0 6px; height: 6px; border-radius: 3px; }
+.row.goal.done .progress span { background: var(--down); }
+.row.goal .row-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .bar-row { display: grid; grid-template-columns: 4.5em 1fr 9.5em; gap: 14px; }
 .bar-row .row-value { text-align: right; }
 .bar { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
