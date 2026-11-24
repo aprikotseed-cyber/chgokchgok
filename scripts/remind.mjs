@@ -76,7 +76,8 @@ for (const main of mains) {
   const data = main.data() || {};
   if (kst.getDay() === 0 && kst.getHours() >= 20 && data.settings?.weekly !== false) {
     const market = (await dataRef.doc('market').get()).data() || {};
-    const r = weeklyReview({ data, agenda, tasks: allTasks, market, today: kst, outflows: (a, b) => outflowsBetween(data, a, b, kst) });
+    const books = (await userRef.collection('books').get()).docs.map((d) => d.data());
+    const r = weeklyReview({ data, agenda, tasks: allTasks, market, today: kst, outflows: (a, b) => outflowsBetween(data, a, b, kst), books });
     if (push.lastWeekly !== r.week) {
       const wr = await messaging.sendEachForMulticast({
         tokens: devices.map((x) => x.token),

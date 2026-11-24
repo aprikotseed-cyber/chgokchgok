@@ -14,9 +14,9 @@
   <link rel="icon" href="favicon-48.png?v=2" sizes="48x48" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261124g">
+  <link rel="stylesheet" href="css/style.css?v=20261124h">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
-  <script type="module" src="js/app.js?v=20261124g"></script>
+  <script type="module" src="js/app.js?v=20261124h"></script>
 </head>
 <body>
   <div id="boot" class="boot">불러오는 중</div>
@@ -112,6 +112,49 @@
         <button type="button" id="editor-delete" class="btn danger">삭제</button>
         <span class="spacer"></span>
         <button type="button" id="editor-cancel" class="btn">취소</button>
+        <button type="submit" class="btn primary">저장</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="book-editor" aria-label="책">
+    <form id="book-form" autocomplete="off">
+      <h2 id="book-head">책 추가</h2>
+      <div class="bk-top">
+        <div class="bk-cover-edit">
+          <span class="cover" id="bk-cover"></span>
+          <div class="bk-cover-tools">
+            <button type="button" class="link-btn" id="bk-find">찾기</button>
+            <label class="link-btn" for="bk-file">사진 올리기</label><input type="file" accept="image/*" id="bk-file" hidden>
+            <button type="button" class="link-btn" id="bk-url-btn">주소 넣기</button>
+            <button type="button" class="link-btn" id="bk-cover-clear" hidden>표지 지우기</button>
+          </div>
+        </div>
+        <div class="bk-fields">
+          <label class="field"><span>제목</span><input id="bk-title" type="text" required></label>
+          <label class="field"><span>저자</span><input id="bk-author" type="text"></label>
+          <label class="field" id="bk-url-field" hidden><span>표지 이미지 주소</span><input id="bk-url" type="url"></label>
+        </div>
+      </div>
+      <div id="bk-results" class="bk-results" hidden></div>
+      <div class="field"><span>상태</span>
+        <div class="segment seg-field" id="bk-status" role="radiogroup" aria-label="상태">
+          <button type="button" data-v="reading" role="radio">읽는 중</button><button type="button" data-v="done" role="radio">다 읽음</button><button type="button" data-v="want" role="radio">읽고 싶은 책</button>
+        </div>
+      </div>
+      <div class="bk-dates">
+        <label class="field"><span>읽기 시작한 날</span><input id="bk-start" type="date"></label>
+        <label class="field" id="bk-end-field"><span>다 읽은 날</span><input id="bk-end" type="date"></label>
+      </div>
+      <div class="field"><span>별점</span><div class="bk-stars" id="bk-stars" role="radiogroup" aria-label="별점"></div></div>
+      <label class="field"><span>한 줄 감상</span><input id="bk-review" type="text"></label>
+      <div class="field"><span>인상 깊은 문장</span>
+        <div id="bk-quotes" class="bk-quotes"></div>
+        <button type="button" class="link-btn bk-add-quote" id="bk-add-quote" aria-label="인상 깊은 문장 더하기">+</button>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="bk-delete" class="btn danger">삭제</button>
+        <span class="spacer"></span>
+        <button type="button" id="bk-cancel" class="btn">취소</button>
         <button type="submit" class="btn primary">저장</button>
       </div>
     </form>

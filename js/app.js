@@ -1,23 +1,24 @@
-import { connect, isDemo } from './store.js?v=20261124g';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124g';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124g';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124g';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124g';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124g';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124g';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124g';
-import { estimateMonths } from './estimate.js?v=20261124g';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124g';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124g';
-import { addFeedback, feedbackText } from './feedback.js?v=20261124g';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124g';
-import { createGoogle, freshServerToken } from './google.js?v=20261124g';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124g';
-import { createDemoGoogle } from './google-demo.js?v=20261124g';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124g';
-import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124g';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124g';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124g';
+import { connect, isDemo } from './store.js?v=20261124h';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124h';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124h';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124h';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124h';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124h';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124h';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124h';
+import { estimateMonths } from './estimate.js?v=20261124h';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124h';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124h';
+import { addFeedback, feedbackText } from './feedback.js?v=20261124h';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124h';
+import { createGoogle, freshServerToken } from './google.js?v=20261124h';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124h';
+import { createDemoGoogle } from './google-demo.js?v=20261124h';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124h';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261124h';
+import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124h';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124h';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124h';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -42,6 +43,7 @@ const state = {
   dragging: false,
   memos: [],            // 메모 [{id, text, pinned, createdAt, updatedAt}]
   diary: {},            // 일기 { 'YYYY-MM-DD': {happy, moved, thanks, worry, updatedAt} }
+  books: [],            // 독서 기입장 [{id, title, author, cover, status, start, end, rating, review, quotes}]
   agenda: null,         // 구글 캘린더에서 받아 둔 일정 {calendars, events, syncedAt}
   tasks: [],            // 할일 (차곡차곡에 직접 저장)
   gsync: '',            // '' | 'busy' | 'auth'(다시 연결 필요) | 오류 문구
@@ -122,7 +124,7 @@ const FORMS = {
       { key: 'title', label: '목표 이름', type: 'text', required: true },
       { key: 'kind', label: '무엇으로 셀까요', type: 'select', options: Object.entries(GOAL_KINDS), hint: '저축·대출·순자산·운동은 차곡차곡 기록으로 저절로 세요. 독서처럼 따로 세는 건 ‘직접 세기’' },
       { key: 'targetWon', label: '목표 금액', type: 'won', showIf: { kind: ['saving', 'debt', 'net'] } },
-      { key: 'targetCount', label: '목표 횟수', type: 'number', showIf: { kind: ['exercise', 'custom'] }, hint: '운동은 한 주에 몇 번인지 (Exercise 캘린더 일정 수로 세요)' },
+      { key: 'targetCount', label: '목표 횟수', type: 'number', showIf: { kind: ['exercise', 'books', 'custom'] }, hint: '운동은 한 주에 몇 번인지, 책은 올해 몇 권인지 (독서 기입장에서 다 읽음으로 바꾸면 저절로 세요)' },
       { key: 'current', label: '지금까지', type: 'number', showIf: { kind: 'custom' }, hint: '목표 줄의 +1을 눌러도 하나씩 늘어나요' },
       { key: 'unit', label: '단위', type: 'text', placeholder: '권, 회, km', showIf: { kind: 'custom' } },
     ],
@@ -477,6 +479,112 @@ function viewDiary() {
   </div>`;
 }
 
+// ───────────────────────── 기록 → 독서 ─────────────────────────
+const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
+const stars = (n) => (n ? `<span class="bt-stars" aria-label="별 ${n}개">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>` : '');
+/** 표지: 칸을 빈틈 없이 꽉 채워요 (비율이 달라도 늘려서) */
+const coverHtml = (b) => (b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : '') + `<span class="cover-title">${esc(b.title || '')}</span>`;
+
+function viewBooks() {
+  const all = state.books || [];
+  const f = BOOK_STATUS.some(([k]) => k === state.bookFilter) ? state.bookFilter : '';
+  const list = shelfOrder(all, f);
+  const chips = `<div class="segment shelf-filter" role="tablist" aria-label="책 상태">${[['', '전체'], ...BOOK_STATUS].map(([k, l]) => `<button role="tab" aria-selected="${f === k}" data-action="book-filter" data-key="${k}">${l}<small>${k ? all.filter((b) => b.status === k).length : all.length}</small></button>`).join('')}</div>`;
+  const tiles = list.map((b) => `<button class="book-tile" data-action="book-open" data-id="${esc(b.id)}">
+      <span class="cover${b.cover ? ' has' : ''}">${coverHtml(b)}</span>
+      <span class="bt-title">${esc(b.title)}</span>
+      <span class="bt-meta">${b.status === 'done' ? stars(Number(b.rating) || 0) || '다 읽음' : b.status === 'reading' ? '읽는 중' : '읽고 싶은 책'}</span>
+    </button>`).join('');
+  const year = now().getFullYear();
+  const readYear = all.filter((b) => b.status === 'done' && String(b.end || '').startsWith(`${year}-`)).length;
+  return `${section('책장', `${chips}${tiles ? `<div class="shelf">${tiles}</div>` : `<div class="panel">${empty(f ? '이 칸에 책이 없어요.' : '아직 책이 없어요.')}</div>`}`, { sum: readYear ? `${year}년 ${readYear}권 읽음` : '', action: '<button class="link-btn" data-action="book-add">+ 책 추가</button>' })}`;
+}
+
+let bookEditing = null; // 고치는 책 (창 안에서만)
+function openBook(id) {
+  const b = id ? (state.books || []).find((x) => x.id === id) : null;
+  bookEditing = b ? JSON.parse(JSON.stringify(b)) : { id: '', status: 'reading', start: today(), rating: 0, quotes: [{ text: '', page: '' }] };
+  if (!bookEditing.quotes?.length) bookEditing.quotes = [{ text: '', page: '' }];
+  $('#book-head').textContent = b ? '책 수정' : '책 추가';
+  $('#bk-title').value = bookEditing.title || '';
+  $('#bk-author').value = bookEditing.author || '';
+  $('#bk-url').value = bookEditing.cover && !bookEditing.cover.startsWith('data:') ? bookEditing.cover : '';
+  $('#bk-url-field').hidden = true;
+  $('#bk-start').value = bookEditing.start || '';
+  $('#bk-end').value = bookEditing.end || '';
+  $('#bk-review').value = bookEditing.review || '';
+  $('#bk-results').hidden = true;
+  $('#bk-delete').hidden = !b;
+  bookPaint();
+  $('#book-editor').showModal();
+  if (!b) setTimeout(() => $('#bk-title').focus(), 50);
+}
+/** 창 안의 표지·상태·별점·문장 칸을 지금 값대로 */
+function bookPaint() {
+  const e = bookEditing;
+  $('#bk-cover').className = `cover${e.cover ? ' has' : ''}`;
+  $('#bk-cover').innerHTML = e.cover ? coverHtml({ ...e, title: $('#bk-title').value }) : '<span class="cover-title">표지 없음</span>';
+  $('#bk-cover-clear').hidden = !e.cover;
+  $('#bk-status').querySelectorAll('button').forEach((x) => x.setAttribute('aria-selected', String(x.dataset.v === e.status)));
+  $('#bk-end-field').hidden = e.status !== 'done';
+  $('#bk-stars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="${n === (Number(e.rating) || 0)}" aria-label="별 ${n}개" data-star="${n}" class="${n <= (Number(e.rating) || 0) ? 'on' : ''}">${STAR}</button>`).join('');
+  $('#bk-quotes').innerHTML = e.quotes.map((q, i) => `<div class="bk-quote" data-i="${i}"><textarea rows="1" data-grow data-q="text" aria-label="인상 깊은 문장 ${i + 1}">${esc(q.text || '')}</textarea><input type="text" inputmode="numeric" data-q="page" value="${esc(q.page || '')}" aria-label="페이지"><button type="button" class="icon-btn" data-q-del="${i}" aria-label="이 문장 지우기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('');
+  $('#bk-quotes').querySelectorAll('textarea[data-grow]').forEach(growBox);
+}
+/** 창의 글 칸 → bookEditing (다시 그리기 전에 쓴 글을 지켜요) */
+function bookRead() {
+  const e = bookEditing;
+  e.title = $('#bk-title').value.trim();
+  e.author = $('#bk-author').value.trim();
+  e.start = $('#bk-start').value;
+  e.end = $('#bk-end').value;
+  e.review = $('#bk-review').value.trim();
+  e.quotes = [...$('#bk-quotes').querySelectorAll('.bk-quote')].map((r) => ({ text: r.querySelector('[data-q="text"]').value, page: r.querySelector('[data-q="page"]').value }));
+}
+/** 사진을 작은 표지(가로 300px)로 줄여서 글자로 저장해요 (사진 저장소 없이) */
+function shrinkCover(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = Math.min(300, img.naturalWidth);
+      const h = Math.round(img.naturalHeight * (w / img.naturalWidth));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(img.src);
+      resolve(c.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => reject(new Error('이미지를 열지 못했어요'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+async function findBook() {
+  bookRead();
+  const q = [bookEditing.title, bookEditing.author].filter(Boolean).join(' ');
+  const box = $('#bk-results');
+  if (!q) { toast('먼저 제목을 적어 주세요.'); $('#bk-title').focus(); return; }
+  box.hidden = false;
+  box.innerHTML = '<p class="hint">찾는 중…</p>';
+  try {
+    const res = await fetch(googleBooksUrl(q));
+    if (!res.ok) throw new Error(`검색 오류 ${res.status}`);
+    const found = parseGoogleBooks(await res.json());
+    state.bookFound = found;
+    box.innerHTML = found.length ? found.map((r, i) => `<button type="button" class="bk-cand" data-cand="${i}"><span class="cover${r.cover ? ' has' : ''}">${coverHtml(r)}</span><span class="bt-title">${esc(r.title)}</span><span class="bt-meta">${esc(r.author)}</span></button>`).join('') : '<p class="hint">찾지 못했어요. 사진을 올리거나 주소를 넣어 주세요.</p>';
+  } catch (err) { box.innerHTML = `<p class="hint">찾지 못했어요 (${esc(err.message)}). 사진을 올리거나 주소를 넣어 주세요.</p>`; }
+}
+function saveBook() {
+  bookRead();
+  const e = bookEditing;
+  if (!e.title) { toast('제목을 적어 주세요.'); return false; }
+  if (e.status === 'done' && !e.end) e.end = today(); // 다 읽음으로 바꾸면 오늘 다 읽은 걸로
+  const book = { ...e, id: e.id || crypto.randomUUID().slice(0, 12), rating: Number(e.rating) || 0, quotes: cleanQuotes(e.quotes), createdAt: e.createdAt || Date.now(), updatedAt: Date.now() };
+  state.books = [book, ...(state.books || []).filter((x) => x.id !== book.id)];
+  render();
+  store.saveBook(book).catch((err) => toast(`저장하지 못했어요: ${err.message}`));
+  return true;
+}
+
 /** 아직 만들지 않은 작은 탭 */
 function viewSoon() {
   return `<div class="panel">${empty('다음 업데이트에서 만들어요.')}</div>`;
@@ -485,7 +593,7 @@ function viewSoon() {
 /** 오늘 탭 '올해 목표': 진행률 막대, 직접 세는 목표는 +1 */
 function goalsBlock() {
   const goals = state.data.goals || [];
-  const ctx = { data: state.data, market: state.market, agenda: state.agenda, today: now() };
+  const ctx = { data: state.data, market: state.market, agenda: state.agenda, today: now(), books: state.books };
   const rows = goals.map((g) => {
     const p = goalProgress(g, ctx);
     const done = p.pct >= 100;
@@ -2051,7 +2159,7 @@ function setGoogle(patch) {
 }
 
 // ───────────────────────── 그리기 ─────────────────────────
-const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, memo: viewMemo, diary: viewDiary, books: viewSoon, workout: viewSoon, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
+const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, memo: viewMemo, diary: viewDiary, books: viewBooks, workout: viewSoon, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
 const TITLES = { home: '오늘', money: '자산 홈', calendar: '일정', tasks: '할일', memo: '메모', diary: '기록', books: '기록', workout: '기록', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
 // 기록 메뉴 안의 작은 탭: 일기 | 독서 | 운동
 const JOURNAL_TABS = [['diary', '일기'], ['books', '독서'], ['workout', '운동']];
@@ -2724,7 +2832,7 @@ function askAssistant(q) {
   const last = [...chat].reverse().find((m) => !m.me && !m.typing);
   const picked = last?.choose && !last.chosen ? pickChoice(q, last.choose) : null;
   if (last?.choose) last.chosen = true;
-  const a = ask(picked || q, state.data, state.market, new Date(), ag, state.memos);
+  const a = ask(picked || q, { ...state.data, books: state.books }, state.market, new Date(), ag, state.memos);
   // 모르는 질문은 저절로 개선 목록에
   if (a.unknown) saveFeedback({ q: picked || q, kind: 'unknown' });
   replying = replying.then(async () => {
@@ -2910,6 +3018,9 @@ function bind() {
     if (a === 'task-toggle') toggleTask(id);
     if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openMemoEditor(m); }
     if (a === 'memo-pin') toggleMemoPin(id);
+    if (a === 'book-open') openBook(id);
+    if (a === 'book-add') openBook('');
+    if (a === 'book-filter') { state.bookFilter = b.dataset.key || ''; render(); }
     if (a === 'diary-write') openDiary(b.dataset.key || today());
     if (a === 'diary-month') { state.diaryMonth = b.dataset.key; render(); }
     if (a === 'diary-go') goDiary(b.dataset.key);
@@ -3137,6 +3248,74 @@ function bind() {
   smoothDialog($('#editor'));
   smoothDialog($('#assistant'));
   // 메모 고치기 창
+  // 독서 기입장 창
+  const bd = $('#book-editor');
+  smoothDialog(bd);
+  bd.addEventListener('click', (e) => { if (e.target === bd) bd.close(); });
+  $('#book-form').addEventListener('submit', (e) => { e.preventDefault(); if (saveBook()) bd.close(); });
+  $('#bk-cancel').addEventListener('click', () => bd.close());
+  $('#bk-delete').addEventListener('click', () => {
+    const t = bookEditing?.title || '이 책';
+    if (!bookEditing?.id || !confirm(`'${t}'${josaOf(t, '을', '를')} 지울까요?`)) return;
+    state.books = (state.books || []).filter((x) => x.id !== bookEditing.id);
+    render();
+    store.deleteBook(bookEditing.id).catch((err) => toast(`지우지 못했어요: ${err.message}`));
+    bd.close();
+  });
+  $('#bk-find').addEventListener('click', findBook);
+  $('#bk-title').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); findBook(); } });
+  $('#bk-file').addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try { bookRead(); bookEditing.cover = await shrinkCover(file); bookPaint(); } catch (err) { toast(err.message); }
+  });
+  $('#bk-url-btn').addEventListener('click', () => { $('#bk-url-field').hidden = false; $('#bk-url').focus(); });
+  $('#bk-url').addEventListener('change', (e) => { bookRead(); bookEditing.cover = e.target.value.trim(); bookPaint(); });
+  $('#bk-cover-clear').addEventListener('click', () => { bookRead(); bookEditing.cover = ''; $('#bk-url').value = ''; bookPaint(); });
+  $('#bk-status').addEventListener('click', (e) => {
+    const v = e.target.closest('[data-v]')?.dataset.v;
+    if (!v) return;
+    bookRead();
+    bookEditing.status = v;
+    if (v === 'done' && !bookEditing.end) bookEditing.end = today();
+    $('#bk-end').value = bookEditing.end || '';
+    bookPaint();
+  });
+  $('#bk-stars').addEventListener('click', (e) => {
+    const n = Number(e.target.closest('[data-star]')?.dataset.star);
+    if (!n) return;
+    bookRead();
+    bookEditing.rating = bookEditing.rating === n ? 0 : n; // 같은 별을 다시 누르면 지워요
+    bookPaint();
+  });
+  $('#bk-add-quote').addEventListener('click', () => {
+    bookRead();
+    bookEditing.quotes.push({ text: '', page: '' });
+    bookPaint();
+    [...$('#bk-quotes').querySelectorAll('textarea')].at(-1)?.focus();
+  });
+  $('#bk-quotes').addEventListener('click', (e) => {
+    const i = e.target.closest('[data-q-del]')?.dataset.qDel;
+    if (i == null) return;
+    bookRead();
+    bookEditing.quotes.splice(Number(i), 1);
+    if (!bookEditing.quotes.length) bookEditing.quotes.push({ text: '', page: '' });
+    bookPaint();
+  });
+  $('#bk-quotes').addEventListener('input', (e) => { if (e.target.matches('textarea[data-grow]')) growBox(e.target); });
+  $('#bk-results').addEventListener('click', (e) => {
+    const i = e.target.closest('[data-cand]')?.dataset.cand;
+    const r = i != null && state.bookFound?.[Number(i)];
+    if (!r) return;
+    bookRead();
+    Object.assign(bookEditing, { title: r.title, author: r.author || bookEditing.author, publisher: r.publisher || '', cover: r.cover || bookEditing.cover });
+    $('#bk-title').value = bookEditing.title;
+    $('#bk-author').value = bookEditing.author;
+    $('#bk-results').hidden = true;
+    bookPaint();
+  });
+
   const md = $('#memo-editor');
   smoothDialog(md);
   $('#memo-edit-form').addEventListener('submit', (e) => { e.preventDefault(); if (saveMemoEdit()) md.close(); });
@@ -3307,6 +3486,7 @@ async function main() {
     onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'money') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
     onMemos: (list) => { state.memos = list || []; if (state.tab === 'memo') render(); },
+    onBooks: (list) => { state.books = list || []; if (state.tab === 'books' || state.tab === 'home') render(); },
     onDiary: (map) => { state.diary = map || {}; diaryLoaded = true; if (state.tab === 'diary' || state.tab === 'home') render(); openDiaryFromLink(); },
     onTasks: (list) => { state.tasks = (list || []).map(normLocalTask); render(); },
     onAgenda: (a) => {
