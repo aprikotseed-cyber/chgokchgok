@@ -1,14 +1,15 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261124b';
-import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261124b';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261124b';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261124b';
-import { won, wonExact, mdw, pct } from './format.js?v=20261124b';
-import { maturityEstimate, depositTotal } from './deposits.js?v=20261124b';
-import { simulatePrepay, prepayFee } from './prepay.js?v=20261124b';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261124b';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261124c';
+import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261124c';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261124c';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261124c';
+import { won, wonExact, mdw, pct } from './format.js?v=20261124c';
+import { weeklyReview, goalProgress } from './goals.js?v=20261124c';
+import { maturityEstimate, depositTotal } from './deposits.js?v=20261124c';
+import { simulatePrepay, prepayFee } from './prepay.js?v=20261124c';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261124c';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -202,6 +203,8 @@ const PARTNER_WORDS = ['반려자', '와이프', '아내', '남편', '배우자'
 
 // ───── ① 무엇을 ─────
 const INTENTS = [
+  { id: 'weekly', words: ['돌아보기', '돌아봐', '회고', '주간정리', '한주정리', '이번주어땠', '이번주정리', '주간리뷰', '주간돌아'] },
+  { id: 'goals', words: ['목표', '진행률', '달성률', '얼마나달성'] },
   { id: 'brief', words: ['브리핑', '하루요약', '오늘요약', '오늘어때', '오늘하루', '하루일과'] },
   { id: 'schedule', words: ['일정', '약속', '스케줄', '캘린더', '달력', '뭐있', '뭐해', '계획', '바빠', '바쁘', '한가', '시간있', '시간돼', '몇시'], types: ['event', 'cal', 'partner'] },
   { id: 'tasks', words: ['할일', '할거', '해야할', '해야돼', '해야되', '해야될', '해야하', '투두', 'todo', '마감', '밀린', '못한', '안한', '끝낸', '완료한'], types: ['task'] },
@@ -385,6 +388,18 @@ const H = {
     const after = list.find((u) => u.dday > first[0].dday);
     if (after) text += `\n그다음은 ${whenText(ctx.now, after.date)} ${euro(after.name)} ${wonExact(after.amount)}이에요.`;
     return { text, chips: [ask1('이번 달 남은 출금 얼마야?')] };
+  },
+
+  weekly(ctx) {
+    const r = weeklyReview({ data: ctx.data, agenda: ctx.agenda, tasks: ctx.agenda?.tasks || [], market: ctx.market, today: ctx.now, outflows: (a, b) => outflowItems(ctx, a, b) });
+    return { text: `이번 주 돌아보기예요. (일요일 저녁 8시에 알림으로도 보내 드려요)\n${r.body}` };
+  },
+
+  goals(ctx) {
+    const goals = ctx.data.goals || [];
+    if (!goals.length) return { text: '아직 올해 목표가 없어요. 오늘 탭 맨 아래 ‘올해 목표’에서 + 추가로 적어 두면 진행률을 알려 드릴게요.' };
+    const c = { data: ctx.data, market: ctx.market, agenda: ctx.agenda, today: ctx.now };
+    return { text: `${ctx.now.getFullYear()}년 목표 진행률이에요.\n${goals.map((g) => { const p = goalProgress(g, c); return `· ${g.title}: ${p.pct >= 100 ? '달성' : `${Math.floor(p.pct)}%`} (${p.text})${p.sub ? ` · ${p.sub}` : ''}`; }).join('\n')}` };
   },
 
   hello: () => ({ text: '네, 덕준님. 일정·할일·메모부터 자산·대출까지 편하게 말씀해 주세요.' }),

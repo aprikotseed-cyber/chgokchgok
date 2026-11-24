@@ -1,22 +1,23 @@
-import { connect, isDemo } from './store.js?v=20261124b';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124b';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124b';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124b';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124b';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124b';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124b';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124b';
-import { estimateMonths } from './estimate.js?v=20261124b';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261124b';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124b';
-import { addFeedback, feedbackText } from './feedback.js?v=20261124b';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124b';
-import { createGoogle, freshServerToken } from './google.js?v=20261124b';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124b';
-import { createDemoGoogle } from './google-demo.js?v=20261124b';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261124b';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124b';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124b';
+import { connect, isDemo } from './store.js?v=20261124c';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124c';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124c';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124c';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124c';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124c';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124c';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124c';
+import { estimateMonths } from './estimate.js?v=20261124c';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261124c';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124c';
+import { addFeedback, feedbackText } from './feedback.js?v=20261124c';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124c';
+import { createGoogle, freshServerToken } from './google.js?v=20261124c';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124c';
+import { createDemoGoogle } from './google-demo.js?v=20261124c';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261124c';
+import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124c';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124c';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124c';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -101,6 +102,17 @@ const FORMS = {
       { key: 'balance', label: '현재 잔액', type: 'won' },
       { key: 'monthly', label: '매달 넣는 돈', type: 'won' },
       { key: 'rate', label: '연 이자율', type: 'pct' },
+    ],
+  },
+  goals: {
+    title: '올해 목표',
+    fields: [
+      { key: 'title', label: '목표 이름', type: 'text', placeholder: '올해 저축 2천만 원', required: true },
+      { key: 'kind', label: '무엇으로 셀까요', type: 'select', options: Object.entries(GOAL_KINDS), hint: '저축·대출·순자산·운동은 차곡차곡 기록으로 저절로 세요. 독서처럼 따로 세는 건 ‘직접 세기’' },
+      { key: 'targetWon', label: '목표 금액', type: 'won', showIf: { kind: ['saving', 'debt', 'net'] } },
+      { key: 'targetCount', label: '목표 횟수', type: 'number', showIf: { kind: ['exercise', 'custom'] }, hint: '운동은 한 주에 몇 번인지 (Exercise 캘린더 일정 수로 세요)' },
+      { key: 'current', label: '지금까지', type: 'number', showIf: { kind: 'custom' }, hint: '목표 줄의 +1을 눌러도 하나씩 늘어나요' },
+      { key: 'unit', label: '단위', type: 'text', placeholder: '권, 회, km', showIf: { kind: 'custom' } },
     ],
   },
   deposits: {
@@ -357,7 +369,27 @@ function viewHome() {
     <button class="ask-send" type="submit">보내기</button>
   </form>
   ${todayBlock()}
-  ${monthBlock()}`;
+  ${monthBlock()}
+  ${goalsBlock()}`;
+}
+
+/** 오늘 탭 '올해 목표': 진행률 막대, 직접 세는 목표는 +1 */
+function goalsBlock() {
+  const goals = state.data.goals || [];
+  const ctx = { data: state.data, market: state.market, agenda: state.agenda, today: now() };
+  const rows = goals.map((g) => {
+    const p = goalProgress(g, ctx);
+    const done = p.pct >= 100;
+    return `<div class="row goal${done ? ' done' : ''}">
+      <button class="row-main" data-action="edit" data-kind="goals" data-id="${esc(g.id)}">
+        <span class="row-title">${esc(g.title)}</span>
+        <span class="progress"><span style="width:${Math.min(100, p.pct).toFixed(1)}%"></span></span>
+        <span class="row-meta">${esc(p.text)}${p.sub ? ` · ${esc(p.sub)}` : ''}</span>
+      </button>
+      <span class="row-side"><span class="row-value">${done ? '달성' : `${Math.floor(p.pct)}%`}</span>${g.kind === 'custom' ? `<button class="pill" data-action="goal-inc" data-id="${esc(g.id)}" aria-label="${esc(g.title)} 하나 더">+1</button>` : ''}</span>
+    </div>`;
+  }).join('');
+  return section(`${now().getFullYear()}년 목표`, `<div class="panel list">${rows || empty('올해 이루고 싶은 걸 적어 두면 진행률을 보여 드려요. 예: 올해 저축 2천만 원, 대출 원금 1천만 원 갚기, 운동 주 3회')}</div>`, { action: addBtn('goals') });
 }
 
 // 자산 → 홈: 총자산, 자산 추이, 고정지출·상환 일정
@@ -1163,6 +1195,7 @@ function viewSettings() {
     ${details('push-check', '알림이 안 올 때 점검하기', pushCheck(p, mine))}`;
   const notify = `<div class="panel list">
     <p class="pad">아침 <b>7시 30분 브리핑</b>, 시간 넣은 할일·일정은 <b>30분 전</b>에 알려 드려요.</p>
+    <div class="row static"><span class="row-main"><span class="row-title">일요일 저녁 8시 주간 돌아보기</span><span class="row-meta">이번 주 운동·할일·저축·목표와 다음 주 미리보기 (30분 전 알림 알람으로 함께 와요)</span></span><button class="link-btn" data-action="weekly-toggle">${state.data.settings?.weekly === false ? '켜기' : '끄기'}</button></div>
     ${push}
     ${details('notify-more', '어떤 알림이 오나요?', `<div class="pad"><p class="hint">아침 브리핑: 오늘 일정, 오늘 마감 할일과 지난 할일, 오늘이 상환일·출금일인 대출과 고정지출.<br>30분 전 알림: 시간을 넣은 할일과 구글 캘린더 일정(반려자·종일 일정 빼고), 한 번만.<br>앱 화면 알림 카드: 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p></div>`)}
   </div>`;
@@ -2739,6 +2772,8 @@ function bind() {
     if (a === 'task-toggle') toggleTask(id);
     if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openMemoEditor(m); }
     if (a === 'memo-pin') toggleMemoPin(id);
+    if (a === 'goal-inc') { const g = (state.data.goals || []).find((x) => x.id === id); if (g) { g.current = (Number(g.current) || 0) + 1; commit(); } }
+    if (a === 'weekly-toggle') { state.data.settings = { ...(state.data.settings || {}), weekly: state.data.settings?.weekly === false }; commit(); }
     if (a === 'memo-del') removeMemoQuick(id);
     if (a === 'event-edit') { const ev = state.agenda?.events.find((x) => x.id === id && x.calId === b.dataset.cal); if (ev) openForm('event', ev); }
     if (a === 'task-edit') { const t = findTask(id); if (t) openForm('task', t); }
