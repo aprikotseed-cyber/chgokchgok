@@ -45,7 +45,7 @@ test('주간 돌아보기: 운동·할일·돈·목표·다음 주', () => {
   ];
   const r = weeklyReview({ data, agenda, tasks, today, outflows: () => [{ amount: 238_000 }] });
   assert.equal(r.week, '2026-11-16');
-  assert.match(r.body, /운동 2회 \(목표 주 3회 미달\)/);
+  assert.match(r.body, /운동 2회 · 목표 주 3회 미달/);
   assert.match(r.body, /할일 1개 끝냄 · 밀린 할일 1개/);
   assert.match(r.body, /저축 \+500,000원 · 대출 원금 −300,000원/);
   assert.match(r.body, /올해 목표: 올해 저축 50%, 독서 75%/);
