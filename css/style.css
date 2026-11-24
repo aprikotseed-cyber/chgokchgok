@@ -400,6 +400,7 @@ dialog h2 { font-size: 19px; margin-bottom: 18px; }
   background: var(--ink); color: var(--on-ink); font-size: 14px;
 }
 .update { display: flex; align-items: center; gap: 14px; }
+.toast-act { margin-left: 10px; padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--on-ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .update .link-btn { color: var(--on-ink); text-decoration: underline; text-underline-offset: 3px; }
 @media (min-width: 900px) { .toast, .update { bottom: 24px; } }
 @media (max-width: 600px) {
@@ -1074,15 +1075,17 @@ button:focus-visible, a:focus-visible, summary:focus-visible, [role="button"]:fo
 /* 메모 카드: 오른쪽 위 작은 핀, 올리면 연한 그림자 */
 .memo { position: relative; border: 0; transition: box-shadow .25s var(--ease), background-color .25s var(--ease); }
 .memo:hover { box-shadow: 0 2px 14px rgb(0 0 0 / .06); }
-.memo-title { padding-right: 26px; }
-.memo-pin {
+.memo-title { padding-right: 56px; }
+.memo-pin, .memo-del {
   position: absolute; top: 9px; right: 9px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px;
   display: grid; place-items: center; background: none; color: var(--text-muted); opacity: .45; cursor: pointer;
   transition: opacity .2s var(--ease), color .2s var(--ease), transform .18s var(--ease);
 }
-.memo-pin svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
-.memo-pin:hover { opacity: .9; }
-.memo-pin:active { transform: scale(.9); }
+.memo-pin { right: 37px; } /* 핀 오른쪽에 X */
+.memo-pin svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.memo-del svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.memo-pin:hover, .memo-del:hover { opacity: .9; }
+.memo-pin:active, .memo-del:active { transform: scale(.9); }
 .memo.pinned .memo-pin { opacity: .85; color: var(--hot-ink); }
 .memo.pinned .memo-pin svg { fill: currentColor; }
 

@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261124a';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124a';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124a';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124a';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124a';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124a';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124a';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124a';
-import { estimateMonths } from './estimate.js?v=20261124a';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261124a';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124a';
-import { addFeedback, feedbackText } from './feedback.js?v=20261124a';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124a';
-import { createGoogle, freshServerToken } from './google.js?v=20261124a';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124a';
-import { createDemoGoogle } from './google-demo.js?v=20261124a';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261124a';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124a';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124a';
+import { connect, isDemo } from './store.js?v=20261124b';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124b';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124b';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124b';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124b';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124b';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124b';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124b';
+import { estimateMonths } from './estimate.js?v=20261124b';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261124b';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124b';
+import { addFeedback, feedbackText } from './feedback.js?v=20261124b';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124b';
+import { createGoogle, freshServerToken } from './google.js?v=20261124b';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124b';
+import { createDemoGoogle } from './google-demo.js?v=20261124b';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261124b';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124b';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124b';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -926,13 +926,15 @@ function memoGroup(t) {
   return `${d.getFullYear() === n.getFullYear() ? '' : `${d.getFullYear()}년 `}${d.getMonth() + 1}월`;
 }
 
+const X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
 const PIN_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7"/></svg>';
 function memoCard(m) {
   const [first, ...rest] = String(m.text || '').split('\n');
   const body = rest.join('\n').trim();
-  // 카드 전체를 누르면 고치기, 오른쪽 위 핀을 누르면 '중요'로 맨 위에 (다시 누르면 해제)
+  // 카드 전체를 누르면 고치기, 오른쪽 위 핀을 누르면 '중요'로 맨 위에 (다시 누르면 해제), X는 바로 지우기(되돌리기 가능)
   return `<div class="memo${m.pinned ? ' pinned' : ''}" role="button" tabindex="0" data-action="memo-edit" data-id="${esc(m.id)}" data-text="${esc(String(m.text || '').toLowerCase())}">
     <button type="button" class="memo-pin" data-action="memo-pin" data-id="${esc(m.id)}" aria-pressed="${!!m.pinned}" aria-label="${m.pinned ? '중요 해제' : '중요로 맨 위에'}" title="${m.pinned ? '중요 해제' : '중요'}">${PIN_SVG}</button>
+    <button type="button" class="memo-del" data-action="memo-del" data-id="${esc(m.id)}" aria-label="메모 지우기" title="지우기">${X_SVG}</button>
     <span class="memo-title">${esc(first)}</span>
     ${body ? `<span class="memo-body">${esc(body)}</span>` : ''}
     <span class="memo-meta">${esc(memoTime(m.createdAt))}</span>
@@ -956,6 +958,16 @@ function saveMemoEdit() {
   store.saveMemo({ ...old, text, updatedAt: Date.now() }).catch((e) => toast(`저장하지 못했어요: ${e.message}`));
   return true;
 }
+/** 메모 카드의 X: 묻지 않고 바로 지우고, 잠깐 '되돌리기'를 보여 줘요 */
+function removeMemoQuick(id) {
+  const m = (state.memos || []).find((x) => x.id === id);
+  if (!m) return;
+  store.deleteMemo(id).then(
+    () => toast('메모를 지웠어요.', { label: '되돌리기', fn: () => store.saveMemo(m).catch((e) => toast(`되돌리지 못했어요: ${e.message}`)) }),
+    (e) => toast(`지우지 못했어요: ${e.message}`),
+  );
+}
+
 function toggleMemoPin(id) {
   const m = state.memos.find((x) => x.id === id);
   if (!m) return;
@@ -2370,9 +2382,18 @@ function deleteItem() {
 }
 
 // ───────────────────────── 실시간 갱신 ─────────────────────────
-function toast(msg) {
+function toast(msg, action = null) {
   const t = $('#toast');
   t.textContent = msg;
+  // '되돌리기'처럼 누를 수 있는 말을 붙일 때 (조금 더 오래 보여 줘요)
+  if (action) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'toast-act';
+    b.textContent = action.label;
+    b.addEventListener('click', () => { action.fn(); t.hidden = true; clearTimeout(t._t); }, { once: true });
+    t.append(' ', b);
+  }
   t.classList.remove('out');
   t.hidden = false;
   t.style.animation = 'none';
@@ -2383,7 +2404,7 @@ function toast(msg) {
   t._t = setTimeout(() => {
     t.classList.add('out');
     t._o = setTimeout(() => { t.hidden = true; t.classList.remove('out'); }, reduceMotion() ? 0 : 220);
-  }, 3200);
+  }, action ? 5000 : 3200);
 }
 
 /** 날짜가 바뀌면 D-day·남은 금액이 맞도록 다시 그리기 */
@@ -2718,6 +2739,7 @@ function bind() {
     if (a === 'task-toggle') toggleTask(id);
     if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openMemoEditor(m); }
     if (a === 'memo-pin') toggleMemoPin(id);
+    if (a === 'memo-del') removeMemoQuick(id);
     if (a === 'event-edit') { const ev = state.agenda?.events.find((x) => x.id === id && x.calId === b.dataset.cal); if (ev) openForm('event', ev); }
     if (a === 'task-edit') { const t = findTask(id); if (t) openForm('task', t); }
     if (a === 'edit') openForm(kind, state.data[kind]?.find((x) => x.id === id));
