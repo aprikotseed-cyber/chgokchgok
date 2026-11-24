@@ -55,6 +55,8 @@ export async function connect(h) {
       F.onSnapshot(F.collection(db, 'users', user.uid, 'memos'), (s) => h.onMemos?.(s.docs.map((d) => ({ id: d.id, ...d.data() })))),
       // 일기: 날짜('YYYY-MM-DD')가 문서 이름이에요 (하루 한 장)
       F.onSnapshot(F.collection(db, 'users', user.uid, 'diary'), (s) => h.onDiary?.(Object.fromEntries(s.docs.map((d) => [d.id, d.data()])))),
+      // 독서 기입장: 책 한 권이 문서 하나 (직접 올린 표지는 작은 썸네일로 함께)
+      F.onSnapshot(F.collection(db, 'users', user.uid, 'books'), (s) => h.onBooks?.(s.docs.map((d) => ({ id: d.id, ...d.data() })))),
       // 토큰 같은 비밀값: 백업 파일·개선 목록에 섞이지 않게 따로 저장
       F.onSnapshot(F.doc(db, 'users', user.uid, 'data', 'secrets'), (s) => h.onSecrets?.(s.exists() ? s.data() : {})),
     );
@@ -101,6 +103,8 @@ export async function connect(h) {
     deleteMemo: (id) => F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'memos', id)),
     saveDiary: (key, entry) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'diary', key), entry),
     deleteDiary: (key) => F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'diary', key)),
+    saveBook: ({ id, ...book }) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'books', id), book),
+    deleteBook: (id) => F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'books', id)),
     saveAgenda: (agenda) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'agenda'), agenda),
     saveSecret: (key, value) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'secrets'), { [key]: value || F.deleteField() }, { merge: true }),
     pushSupported: async () => {
@@ -153,12 +157,16 @@ function demoStore(h) {
   const DKEY = 'chgok-demo-diary';
   let diary = JSON.parse(localStorage.getItem(DKEY) || 'null') || {};
   const putDiary = () => { localStorage.setItem(DKEY, JSON.stringify(diary)); h.onDiary?.({ ...diary }); };
+  const BKEY = 'chgok-demo-books';
+  let books = JSON.parse(localStorage.getItem(BKEY) || 'null') || [];
+  const putBooks = () => { localStorage.setItem(BKEY, JSON.stringify(books)); h.onBooks?.([...books]); };
   const TKEY = 'chgok-demo-tasks';
   let tasks = JSON.parse(localStorage.getItem(TKEY) || 'null') || sampleTasks();
   const putTasks = () => { localStorage.setItem(TKEY, JSON.stringify(tasks)); h.onTasks?.(tasks); };
   setTimeout(() => {
     h.onMemos?.(memos);
     h.onDiary?.({ ...diary });
+    h.onBooks?.([...books]);
     h.onTasks?.(tasks);
     h.onAuth({ email: '체험 모드' });
     h.onData(data);
@@ -185,6 +193,8 @@ function demoStore(h) {
     saveMemo: async (m) => { memos = [m, ...memos.filter((x) => x.id !== m.id)]; putMemos(); },
     deleteMemo: async (id) => { memos = memos.filter((x) => x.id !== id); putMemos(); },
     saveDiary: async (key, entry) => { diary = { ...diary, [key]: entry }; putDiary(); },
+    saveBook: async (b) => { books = [b, ...books.filter((x) => x.id !== b.id)]; putBooks(); },
+    deleteBook: async (id) => { books = books.filter((x) => x.id !== id); putBooks(); },
     deleteDiary: async (key) => { const { [key]: _, ...rest } = diary; diary = rest; putDiary(); },
     saveTask: async (t) => { tasks = [t, ...tasks.filter((x) => x.id !== t.id)]; putTasks(); },
     deleteTask: async (id) => { tasks = tasks.filter((x) => x.id !== id); putTasks(); },

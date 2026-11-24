@@ -51,3 +51,10 @@ test('주간 돌아보기: 운동·할일·돈·목표·다음 주', () => {
   assert.match(r.body, /올해 목표: 올해 저축 50%, 독서 75%/);
   assert.match(r.body, /다음 주: 일정 1개 · 마감 할일 1개 · 나갈 돈 238,000원/);
 });
+
+test('목표: 올해 읽은 책은 독서 기입장의 다 읽음으로 세요', () => {
+  const books = [{ status: 'done', end: '2026-03-01' }, { status: 'done', end: '2025-12-01' }, { status: 'reading' }, { status: 'done', end: '2026-11-20' }];
+  const p = goalProgress({ kind: 'books', targetCount: 12 }, { data: {}, agenda: null, today: new Date(2026, 10, 22), books });
+  assert.equal(p.current, 2);
+  assert.equal(p.text, '2권 / 12권');
+});

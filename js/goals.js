@@ -1,6 +1,6 @@
 // 올해 목표와 진행률 · 주간 돌아보기 (화면·서버·테스트가 함께 쓰는 순수 함수)
-import { currentTotals } from './projection.js?v=20261124g';
-import { scheduleRecords } from './records.js?v=20261124g';
+import { currentTotals } from './projection.js?v=20261124h';
+import { scheduleRecords } from './records.js?v=20261124h';
 
 const pad = (n) => String(n).padStart(2, '0');
 const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -19,6 +19,7 @@ export const GOAL_KINDS = {
   debt: '올해 갚은 대출 원금',
   net: '순자산',
   exercise: '이번 주 운동 횟수',
+  books: '올해 읽은 책 (독서 기입장)',
   custom: '직접 세기',
 };
 
@@ -41,7 +42,7 @@ export function exerciseBetween(agenda, start, end) {
  * goal: { id, title, kind, targetWon?, targetCount?, current?, unit? }
  * → { current, target, pct(0~100+), text, sub }
  */
-export function goalProgress(goal, { data, market, agenda, today }) {
+export function goalProgress(goal, { data, market, agenda, today, books }) {
   const t = key(today);
   const year = today.getFullYear();
   const y0 = `${year}-01-01`;
@@ -72,6 +73,13 @@ export function goalProgress(goal, { data, market, agenda, today }) {
     // 지난 4주 평균 (받아 둔 일정 범위 안에서)
     const counts = [1, 2, 3, 4].map((i) => exerciseBetween(agenda, key(addDays(w.mon, -7 * i)), key(addDays(w.mon, -7 * i + 6))));
     if (agenda?.from && agenda.from <= key(addDays(w.mon, -28))) sub = `지난 4주 평균 주 ${(counts.reduce((a, v) => a + v, 0) / 4).toFixed(1)}회`;
+  } else if (goal.kind === 'books') {
+    // 독서 기입장에서 올해 '다 읽음'으로 바꾼 책 수
+    current = (books || data.books || []).filter((b) => b.status === 'done' && String(b.end || '').startsWith(`${year}-`)).length;
+    target = num(goal.targetCount);
+    text = `${current}권 / ${target}권`;
+    const p = pace(current);
+    if (p != null && target) sub = p >= target ? '이 속도면 연말 전에 달성해요' : `이 속도면 연말에 약 ${Math.round(p)}권`;
   } else {
     current = num(goal.current);
     target = num(goal.targetCount);
@@ -86,7 +94,7 @@ export function goalProgress(goal, { data, market, agenda, today }) {
  * 주간 돌아보기 (이번 주 월~일 + 다음 주 미리보기)
  * outflows(start, end): 기간 안에 나갈 돈 [{amount}] (고정지출·대출, 부르는 쪽에서 넘겨요)
  */
-export function weeklyReview({ data, agenda, tasks, market, today, outflows }) {
+export function weeklyReview({ data, agenda, tasks, market, today, outflows, books }) {
   const w = weekOf(today);
   const t = key(today);
   const nextMon = addDays(w.mon, 7);
@@ -103,7 +111,7 @@ export function weeklyReview({ data, agenda, tasks, market, today, outflows }) {
   const saved = savedBetween(data, w.start, w.end);
   const repaid = repaidBetween(data, w.start, w.end, t);
   if (saved || repaid) lines.push(`└ ${[saved ? `저축 +${fmtWon(saved)}` : '', repaid ? `대출 원금 −${fmtWon(repaid)}` : ''].filter(Boolean).join(' · ')}`);
-  const gp = goals.filter((g) => g.kind !== 'exercise').slice(0, 3).map((g) => `${g.title} ${Math.floor(goalProgress(g, { data, market, agenda, today }).pct)}%`);
+  const gp = goals.filter((g) => g.kind !== 'exercise').slice(0, 3).map((g) => `${g.title} ${Math.floor(goalProgress(g, { data, market, agenda, today, books }).pct)}%`);
   if (gp.length) lines.push(`└ 올해 목표: ${gp.join(', ')}`);
   const evs = (agenda?.events || []).filter((e) => !e.partner && e.startKey >= n0 && e.startKey <= n1).length;
   const dueNext = (tasks || []).filter((x) => !x.done && x.due >= n0 && x.due <= n1).length;
