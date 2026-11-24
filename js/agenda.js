@@ -375,6 +375,11 @@ export function parseRepeat(text) {
   take(/\s(매월|매달|다달이)\s?(\d{1,2})일(마다|에)?\s/, (m) => ({ freq: 'monthly', interval: 1, day: Number(m[2]) }));
   take(/\s(매월|매달|다달이)\s/, () => ({ freq: 'monthly', interval: 1 }));
   take(/\s(매년|해마다)\s/, () => ({ freq: 'yearly', interval: 1 }));
+  // '매일 반복', '반복' 같은 말은 제목에서 빼요. 주기 없이 '반복'만 말하면 매일로 봐요
+  s = s.replace(/([^\s])[.。!]+(?=\s)/g, '$1 ');
+  const rep = /\s(반복(?:해서|으로|되는|하는|할)?)[.。!]*(?=\s)/;
+  if (rep.test(s)) { if (!rule) rule = { freq: 'daily', interval: 1, assumed: true }; s = s.replace(rep, ' '); }
+  if (rule) s = s.replace(/\s[.,·。!]+(?=\s)/g, ' ');
   return { rule, rest: s.replace(/\s+/g, ' ').trim() };
 }
 

@@ -1,22 +1,22 @@
-import { connect, isDemo } from './store.js?v=20261122a';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261122a';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261122a';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261122a';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261122a';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261122a';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261122a';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261122a';
-import { estimateMonths } from './estimate.js?v=20261122a';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261122a';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261122a';
-import { addFeedback, feedbackText } from './feedback.js?v=20261122a';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261122a';
-import { createGoogle, freshServerToken } from './google.js?v=20261122a';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261122a';
-import { createDemoGoogle } from './google-demo.js?v=20261122a';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261122a';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261122a';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261122a';
+import { connect, isDemo } from './store.js?v=20261124a';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124a';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124a';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124a';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124a';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124a';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124a';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124a';
+import { estimateMonths } from './estimate.js?v=20261124a';
+import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261124a';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124a';
+import { addFeedback, feedbackText } from './feedback.js?v=20261124a';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124a';
+import { createGoogle, freshServerToken } from './google.js?v=20261124a';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124a';
+import { createDemoGoogle } from './google-demo.js?v=20261124a';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261124a';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124a';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124a';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -2496,7 +2496,7 @@ function chatHtml(m, i) {
   let act = '';
   if (m.action) {
     const verb = { move: '옮기', delete: '지우', memo: '저장하' }[m.action.kind] || '넣';
-    const doneText = { move: '구글 캘린더에서 옮겼어요.', delete: '구글 캘린더에서 지웠어요.', task: '할일에 넣었어요.', memo: '메모에 저장했어요.' }[m.action.kind] || '구글 캘린더에 넣었어요.';
+    const doneText = { move: '구글 캘린더에서 옮겼어요.', delete: '구글 캘린더에서 지웠어요.', task: '할일에 넣었어요.', tasks: '할일에 모두 넣었어요.', memo: '메모에 저장했어요.' }[m.action.kind] || '구글 캘린더에 넣었어요.';
     if (m.done) act = `<p class="fb-done${after}">${{ ok: doneText, fail: `${verb}지 못했어요. 다시 해 볼까요?`, cancel: `${verb}지 않았어요.`, edit: '입력창에서 고쳐서 넣어 주세요.', busy: `${verb}는 중…` }[m.done]}</p>`;
     if (!m.done || m.done === 'fail') act += `<div class="as-chips${after}"><button type="button" class="as-act primary" data-act="do" data-i="${i}">${verb}기</button>${m.action.kind === 'event' ? `<button type="button" class="as-act" data-act="edit" data-i="${i}">고쳐서 넣기</button>` : ''}<button type="button" class="as-act" data-act="cancel" data-i="${i}">취소</button></div>`;
   }
@@ -2553,6 +2553,14 @@ function askAssistant(q) {
   });
 }
 
+/** 비서가 한 번에 여러 할일을 넣을 때 */
+async function addTasks(items) {
+  let ok = 0;
+  for (const x of items || []) if (await addTaskItem(x.title, x.due, { time: x.time || '', repeat: x.repeat || null }, true)) ok++;
+  if (ok) toast(`할일 ${ok}개를 추가했어요.`);
+  return ok === (items || []).length;
+}
+
 /** 비서 확인 카드의 [넣기]·[고쳐서 넣기]·[취소] */
 async function doAction(m, what) {
   if (!m?.action || (m.done && m.done !== 'fail')) return;
@@ -2564,6 +2572,7 @@ async function doAction(m, what) {
     renderChat();
     const ok = a.kind === 'memo' ? await addMemo(a.text)
       : a.kind === 'task' ? await addTaskItem(a.title, a.due, { time: a.time || '', repeat: a.repeat || null })
+      : a.kind === 'tasks' ? await addTasks(a.items)
       : a.kind === 'move' ? await moveEvent(a)
       : a.kind === 'delete' ? await removeEvent(a.calId, a.id)
       : await createEvent({ ...a.ev, calId: writableCals().find((c) => c.name === a.ev.calName)?.id });

@@ -44,6 +44,10 @@ export const DATA = {
     { id: 'f8', name: '쿠팡 와우', category: '구독', amount: 7_890, day: 3, account: '신용카드' },
     { id: 'f9', name: '클라우드 저장공간', category: '구독', amount: 44_000, day: 2, cycle: 'yearly', month: 3, account: '신용카드' },
   ],
+  deposits: [
+    { id: 'x1', name: '청년미래적금', type: '적금', amount: 500_000, rate: 4.5, start: '2026-06-10', maturity: '2028-06-10', taxFree: true },
+    { id: 'x2', name: '정기예금 1년', type: '예금', amount: 10_000_000, rate: 3, start: '2026-03-02', maturity: '2027-03-02' },
+  ],
   records: [
     { id: 'r1', type: 'saving', targetId: 's1', date: '2026-10-05', amount: 1_000_000 },
     { id: 'r2', type: 'saving', targetId: 's1', date: '2025-10-05', amount: 1_000_000 },

@@ -1,13 +1,14 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261122a';
-import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261122a';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261122a';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261122a';
-import { won, wonExact, mdw, pct } from './format.js?v=20261122a';
-import { simulatePrepay, prepayFee } from './prepay.js?v=20261122a';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261122a';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261124a';
+import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261124a';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261124a';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261124a';
+import { won, wonExact, mdw, pct } from './format.js?v=20261124a';
+import { maturityEstimate, depositTotal } from './deposits.js?v=20261124a';
+import { simulatePrepay, prepayFee } from './prepay.js?v=20261124a';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261124a';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -136,6 +137,7 @@ const KIND_ALIAS = { 주택담보대출: ['주담대', '주택담보', '담보�
 function findEntities(q, data, agenda) {
   const out = [];
   const add = (type, item, name, score) => score && out.push({ type, item, name, score });
+  for (const x of data.deposits || []) add('deposit', x, x.name, nameScore(q, x.name));
   for (const s of data.savings || []) add('saving', s, s.name, Math.max(nameScore(q, s.name), s.kind && norm(s.kind).length >= 2 && q.includes(norm(s.kind)) ? 2 : 0));
   for (const s of data.stocks || []) {
     const ko = (STOCK_KO[String(s.ticker || '').toUpperCase()] || []).some((w) => q.includes(w)) ? 6 : 0;
@@ -244,10 +246,14 @@ function route(question, data, market, now, agenda, memos) {
     if (r) return { via: r.action?.kind === 'delete' ? 'delete' : 'move', ...r };
   }
   // '내일 3시 상담 넣어줘', '우유 사기 할일 추가해줘': 일정·할일 넣기 (확인 카드로)
-  if (ADD_RE.test(q) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) { const r = addAnswer(ctx, now); return { via: r.action?.kind === 'task' ? 'addTask' : r.action ? 'addEvent' : 'add', ...r }; }
+  if (ADD_RE.test(q) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) { const r = addAnswer(ctx, now); return { via: r.action?.kind === 'task' || r.action?.kind === 'tasks' ? 'addTask' : r.action ? 'addEvent' : 'add', ...r }; }
 
   // 날씨·뉴스·로또처럼 차곡차곡에 없는 것
   if (OUT_OF_SCOPE.test(q) && !ctx.ents.some((e) => e.score >= 5)) return { text: '그건 차곡차곡에 없는 정보라 알려드릴 수 없어요. 일정·할일·메모·자산은 편하게 물어봐 주세요.', chips: SUGGEST, unknown: true, via: 'unknown' };
+  // '청년미래적금 만기 예상 이자 알려줘': 예·적금 상품의 만기·이자·만기액
+  const dep = ctx.ents.find((e) => e.type === 'deposit' && e.score >= 3);
+  // 만기·이자를 물으면 예·적금 상품, 아니면 이름이 더 또렷하게 맞는 쪽(계좌 등)
+  if (dep && !ADD_RE.test(q) && (/만기|이자|만기액|금리|타는|탈때/.test(q) || !ctx.ents.some((e) => e.type !== 'deposit' && e.score >= dep.score))) return { via: 'deposit', ...depositAnswer(ctx, dep.item) };
   // '가장 빠른 / 제일 먼저 / 다음에' 빠져나가는 것: 순서를 묻는 질문은 합계보다 먼저 봐요
   if (asksNext(q) && !ctx.ents.some((e) => e.type === 'loan' || e.type === 'fixed')) return H.nextOut(ctx);
 
@@ -758,7 +764,49 @@ function tasksAnswer(ctx) {
   return { text: `${label} 할일은 ${open.length}개예요.\n${lines.join('\n')}${late}` };
 }
 
+// ───── 예·적금 ─────
+function depositAnswer(ctx, x) {
+  const e = maturityEstimate(x);
+  const now = ymd(ctx.now);
+  const saved = depositTotal(x, ctx.data.records, now);
+  const head = `${x.name}${josa(x.name, '은', '는')} ${x.type || '적금'}${x.rate ? `, 연 ${pct(x.rate)}` : ''}이에요. 지금까지 ${won(saved)} 쌓였어요.`;
+  if (!e) return { text: `${head}\n만기 예상은 가입일·만기일·금액이 있어야 계산할 수 있어요. 자산 탭 예·적금에서 이 상품을 눌러 채워 주세요.` };
+  const left = x.maturity ? daysBetween(ctx.now, toDate(x.maturity)) : null;
+  return {
+    text: `${head}\n· 만기: ${x.maturity.slice(0, 4) !== String(ctx.now.getFullYear()) ? `${x.maturity.slice(0, 4)}년 ` : ''}${mdw(toDate(x.maturity))}${left != null ? ` (${left > 0 ? `${left}일 남음` : left === 0 ? '오늘' : '지남'})` : ''}\n· 예상 이자: ${won(e.interest)}${x.taxFree ? ' (비과세)' : `, 세금 ${won(e.tax)} 빼면 ${won(e.interest - e.tax)}`}\n· 예상 만기액: ${won(e.total)} (원금 ${won(e.principal)})${x.type !== '예금' ? `\n매달 ${won(x.amount)}씩 ${e.months}개월 넣는다고 보고 계산했어요.` : ''}`,
+  };
+}
+
 // ───── 일정·할일 넣기 ─────
+/**
+ * '12월 15일 일람표 제출, 21일 통지표 제출': 날짜가 따로 붙은 할일 여러 개를 나눠요.
+ * 나눈 조각마다 제목과 날짜가 다 있어야 나눠요 ('매주 월, 목요일 분리수거'는 하나).
+ * '21일'처럼 날만 쓰면 앞 조각의 달을 이어받아요.
+ */
+export function splitTasks(body, now) {
+  const parts = String(body).split(/\s*(?:,|，|、|;|그리고|및)\s*/).map((x) => x.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  const out = [];
+  let prev = null;
+  for (const part of parts) {
+    let text = part;
+    const dayOnly = text.match(/^(\d{1,2})일(?!\s*(?:뒤|후|동안|간))/);
+    if (dayOnly && prev && !/\d{1,2}월/.test(text)) {
+      const [y, m] = prev.split('-').map(Number);
+      const d = Number(dayOnly[1]);
+      const pd = Number(prev.slice(8));
+      const t = d >= pd ? new Date(y, m - 1, d) : new Date(y, m, d);
+      text = `${t.getMonth() + 1}월 ${text}`;
+    }
+    const p = parseQuickTask(text, now);
+    if (!p.title || !p.due) return null;
+    out.push(p);
+    prev = p.due;
+  }
+  return out;
+}
+
+// ───── 일정·할일 넣기 (명령) ─────
 const ADD_RE = /(추가|넣어|넣기|넣자|잡아줘|잡아줄|잡자|등록|저장해줘|적어줘|기록해줘|메모해줘|입력|기입|써줘|써놔|써둬|만들어줘|생성)/;
 const CMD_RE = /\s*(을|를)?\s*(일정|할일|할 일|약속|스케줄|투두)?\s*(을|를|으로|로|에)?\s*(캘린더|구글|달력|목록)?(에|에다)?\s*(좀\s*)?(추가|넣어|넣기|넣자|잡아|잡자|등록|저장|적어|기록|메모|입력|기입|써|만들어|생성)(해|하|줘|줄래|주세요|줘요|주라|요|좀|놔|둬|\s)*/;
 
@@ -768,7 +816,9 @@ const CMD_RE = /\s*(을|를)?\s*(일정|할일|할 일|약속|스케줄|투두)?
  */
 export function stripCommand(raw) {
   const s = String(raw).trim().replace(/^(일정|할일|할 일|투두)(에|으로|로)?\s+/, '');
-  const m = s.match(CMD_RE);
+  // 명령 말은 맨 뒤의 것: '성적 입력 할일 추가해줘'의 '입력'은 제목이에요
+  const all = [...s.matchAll(new RegExp(CMD_RE.source, 'g'))];
+  const m = all.at(-1);
   const out = m ? `${s.slice(0, m.index)} ${s.slice(m.index + m[0].length)}` : s;
   return out.replace(/[.!?~]+\s*$/, '').replace(/\s+/g, ' ').trim();
 }
@@ -779,12 +829,19 @@ function addAnswer(ctx, now) {
   if (!isTask && !linked(ctx)) return { text: NOT_LINKED };
   const body = stripCommand(ctx.raw);
   if (isTask) {
+    const many = splitTasks(body, now);
+    if (many) {
+      const items = many.map((x) => ({ kind: 'task', title: x.title, due: x.due, ...(x.time ? { time: x.time } : {}), ...(x.repeat ? { repeat: x.repeat } : {}) }));
+      return { text: `할일 ${items.length}개를 넣을까요?\n${items.map((x) => `· ${x.title} (${mdw(fromKey(x.due))}${x.time ? ` ${x.time}` : ''}까지)`).join('\n')}`, action: { kind: 'tasks', items } };
+    }
     const p = parseQuickTask(body, now);
+    const assumed = !!p.repeat?.assumed;
+    if (assumed) delete p.repeat.assumed;
     const { title, repeat, time } = p;
     if (!title) return { text: '어떤 할일을 넣을까요? 예: ‘금요일까지 보고서 할일 추가해줘’' };
     const due = p.due || ymd(ctx.now); // 날짜를 말하지 않으면 오늘 할일로
     return {
-      text: `이 할일을 넣을까요?\n· ${title} (${mdw(fromKey(due))}${time ? ` ${time}` : ''}${repeat ? '' : '까지'})${repeat ? `\n· 반복: ${repeatLabel(repeat, due)} (끝내면 다음 차례를 만들어요)` : ''}${time ? '\n· 30분 전에 알려 드려요' : ''}${p.due ? '' : '\n날짜를 말씀하지 않아서 오늘 할일로 넣을게요.'}`,
+      text: `이 할일을 넣을까요?\n· ${title} (${mdw(fromKey(due))}${time ? ` ${time}` : ''}${repeat ? '' : '까지'})${repeat ? `\n· 반복: ${repeatLabel(repeat, due)} (끝내면 다음 차례를 만들어요)${assumed ? '\n주기를 말씀하지 않아서 매일 반복으로 넣을게요.' : ''}` : ''}${time ? '\n· 30분 전에 알려 드려요' : ''}${p.due ? '' : '\n날짜를 말씀하지 않아서 오늘 할일로 넣을게요.'}`,
       action: { kind: 'task', title, due, ...(time ? { time } : {}), ...(repeat ? { repeat } : {}) },
     };
   }
