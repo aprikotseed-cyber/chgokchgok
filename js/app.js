@@ -1,23 +1,23 @@
-import { connect, isDemo } from './store.js?v=20261124c';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124c';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124c';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124c';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124c';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124c';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124c';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124c';
-import { estimateMonths } from './estimate.js?v=20261124c';
-import { ask, outflowsBetween, pickChoice } from './assistant.js?v=20261124c';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124c';
-import { addFeedback, feedbackText } from './feedback.js?v=20261124c';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124c';
-import { createGoogle, freshServerToken } from './google.js?v=20261124c';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124c';
-import { createDemoGoogle } from './google-demo.js?v=20261124c';
-import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261124c';
-import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124c';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124c';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124c';
+import { connect, isDemo } from './store.js?v=20261124d';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124d';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124d';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124d';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124d';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124d';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124d';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124d';
+import { estimateMonths } from './estimate.js?v=20261124d';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124d';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124d';
+import { addFeedback, feedbackText } from './feedback.js?v=20261124d';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124d';
+import { createGoogle, freshServerToken } from './google.js?v=20261124d';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124d';
+import { createDemoGoogle } from './google-demo.js?v=20261124d';
+import { makeTask, normLocalTask, nextRepeatTask } from './tasks.js?v=20261124d';
+import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124d';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124d';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124d';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -107,7 +107,7 @@ const FORMS = {
   goals: {
     title: '올해 목표',
     fields: [
-      { key: 'title', label: '목표 이름', type: 'text', placeholder: '올해 저축 2천만 원', required: true },
+      { key: 'title', label: '목표 이름', type: 'text', required: true },
       { key: 'kind', label: '무엇으로 셀까요', type: 'select', options: Object.entries(GOAL_KINDS), hint: '저축·대출·순자산·운동은 차곡차곡 기록으로 저절로 세요. 독서처럼 따로 세는 건 ‘직접 세기’' },
       { key: 'targetWon', label: '목표 금액', type: 'won', showIf: { kind: ['saving', 'debt', 'net'] } },
       { key: 'targetCount', label: '목표 횟수', type: 'number', showIf: { kind: ['exercise', 'custom'] }, hint: '운동은 한 주에 몇 번인지 (Exercise 캘린더 일정 수로 세요)' },
@@ -368,9 +368,9 @@ function viewHome() {
     <textarea id="home-ask-input" rows="3" enterkeyhint="send" aria-label="비서에게 메시지"></textarea>
     <button class="ask-send" type="submit">보내기</button>
   </form>
+  ${goalsBlock()}
   ${todayBlock()}
-  ${monthBlock()}
-  ${goalsBlock()}`;
+  ${monthBlock()}`;
 }
 
 /** 오늘 탭 '올해 목표': 진행률 막대, 직접 세는 목표는 +1 */
@@ -389,7 +389,7 @@ function goalsBlock() {
       <span class="row-side"><span class="row-value">${done ? '달성' : `${Math.floor(p.pct)}%`}</span>${g.kind === 'custom' ? `<button class="pill" data-action="goal-inc" data-id="${esc(g.id)}" aria-label="${esc(g.title)} 하나 더">+1</button>` : ''}</span>
     </div>`;
   }).join('');
-  return section(`${now().getFullYear()}년 목표`, `<div class="panel list">${rows || empty('올해 이루고 싶은 걸 적어 두면 진행률을 보여 드려요. 예: 올해 저축 2천만 원, 대출 원금 1천만 원 갚기, 운동 주 3회')}</div>`, { action: addBtn('goals') });
+  return section(`${now().getFullYear()}년 목표`, `<div class="panel list">${rows || empty('올해 이루고 싶은 걸 적어 두면 진행률을 보여 드려요.')}</div>`, { action: addBtn('goals') });
 }
 
 // 자산 → 홈: 총자산, 자산 추이, 고정지출·상환 일정
@@ -2407,7 +2407,8 @@ function deleteItem() {
     deleteRecord(state.data, editing.id);
   } else {
     const item = state.data[editing.kind].find((x) => x.id === editing.id);
-    if (!confirm(`'${item?.name}'을(를) 지울까요?`)) return false;
+    const label = item?.name || item?.title || '이 항목';
+    if (!confirm(`'${label}'${josaOf(label, '을', '를')} 지울까요?`)) return false;
     state.data[editing.kind] = state.data[editing.kind].filter((x) => x.id !== editing.id);
   }
   commit();
