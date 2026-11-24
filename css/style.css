@@ -134,7 +134,7 @@ button { font: inherit; color: inherit; }
 
 .tabs {
   position: fixed; inset: auto 0 0 0; z-index: 10;
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; /* 메뉴 수만큼 나눠요 */
   padding-bottom: env(safe-area-inset-bottom);
   background: color-mix(in srgb, var(--surface-1) 92%, transparent);
   backdrop-filter: saturate(1.4) blur(12px);
@@ -1131,3 +1131,37 @@ dialog.memo-dialog form { padding: 14px 16px 12px; }
 /* 고정지출 → 구독 */
 .sub-stats { border-bottom: 1px solid var(--border); }
 .sub-stats .stat-num { font-size: 20px; }
+
+/* ───── 기록 → 일기 ───── */
+.diary-wrap { display: flex; flex-direction: column; gap: 24px; margin-top: 8px; }
+@media (min-width: 900px) {
+  .diary-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+  .diary-main { grid-column: 1; grid-row: 1; }
+  .diary-side { grid-column: 2; grid-row: 1; position: sticky; top: 24px; }
+}
+.diary-list { display: flex; flex-direction: column; gap: 12px; }
+.diary-card { scroll-margin-top: 16px; transition: box-shadow .4s var(--ease); }
+.diary-card.flash { animation: diary-flash 1.6s var(--ease); }
+@keyframes diary-flash { 0%, 40% { box-shadow: 0 0 0 2px var(--down); } 100% { box-shadow: 0 0 0 2px transparent; } }
+.diary-head { display: flex; align-items: baseline; gap: 8px; width: 100%; padding: 14px 18px 4px; border: 0; background: none; font: inherit; color: var(--text-primary); text-align: left; cursor: pointer; }
+.diary-head .hint:last-child { margin-left: auto; font-size: 12px; opacity: 0; transition: opacity .2s; }
+.diary-card:hover .diary-head .hint:last-child { opacity: 1; }
+.diary-body { padding: 4px 18px 14px; display: flex; flex-direction: column; gap: 10px; }
+.diary-line p, .diary-worry p { margin: 2px 0 0; line-height: 1.55; white-space: normal; overflow-wrap: anywhere; }
+.diary-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.diary-worry > summary { padding: 0; font-size: 12px; font-weight: 600; color: var(--text-muted); justify-content: flex-start; }
+.diary-empty { display: block; width: 100%; padding: 18px; border: 0; font: inherit; color: var(--text-muted); text-align: left; cursor: pointer; }
+.diary-empty:hover { color: var(--text-secondary); }
+.diary-cal { padding-bottom: 12px; }
+.diary-cal .mini-head { align-items: center; padding-top: 8px; }
+.diary-cal .icon-btn { border: 0; background: none; box-shadow: none; width: 30px; height: 30px; }
+.diary-cal .icon-btn svg { width: 16px; height: 16px; }
+@media (max-width: 899px) { .diary-cal { max-width: 360px; } .dday { height: 28px; font-size: 12px; } .dday.has i { bottom: 1px; } }
+.dcal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 4px 12px 0; text-align: center; }
+.dwd { font-size: 11px; color: var(--text-muted); padding: 4px 0; }
+.dday { position: relative; display: grid; place-items: center; height: 32px; font-size: 13px; color: var(--text-secondary); border: 0; background: none; border-radius: 50%; font-family: inherit; }
+.dday.today { font-weight: 700; color: var(--text-primary); }
+.dday.has { cursor: pointer; color: var(--text-primary); }
+.dday.has:hover { background: var(--surface-2); }
+.dday.has i { position: absolute; bottom: 3px; width: 5px; height: 5px; border-radius: 50%; background: var(--down); }
+textarea[data-grow] { resize: none; overflow: hidden; min-height: 2.8em; }
