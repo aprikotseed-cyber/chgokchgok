@@ -674,8 +674,7 @@ function viewWorkout() {
       <span class="row-side"><span class="row-value">${x.kcal ? kcalText(x.kcal) : ''}</span></span>
     </button>`).join('')}</div>`).join('');
   const more = list.length > shown.length ? '<button class="link-btn wk-more" data-action="wk-more">더 보기</button>' : '';
-  const watchHint = list.some((x) => x.source === 'watch') || isDemo() ? '' : '<p class="hint">애플워치로 한 운동을 저절로 받으려면 <a href="#settings">설정</a> → 처음 한 번 설정 → <b>애플워치 운동 단축어</b>를 따라 해 주세요.</p>';
-  const logSec = section('운동 기록', `<div class="panel list wk-log">${log || empty('아직 운동 기록이 없어요.')}</div>${more}${watchHint}`, { sum: list.length ? `${list.length}번` : '', action: '<button class="link-btn" data-action="wk-add">+ 운동 기록</button>' });
+  const logSec = section('운동 기록', `<div class="panel list wk-log">${log || empty('아직 운동 기록이 없어요.')}</div>${more}`, { sum: list.length ? `${list.length}번` : '', action: '<button class="link-btn" data-action="wk-add">+ 운동 기록</button>' });
 
   return `${stats}<div class="cols"><div class="col-side">${goalSec}${bodySec}</div><div class="col-main">${logSec}</div></div>`;
 }
