@@ -48,7 +48,9 @@ for (const doc of mains) {
   const agenda = (await doc.ref.parent.doc('agenda').get()).data() || null;
   // 할일은 차곡차곡에 직접 저장된 것 (users/{uid}/tasks)
   const tasks = (await doc.ref.parent.parent.collection('tasks').get()).docs.map((d) => ({ id: d.id, ...d.data() }));
-  const n = morningBriefing(doc.data(), agenda, today, tasks);
+  // 운동 일지 (이번 주 운동 횟수)
+  const workouts = (await doc.ref.parent.parent.collection('workouts').get()).docs.map((d) => ({ id: d.id, ...d.data() }));
+  const n = morningBriefing(doc.data(), agenda, today, tasks, workouts);
   console.log(n ? `브리핑 ${n.body.split('\n').length}줄` : '보낼 내용 없음');
   if (!n) continue;
 

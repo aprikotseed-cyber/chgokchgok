@@ -1,8 +1,9 @@
 // 아침 브리핑 알림 (GitHub Actions가 매일 아침 보내요): 오늘 일정 · 할일 · 오늘 나가는 돈.
 // 대출 상환과 고정지출은 '오늘'이 상환일·출금일일 때만 넣어요.
-import { upcoming } from './reminders.js?v=20261124k';
-import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261124k';
-import { routinesToday, isRoutine } from './tasks.js?v=20261124k';
+import { upcoming } from './reminders.js?v=20261125a';
+import { visibleEvents, eventsOn, groupTasks, dayKey, agendaUntil } from './agenda.js?v=20261125a';
+import { routinesToday, isRoutine } from './tasks.js?v=20261125a';
+import { briefingLine, normWorkout } from './workouts.js?v=20261125a';
 
 const WEEK = '일월화수목금토';
 const list = (items, n = 4) => items.slice(0, n).join(', ') + (items.length > n ? ` 외 ${items.length - n}개` : '');
@@ -18,7 +19,7 @@ export const numEmoji = (n) => (n === 10 ? '🔟' : String(n).split('').map((d) 
  *  └ 오늘 출금 : 정수기
  *  (없으면 '└ 일정 ❌', '└ 할일 ❌')
  */
-export function morningBriefing(data, agenda, today, tasks = agenda?.tasks || []) {
+export function morningBriefing(data, agenda, today, tasks = agenda?.tasks || [], workouts = []) {
   const key = dayKey(today);
   const lines = [];
   const linked = !!agenda?.syncedAt;
@@ -38,6 +39,13 @@ export function morningBriefing(data, agenda, today, tasks = agenda?.tasks || []
     lines.push(todo.length ? `└ 할일 ${numEmoji(todo.length)} : ${list(todo)}` : '└ 할일 ❌');
     if (g.overdue.length) lines.push(`└ 지난 할일 : ${numEmoji(g.overdue.length)}개 있어요. 참고!`);
     if (routines.length) lines.push(`└ 루틴 ${numEmoji(routines.length)} : ${list(routines.map((t) => t.title))}`);
+  }
+  // 운동: 오늘 Exercise 일정 + 이번 주 몇 번 했는지 (운동 목표가 있을 때)
+  if (data.settings?.workoutCoach !== false) {
+    const goal = Number((data.goals || []).find((x) => x.kind === 'exercise')?.targetCount) || 0;
+    const mon = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+    const ex = briefingLine(linked ? agenda : null, (workouts || []).map((w) => normWorkout(w, today)), today, goal, dayKey(mon));
+    if (ex) lines.push(ex);
   }
   // 오늘이 출금일·상환일인 것만 (이름만)
   const due = upcoming(data, today, 0).filter((x) => x.dday === 0);

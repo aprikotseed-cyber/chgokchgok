@@ -1,24 +1,25 @@
-import { connect, isDemo } from './store.js?v=20261124k';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124k';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124k';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124k';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124k';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124k';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124k';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124k';
-import { estimateMonths } from './estimate.js?v=20261124k';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124k';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124k';
-import { addFeedback, feedbackText } from './feedback.js?v=20261124k';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124k';
-import { createGoogle, freshServerToken } from './google.js?v=20261124k';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124k';
-import { createDemoGoogle } from './google-demo.js?v=20261124k';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124k';
-import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261124k';
-import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124k';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124k';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124k';
+import { connect, isDemo } from './store.js?v=20261125a';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125a';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125a';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125a';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125a';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125a';
+import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125a';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125a';
+import { estimateMonths } from './estimate.js?v=20261125a';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125a';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125a';
+import { addFeedback, feedbackText } from './feedback.js?v=20261125a';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125a';
+import { createGoogle, freshServerToken } from './google.js?v=20261125a';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125a';
+import { createDemoGoogle } from './google-demo.js?v=20261125a';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125a';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261125a';
+import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125a';
+import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125a';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125a';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125a';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -43,6 +44,8 @@ const state = {
   dragging: false,
   memos: [],            // 메모 [{id, text, pinned, createdAt, updatedAt}]
   diary: {},            // 일기 { 'YYYY-MM-DD': {happy, moved, thanks, worry, updatedAt} }
+  workouts: [],         // 운동 일지 [{id, date, start, type, minutes, km, kcal, source, memo}]
+  weights: {},          // 몸무게 { 'YYYY-MM-DD': {kg, source, at} }
   books: [],            // 독서 기입장 [{id, title, author, cover, status, start, end, rating, review, quotes}]
   agenda: null,         // 구글 캘린더에서 받아 둔 일정 {calendars, events, syncedAt}
   tasks: [],            // 할일 (차곡차곡에 직접 저장)
@@ -118,13 +121,42 @@ const FORMS = {
       { key: 'worry', label: '고민거리', type: 'textarea', rows: 2, grow: true },
     ],
   },
+  workout: {
+    title: '운동 기록',
+    fields: [
+      { key: 'date', label: '날짜', type: 'date' },
+      { key: 'start', label: '시작 시각', type: 'time', hint: '선택. 일정과 맞춰 보는 데 써요' },
+      { key: 'type', label: '운동', type: 'select', options: WORKOUT_TYPES },
+      { key: 'minutes', label: '운동 시간', type: 'number', unit: '분', def: '' },
+      { key: 'km', label: '거리', type: 'number', unit: 'km', def: '', hint: '선택' },
+      { key: 'kcal', label: '소모 칼로리', type: 'number', unit: 'kcal', def: '', hint: '선택. 운동 앱의 활동 칼로리' },
+      { key: 'memo', label: '메모', type: 'text', placeholder: '선택' },
+    ],
+  },
+  weight: {
+    title: '몸무게',
+    fields: [
+      { key: 'date', label: '날짜', type: 'date' },
+      { key: 'kg', label: '몸무게', type: 'number', unit: 'kg', def: '' },
+    ],
+  },
+  body: {
+    title: '키·목표 체중',
+    fields: [
+      { key: 'height', label: '키', type: 'number', unit: 'cm', def: '', hint: '한 번만 넣으면 BMI를 계산해요' },
+      { key: 'goalWeight', label: '목표 체중', type: 'number', unit: 'kg', def: '', hint: '올해 목표의 ‘목표 체중’과 같이 바뀌어요' },
+    ],
+  },
   goals: {
     title: '올해 목표',
     fields: [
       { key: 'title', label: '목표 이름', type: 'text', required: true },
       { key: 'kind', label: '무엇으로 셀까요', type: 'select', options: Object.entries(GOAL_KINDS), hint: '저축·대출·순자산·운동은 차곡차곡 기록으로 저절로 세요. 독서처럼 따로 세는 건 ‘직접 세기’' },
       { key: 'targetWon', label: '목표 금액', type: 'won', showIf: { kind: ['saving', 'debt', 'net'] } },
-      { key: 'targetCount', label: '목표 횟수', type: 'number', showIf: { kind: ['exercise', 'books', 'custom'] }, hint: '운동은 한 주에 몇 번인지, 책은 올해 몇 권인지 (독서 기입장에서 다 읽음으로 바꾸면 저절로 세요)' },
+      { key: 'targetCount', label: '목표 횟수', type: 'number', showIf: { kind: ['exercise', 'books', 'custom'] }, hint: '운동은 한 주에 몇 번인지(운동 일지에 기록한 날로 세요), 책은 올해 몇 권인지 (독서 기입장에서 다 읽음으로 바꾸면 저절로 세요)' },
+      { key: 'targetKm', label: '목표 거리', type: 'number', unit: 'km', showIf: { kind: 'distance' }, hint: '올해 운동 일지에 기록한 거리를 모두 더해요' },
+      { key: 'targetKcal', label: '목표 칼로리', type: 'number', unit: 'kcal', showIf: { kind: 'kcal' }, hint: '한 달 동안 운동으로 쓸 칼로리' },
+      { key: 'targetKg', label: '목표 체중', type: 'number', unit: 'kg', showIf: { kind: 'weight' }, hint: '운동 탭의 목표 체중과 같이 바뀌어요' },
       { key: 'current', label: '지금까지', type: 'number', showIf: { kind: 'custom' }, hint: '목표 줄의 +1을 눌러도 하나씩 늘어나요' },
       { key: 'unit', label: '단위', type: 'text', placeholder: '권, 회, km', showIf: { kind: 'custom' } },
     ],
@@ -583,16 +615,115 @@ function saveBook() {
   return true;
 }
 
-/** 아직 만들지 않은 작은 탭 */
-function viewSoon() {
-  return `<div class="panel">${empty('다음 업데이트에서 만들어요.')}</div>`;
+// ───────────────────────── 기록 → 운동 ─────────────────────────
+const WORKOUT_GOALS = ['exercise', 'distance', 'kcal', 'weight'];
+const kcalText = (n) => `${Math.round(Number(n) || 0).toLocaleString('ko-KR')}kcal`;
+const kmText = (n) => `${(Math.round((Number(n) || 0) * 10) / 10).toLocaleString('ko-KR')}km`;
+const WEIGHT_RANGES = [[30, '30일'], [90, '3개월'], [365, '1년']];
+
+/** 몸무게 목표: 몸 정보의 목표 체중, 없으면 올해 목표의 '목표 체중' */
+const goalWeightOf = () => Number(state.data.body?.goalWeight) || Number((state.data.goals || []).find((g) => g.kind === 'weight')?.targetKg) || 0;
+
+function viewWorkout() {
+  const t = today();
+  const w = weekOf(now());
+  const list = state.workouts || [];
+  const wt = workoutTotals(workoutsBetween(list, w.start, w.end));
+  const mt = workoutTotals(workoutsBetween(list, `${t.slice(0, 7)}-01`, t));
+  const plan = plannedBetween(state.agenda, w.start, w.end).length;
+  const days = weekCount(list, w.start, w.end);
+  const goals = (state.data.goals || []).filter((g) => WORKOUT_GOALS.includes(g.kind));
+  const exGoal = Number(goals.find((g) => g.kind === 'exercise')?.targetCount) || 0;
+  const ctx = goalCtx();
+
+  const stats = `<section class="panel wk-stats">
+    <div class="stat"><span class="eyebrow">이번 주 운동</span><span class="stat-num">${days}회${exGoal ? `<small> / ${exGoal}회</small>` : ''}</span><span class="stat-sub">${plan ? `계획 ${plan}회` : '운동한 날로 세요'}</span></div>
+    <div class="stat"><span class="eyebrow">이번 주 시간</span><span class="stat-num">${minutesLabel(wt.minutes) || '0분'}</span><span class="stat-sub">${wt.km ? kmText(wt.km) : ''}</span></div>
+    <div class="stat"><span class="eyebrow">이번 주 소모</span><span class="stat-num">${kcalText(wt.kcal)}</span><span class="stat-sub">운동 칼로리</span></div>
+    <div class="stat"><span class="eyebrow">${now().getMonth() + 1}월 소모</span><span class="stat-num">${kcalText(mt.kcal)}</span><span class="stat-sub">${mt.count}번${mt.km ? ` · ${kmText(mt.km)}` : ''}</span></div>
+  </section>`;
+
+  const goalSec = section('운동 목표', `<div class="panel list">${goals.map((g) => goalRow(g, ctx)).join('') || empty('운동 목표를 추가하면 여기서 진행률을 보여 드려요.')}</div>`, { action: '<button class="link-btn" data-action="wk-goal">+ 목표</button>' });
+
+  // 몸: 몸무게 · BMI · 목표
+  const wl = weightList(state.weights);
+  const last = latestWeight(wl);
+  const height = Number(state.data.body?.height) || 0;
+  const b = last ? bmi(height, last.kg) : 0;
+  const gw = goalWeightOf();
+  const g = weightGoal(wl, gw, `${now().getFullYear()}-01-01`);
+  const range = state.weightRange || 30;
+  const series = weightSeries(wl, now(), range);
+  const bodyTop = `<div class="body-top">
+      <div><span class="eyebrow">몸무게</span><b>${last ? `${last.kg}kg` : '-'}</b><small>${last ? `${mdw(fromKey(last.date))}${last.source === 'health' ? ' · 건강 앱' : ''}` : '아직 기록이 없어요'}</small></div>
+      <div><span class="eyebrow">BMI</span><b>${b || '-'}</b><small>${b ? bmiLabel(b) : height ? '' : '<button class="link-btn" data-action="body-edit">키 넣기</button>'}</small></div>
+      <div><span class="eyebrow">목표</span><b>${gw ? `${gw}kg` : '-'}</b><small>${g ? (g.left > 0 ? `목표까지 ${g.left}kg` : '목표에 닿았어요') : gw ? '' : '<button class="link-btn" data-action="body-edit">목표 넣기</button>'}</small></div>
+    </div>`;
+  const chart = `<div class="chart-top"><div class="segment" role="tablist" aria-label="기간">${WEIGHT_RANGES.map(([k, l]) => `<button role="tab" aria-selected="${range === k}" data-action="wt-range" data-key="${k}">${l}</button>`).join('')}</div>${series.length > 1 ? `<span class="trend-sum"><span class="hint">${WEIGHT_RANGES.find(([k]) => k === range)[1]} 동안</span> <b>${series.at(-1).kg - series[0].kg > 0 ? '+' : series.at(-1).kg - series[0].kg < 0 ? '−' : ''}${Math.abs(Math.round((series.at(-1).kg - series[0].kg) * 10) / 10)}kg</b></span>` : ''}</div>
+    ${series.length > 1 ? '<div class="chart-box small"><canvas id="chart-weight" role="img" aria-label="몸무게 변화"></canvas></div>' : `<p class="empty">${wl.length ? '이 기간에 몸무게를 두 번 이상 기록하면 그래프로 보여요.' : '몸무게를 기록하면 변화를 그래프로 보여 드려요.'}</p>`}`;
+  const wrows = wl.slice().reverse().map((x) => `<button class="row" data-action="wt-edit" data-id="${x.date}"><span class="row-main"><span class="row-title">${mdw(fromKey(x.date))}</span><span class="row-meta">${x.source === 'health' ? '건강 앱' : '직접 입력'}</span></span><span class="row-side"><span class="row-value">${x.kg}kg</span></span></button>`).join('');
+  const bodySec = section('몸', `<div class="panel chart-panel body-panel">${bodyTop}${chart}${wl.length ? details('wt-list', `몸무게 기록 ${wl.length}개`, `<div class="list">${wrows}</div>`) : ''}</div>`,
+    { action: '<span class="sec-actions"><button class="link-btn" data-action="body-edit">키·목표</button><button class="link-btn" data-action="wt-add">+ 몸무게</button></span>' });
+
+  // 운동 기록: 날짜별로
+  const shown = workoutsBetween(list, '0000-00-00', '9999-12-31').slice(0, state.wkShow || 30);
+  const byDay = [];
+  for (const x of shown) { if (byDay.at(-1)?.date !== x.date) byDay.push({ date: x.date, items: [] }); byDay.at(-1).items.push(x); }
+  const log = byDay.map((d) => `<div class="wk-day"><div class="wk-date">${mdw(fromKey(d.date))}${d.date === t ? ' · 오늘' : ''}</div>${d.items.map((x) => `<button class="row" data-action="wk-edit" data-id="${esc(x.id)}">
+      <span class="row-main"><span class="row-title">${esc(x.type)}${x.source === 'watch' ? ' <span class="wk-src">워치</span>' : ''}</span><span class="row-meta">${[x.start, minutesLabel(x.minutes), x.km ? kmText(x.km) : '', esc(x.memo || '')].filter(Boolean).join(' · ')}</span></span>
+      <span class="row-side"><span class="row-value">${x.kcal ? kcalText(x.kcal) : ''}</span></span>
+    </button>`).join('')}</div>`).join('');
+  const more = list.length > shown.length ? '<button class="link-btn wk-more" data-action="wk-more">더 보기</button>' : '';
+  const watchHint = list.some((x) => x.source === 'watch') || isDemo() ? '' : '<p class="hint">애플워치로 한 운동을 저절로 받으려면 <a href="#settings">설정</a> → 처음 한 번 설정 → <b>애플워치 운동 단축어</b>를 따라 해 주세요.</p>';
+  const logSec = section('운동 기록', `<div class="panel list wk-log">${log || empty('아직 운동 기록이 없어요.')}</div>${more}${watchHint}`, { sum: list.length ? `${list.length}번` : '', action: '<button class="link-btn" data-action="wk-add">+ 운동 기록</button>' });
+
+  return `${stats}<div class="cols"><div class="col-side">${goalSec}${bodySec}</div><div class="col-main">${logSec}</div></div>`;
+}
+
+function saveWorkoutForm(vals) {
+  if (!vals.date) vals.date = today();
+  const old = editing.id ? (state.workouts || []).find((x) => x.id === editing.id) : null;
+  const w = {
+    id: editing.id || `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+    date: vals.date, start: vals.start || '', type: vals.type || '기타', minutes: Number(vals.minutes) || 0, km: Number(vals.km) || 0, kcal: Math.round(Number(vals.kcal) || 0),
+    memo: vals.memo || '', source: old?.source || 'manual', createdAt: old?.createdAt || Date.now(), updatedAt: Date.now(),
+  };
+  if (!w.minutes && !w.km && !w.kcal && !w.memo && !confirm('운동 시간·거리·칼로리가 비어 있어요. 이대로 저장할까요?')) return false;
+  state.workouts = [w, ...(state.workouts || []).filter((x) => x.id !== w.id)];
+  render();
+  store.saveWorkout(w).catch((e) => toast(`저장하지 못했어요: ${e.message}`));
+  toast(old ? '운동 기록을 고쳤어요.' : `${workoutLine(w)} 기록했어요.`);
+}
+function saveWeightForm(vals) {
+  const date = vals.date || today();
+  const kg = Math.round(Number(vals.kg) * 10) / 10;
+  if (!(kg > 0)) { toast('몸무게를 적어 주세요.'); return false; }
+  if (editing.id && editing.id !== date) { store.deleteWeight(editing.id).catch(() => {}); const { [editing.id]: _, ...rest } = state.weights; state.weights = rest; }
+  const entry = { kg, source: 'manual', at: Date.now() };
+  state.weights = { ...state.weights, [date]: entry };
+  render();
+  store.saveWeight(date, entry).catch((e) => toast(`저장하지 못했어요: ${e.message}`));
+  const g = weightGoal(weightList(state.weights), goalWeightOf());
+  toast(`${kg}kg 기록했어요.${g && g.left > 0 ? ` 목표까지 ${g.left}kg!` : ''}`);
+}
+function saveBodyForm(vals) {
+  const d = state.data;
+  d.body = { ...(d.body || {}), height: Number(vals.height) || 0, goalWeight: Number(vals.goalWeight) || 0 };
+  // 올해 목표의 '목표 체중'도 같이
+  for (const g of d.goals || []) if (g.kind === 'weight') g.targetKg = d.body.goalWeight;
+  commit();
 }
 
 /** 오늘 탭 '올해 목표': 진행률 막대, 직접 세는 목표는 +1 */
+const goalCtx = () => ({ data: state.data, market: state.market, agenda: state.agenda, today: now(), books: state.books, workouts: state.workouts, weights: state.weights });
 function goalsBlock() {
   const goals = state.data.goals || [];
-  const ctx = { data: state.data, market: state.market, agenda: state.agenda, today: now(), books: state.books };
-  const rows = goals.map((g) => {
+  const ctx = goalCtx();
+  return section(GOAL_FLAG(), `<div class="panel list">${goals.map((g) => goalRow(g, ctx)).join('') || empty('올해 이루고 싶은 걸 적어 두면 진행률을 보여 드려요.')}</div>`, { action: addBtn('goals') });
+}
+const GOAL_FLAG = () => `<svg class="goal-flag" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg><span class="sr-only">${now().getFullYear()}년 목표</span>`;
+/** 목표 한 줄: 진행률 막대, 직접 세는 목표는 +1 */
+function goalRow(g, ctx) {
     const p = goalProgress(g, ctx);
     const done = p.pct >= 100;
     return `<div class="row goal${done ? ' done' : ''}">
@@ -603,9 +734,6 @@ function goalsBlock() {
       </button>
       <span class="row-side"><span class="row-value">${done ? '달성' : `${Math.floor(p.pct)}%`}</span>${g.kind === 'custom' ? `<button class="pill" data-action="goal-inc" data-id="${esc(g.id)}" aria-label="${esc(g.title)} 하나 더">+1</button>` : ''}</span>
     </div>`;
-  }).join('');
-  const FLAG = `<svg class="goal-flag" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg><span class="sr-only">${now().getFullYear()}년 목표</span>`;
-  return section(FLAG, `<div class="panel list">${rows || empty('올해 이루고 싶은 걸 적어 두면 진행률을 보여 드려요.')}</div>`, { action: addBtn('goals') });
 }
 
 // 자산 → 홈: 총자산, 자산 추이, 고정지출·상환 일정
@@ -1413,6 +1541,7 @@ function viewSettings() {
     <p class="pad">아침 <b>7시 30분 브리핑</b>, 시간 넣은 할일·일정은 <b>30분 전</b>에 알려 드려요.</p>
     <div class="row static"><span class="row-main"><span class="row-title">일요일 저녁 8시 주간 돌아보기</span><span class="row-meta">이번 주 운동·할일·저축·목표와 다음 주 미리보기 (30분 전 알림 알람으로 함께 와요)</span></span><button class="link-btn" data-action="weekly-toggle">${state.data.settings?.weekly === false ? '켜기' : '끄기'}</button></div>
     <div class="row static"><span class="row-main"><span class="row-title">밤 11시 일기 알림</span><span class="row-meta">그날 일기를 아직 안 썼을 때만 와요. 누르면 오늘 일기 창이 바로 열려요</span></span><button class="link-btn" data-action="diary-nudge-toggle">${state.data.settings?.diaryNudge === false ? '켜기' : '끄기'}</button></div>
+    <div class="row static"><span class="row-main"><span class="row-title">운동 코칭</span><span class="row-meta">Exercise 캘린더 일정 30분 전 응원, 끝나고 1시간 뒤 칭찬이나 챙김. 아침 브리핑에 이번 주 운동 횟수</span></span><button class="link-btn" data-action="coach-toggle">${state.data.settings?.workoutCoach === false ? '켜기' : '끄기'}</button></div>
     ${push}
     ${details('notify-more', '어떤 알림이 오나요?', `<div class="pad"><p class="hint">아침 브리핑: 오늘 일정, 오늘 마감 할일과 지난 할일, 오늘이 상환일·출금일인 대출과 고정지출.<br>30분 전 알림: 시간을 넣은 할일과 구글 캘린더 일정(반려자·종일 일정 빼고), 한 번만.<br>앱 화면 알림 카드: 상환 5·3·1일 전, 출금 하루 전부터 미리 보여 드려요.</p></div>`)}
   </div>`;
@@ -1458,6 +1587,7 @@ function viewSettings() {
     ['brief-clock', '아침 브리핑 정각 알람', 'cron-job.org, 5분', null, briefingClock()],
     ['remind-clock', '30분 전 알림 알람', 'cron-job.org, 3분', null, remindClock()],
     ['sc-guide', '아이폰 단축어', '앱을 안 열고 일정·할일·메모 넣기', null, shortcutPanel()],
+    ['wk-guide', '애플워치 운동 단축어', '운동이 끝나면 운동 일지에 저절로', (state.workouts || []).some((x) => x.source === 'watch') ? true : null, workoutShortcutPanel()],
     ['naver-guide', '반려자 네이버 캘린더', '읽기만', nv && !nv.error ? true : null, naverGuide()],
   ];
   const tag = (done) => (done === true ? '<span class="setup-tag ok">완료</span>' : done === false ? '<span class="setup-tag todo">해야 함</span>' : '<span class="setup-tag">안내</span>');
@@ -1880,6 +2010,30 @@ function shortcutPanel() {
     </div>`;
 }
 
+/** 애플워치 운동 단축어: 운동이 끝나면 운동 일지(Firestore)에 바로 넣기 (GitHub를 거치지 않아요) */
+function workoutShortcutPanel() {
+  const code = (label, value, copy) => `<div class="sc-row"><span class="sc-label">${label}</span><code>${esc(value)}</code>${copy ? `<button class="link-btn" data-action="sc-copy" data-what="${copy}">복사</button>` : ''}</div>`;
+  return `<div class="pad">
+      <p class="hint">애플워치로 운동을 끝내면 아이폰 단축어가 운동 종류·시간·거리·칼로리를 덕준님만 읽는 운동 일지에 바로 넣어요. 앱을 열지 않아도 돼요.</p>
+      <ol class="steps">
+        <li>단축어 앱 → <b>자동화</b> → <b>+</b> → <b>Apple Watch 운동</b> → <b>종료 시</b>, 운동 종류는 모두 → <b>즉시 실행</b> → <b>새로운 빈 자동화</b></li>
+        <li><b>건강 샘플 찾기</b> → 유형 <b>운동</b>, 정렬 <b>시작일</b> 최신순, 제한 <b>1개</b></li>
+        <li><b>날짜 형식 지정</b> → 위 결과의 <b>시작일</b>, 형식 <b>사용자 지정</b> <code>yyyy-MM-dd HH:mm</code></li>
+        <li><b>URL의 콘텐츠 가져오기</b> → URL은 ①, 방법 <b>POST</b>, 요청 본문 <b>양식</b>: <code>grant_type</code> = <code>refresh_token</code>, <code>refresh_token</code> = ②</li>
+        <li><b>사전 값 가져오기</b> 두 번: <code>id_token</code>, <code>user_id</code></li>
+        <li><b>URL의 콘텐츠 가져오기</b> → URL은 ③에서 <code>[user_id]</code> 자리에 user_id 변수. 방법 <b>POST</b>, 헤더 <code>Authorization</code> = <code>Bearer </code>+ id_token. 요청 본문 <b>JSON</b>의 <code>fields</code>(사전) 안에 아래 칸을 하나씩 사전으로 넣고, 각 사전의 <code>stringValue</code>에 값을 넣어요.
+          <br><code>via</code> = <code>shortcut</code> · <code>type</code> = 운동의 유형 · <code>start</code> = 3번의 날짜 · <code>duration</code> = 지속 시간 · <code>distance</code> = 거리 · <code>kcal</code> = 활동 에너지(칼로리)</li>
+        <li><b>알림 보기</b> → ‘운동 기록했어요’ (선택)</li>
+      </ol>
+      <div class="sc-codes">
+        ${code('①', `https://securetoken.googleapis.com/v1/token?key=${store.apiKey}`, 'token-url')}
+        ${code('②', '단축어 키 (일정·할일 단축어와 같아요)', 'key')}
+        ${code('③', 'https://firestore.googleapis.com/v1/projects/chgokchgok/databases/(default)/documents/users/[user_id]/workouts', 'wk-url')}
+      </div>
+      <p class="hint">iOS 버전에 따라 건강 샘플의 칸 이름(지속 시간·거리·에너지)이 조금 달라요. 값이 비어 있으면 빈 채로 들어오고, 운동 탭에서 눌러 고칠 수 있어요. 시간은 ‘32:10’, ‘1920초’, ‘32분’처럼 어떤 모양이어도 알아들어요.</p>
+    </div>`;
+}
+
 /** 나만의 낱말: '라스런' → Life 처럼, 이 낱말이 들어간 일정은 정한 캘린더로 */
 function keywordPanel() {
   const list = gset().keywords || [];
@@ -2157,7 +2311,7 @@ function setGoogle(patch) {
 }
 
 // ───────────────────────── 그리기 ─────────────────────────
-const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, memo: viewMemo, diary: viewDiary, books: viewBooks, workout: viewSoon, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
+const VIEWS = { home: viewHome, money: viewMoney, calendar: viewCalendar, tasks: viewTasks, memo: viewMemo, diary: viewDiary, books: viewBooks, workout: viewWorkout, assets: viewAssets, debts: viewDebts, fixed: viewFixed, records: viewRecords, settings: viewSettings };
 const TITLES = { home: '오늘', money: '자산 홈', calendar: '일정', tasks: '할일', memo: '메모', diary: '기록', books: '기록', workout: '기록', assets: '자산', debts: '부채', fixed: '고정지출', records: '기록', settings: '설정' };
 // 기록 메뉴 안의 작은 탭: 일기 | 독서 | 운동
 const JOURNAL_TABS = [['diary', '일기'], ['books', '독서'], ['workout', '운동']];
@@ -2410,6 +2564,10 @@ function afterRender() {
       if (c && mh?.monthly) homeChart(c, mh.monthly.slice(-24));
     }
   }
+  if (state.tab === 'workout') {
+    const c = $('#chart-weight');
+    if (c) weightChart(c, weightSeries(weightList(state.weights), now(), state.weightRange || 30), goalWeightOf());
+  }
   if (state.tab === 'settings' && !state.push.loaded && !isDemo()) loadPush();
   if (state.tab === 'settings' && state.lockOk === undefined) { state.lockOk = null; lockSupported().then((v) => { state.lockOk = v; render(); }); }
 }
@@ -2456,7 +2614,9 @@ function openForm(kind, item, preset = {}) {
     if (!first) return toast(kind === 'repayment' ? '직접 기록할 대출이 없어요. 상환스케줄을 불러온 대출은 자동으로 기록돼요.' : '먼저 자산에서 저축 계좌를 추가해 주세요.');
     v = { targetId: first.id, date: today(), ...recordDefaults(kind, first.id), ...(preset.amount ? { amount: Number(preset.amount), kind: '적금 납입' } : {}) };
   }
-  $('#editor-title').textContent = kind === 'fx' || kind === 'trade' ? spec.title : `${kind === 'task' && isRoutine(v) ? '루틴' : spec.title} ${item ? '수정' : '추가'}`;
+  if (kind === 'workout' && !item) v = { date: today(), type: '헬스', ...v };
+  if (kind === 'weight' && !item) v = { date: today(), ...v };
+  $('#editor-title').textContent = kind === 'fx' || kind === 'trade' || kind === 'body' ? spec.title : `${kind === 'task' && isRoutine(v) ? '루틴' : spec.title} ${item ? '수정' : '추가'}`;
   $('#editor-fields').innerHTML = spec.fields.map((f) => {
     const val = v[f.key] ?? f.def ?? '';
     const id = `f-${f.key}`;
@@ -2508,7 +2668,7 @@ function openForm(kind, item, preset = {}) {
     const show = (f.showIf ? ` data-show-key="${Object.keys(f.showIf)[0]}" data-show-val="${[].concat(Object.values(f.showIf)[0]).join('|')}"` : '') + (f.noSchedule ? ' data-no-schedule' : '');
     return `<div class="field"${show}><label for="${id}">${f.label}</label>${input}${hint}</div>`;
   }).join('');
-  $('#editor-delete').hidden = !item || kind === 'trade';
+  $('#editor-delete').hidden = !item || kind === 'trade' || kind === 'body';
   // 이미 있는 일정의 반복은 구글 캘린더에서 바꿔요 (여기서는 그 날 하나만 고쳐요)
   if (kind === 'memo' && item) {
     $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint memo-stamp">${memoStamp(item)} <button type="button" class="link-btn" id="memo-copy">복사</button></p>`);
@@ -2598,6 +2758,9 @@ function saveForm() {
   if (editing.kind === 'event') return saveEvent(vals);
   if (editing.kind === 'memo') return saveMemo(vals);
   if (editing.kind === 'diary') return saveDiaryForm(vals);
+  if (editing.kind === 'workout') return saveWorkoutForm(vals);
+  if (editing.kind === 'weight') return saveWeightForm(vals);
+  if (editing.kind === 'body') return saveBodyForm(vals);
   if (editing.kind === 'fx') d.settings = { ...(d.settings || {}), usdKrw: vals.usdKrw };
   else if (isRecord(editing.kind)) {
     upsertRecord(d, { id: editing.id || crypto.randomUUID().slice(0, 8), type: editing.kind, ...vals });
@@ -2619,11 +2782,28 @@ function saveForm() {
     }
     if (i >= 0) list[i] = { ...list[i], ...vals };
     else list.push({ id: crypto.randomUUID().slice(0, 8), ...vals });
+    // 목표 체중은 운동 탭 몸 정보와 같이
+    if (editing.kind === 'goals' && vals.kind === 'weight' && vals.targetKg) d.body = { ...(d.body || {}), goalWeight: vals.targetKg };
   }
   commit();
 }
 
 function deleteItem() {
+  if (editing.kind === 'workout') {
+    if (!confirm('이 운동 기록을 지울까요?')) return false;
+    state.workouts = (state.workouts || []).filter((x) => x.id !== editing.id);
+    render();
+    store.deleteWorkout(editing.id).catch((e) => toast(`지우지 못했어요: ${e.message}`));
+    return true;
+  }
+  if (editing.kind === 'weight') {
+    if (!confirm('이 날 몸무게 기록을 지울까요?')) return false;
+    const { [editing.id]: _, ...rest } = state.weights;
+    state.weights = rest;
+    render();
+    store.deleteWeight(editing.id).catch((e) => toast(`지우지 못했어요: ${e.message}`));
+    return true;
+  }
   if (editing.kind === 'diary') {
     if (!confirm('이 날 일기를 지울까요?')) return false;
     store.deleteDiary(editing.id).catch((e) => toast(`지우지 못했어요: ${e.message}`));
@@ -2980,6 +3160,7 @@ function bind() {
       const { owner, repo } = repoFromLocation(location);
       const v = { 'token-url': `https://securetoken.googleapis.com/v1/token?key=${store.apiKey}`, key: store.shortcutKey(),
         'inbox-url': 'https://firestore.googleapis.com/v1/projects/chgokchgok/databases/(default)/documents/users/[user_id]/inbox',
+        'wk-url': 'https://firestore.googleapis.com/v1/projects/chgokchgok/databases/(default)/documents/users/[user_id]/workouts',
         'gh-url': `https://api.github.com/repos/${owner}/${repo}/actions/workflows/agenda-sync.yml/dispatches`, 'gh-token': state.secrets?.githubToken || '',
         'notify-url': `https://api.github.com/repos/${owner}/${repo}/actions/workflows/notify.yml/dispatches`,
         'remind-url': `https://api.github.com/repos/${owner}/${repo}/actions/workflows/remind.yml/dispatches`, 'ref-body': '{"ref":"main"}' }[b.dataset.what];
@@ -3019,6 +3200,15 @@ function bind() {
     if (a === 'memo-pin') toggleMemoPin(id);
     if (a === 'book-open') openBook(id);
     if (a === 'book-add') openBook('');
+    if (a === 'wk-add') openForm('workout');
+    if (a === 'wk-edit') { const w = (state.workouts || []).find((x) => x.id === id); if (w) openForm('workout', w); }
+    if (a === 'wk-more') { state.wkShow = (state.wkShow || 30) + 30; render(); }
+    if (a === 'wk-goal') openForm('goals', null, { kind: 'exercise' });
+    if (a === 'wt-add') openForm('weight');
+    if (a === 'wt-edit') { const v = state.weights[id]; if (v) openForm('weight', { id, date: id, kg: v.kg }); }
+    if (a === 'wt-range') { state.weightRange = Number(b.dataset.key) || 30; render(); }
+    if (a === 'body-edit') openForm('body', null, { height: state.data.body?.height || '', goalWeight: goalWeightOf() || '' });
+    if (a === 'coach-toggle') { state.data.settings = { ...(state.data.settings || {}), workoutCoach: state.data.settings?.workoutCoach === false }; commit(); }
     if (a === 'book-filter') { state.bookFilter = b.dataset.key || ''; render(); }
     if (a === 'diary-write') openDiary(b.dataset.key || today());
     if (a === 'diary-month') { state.diaryMonth = b.dataset.key; render(); }
@@ -3483,6 +3673,8 @@ async function main() {
     onHistory: (h) => { state.history = h || {}; state.historyLoaded = true; if (state.tab === 'money') render(); recordDaily(); },
     onSync: (s) => { state.sync = s; if (state.user) renderSync(); },
     onMemos: (list) => { state.memos = list || []; if (state.tab === 'memo') render(); },
+    onWorkouts: (list) => { state.workouts = (list || []).map((w) => normWorkout(w, now())).filter(Boolean); if (['workout', 'home'].includes(state.tab)) render(); },
+    onWeights: (map) => { state.weights = map || {}; if (['workout', 'home'].includes(state.tab)) render(); },
     onBooks: (list) => { state.books = list || []; if (state.tab === 'books' || state.tab === 'home') render(); },
     onDiary: (map) => { state.diary = map || {}; diaryLoaded = true; if (state.tab === 'diary' || state.tab === 'home') render(); openDiaryFromLink(); },
     onTasks: (list) => { state.tasks = (list || []).map(normLocalTask); render(); },

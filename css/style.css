@@ -1205,3 +1205,29 @@ textarea[data-grow] { resize: none; overflow: hidden; min-height: 2.8em; }
 .bk-dates input { min-width: 0; width: 100%; }
 @media (max-width: 520px) { .bk-dates { grid-template-columns: 1fr; gap: 0; } }
 .bk-quote .icon-btn { border: 0; background: none; box-shadow: none; color: var(--text-muted); }
+
+/* ───── 기록 → 운동 ───── */
+.wk-stats { display: grid; grid-template-columns: repeat(4, 1fr); }
+.wk-stats .stat + .stat { border-left: 1px solid var(--border); }
+.wk-stats .stat-num small { font-size: 13px; font-weight: 500; color: var(--text-muted); }
+@media (max-width: 600px) {
+  .wk-stats { grid-template-columns: 1fr 1fr; }
+  .wk-stats .stat { padding: 14px 16px; }
+  .wk-stats .stat:nth-child(3) { border-left: 0; }
+  .wk-stats .stat:nth-child(n + 3) { border-top: 1px solid var(--border); }
+}
+.body-panel { padding-top: 16px; }
+.body-top { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0 18px 14px; }
+.body-top > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.body-top b { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
+.body-top small { font-size: 12px; color: var(--text-muted); min-height: 1.4em; }
+.body-top small .link-btn { font-size: 12px; padding: 0; }
+.body-panel .chart-box.small { padding: 0 10px 8px 8px; }
+.body-panel .empty { padding: 12px 18px 16px; }
+.body-panel details { border-top: 1px solid var(--border); }
+.wk-day + .wk-day { border-top: 1px solid var(--border); }
+.wk-date { padding: 12px 18px 2px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.wk-day .row { border-top: 0; }
+.wk-src { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: var(--surface-2); color: var(--text-muted); font-size: 11px; font-weight: 500; vertical-align: 1px; }
+.wk-more { display: block; margin: 8px auto 0; }
+.sec-actions { display: inline-flex; gap: 14px; align-items: center; }

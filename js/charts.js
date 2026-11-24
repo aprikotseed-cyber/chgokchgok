@@ -1,5 +1,5 @@
 // Chart.js(전역 Chart)로 그리는 꺾은선그래프. 색은 CSS 변수에서 읽어 라이트/다크 모드를 따릅니다.
-import { won, wonShort, ymLabel } from './format.js?v=20261124k';
+import { won, wonShort, ymLabel } from './format.js?v=20261125a';
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const charts = new Map();
@@ -141,6 +141,21 @@ export function trendChart(canvas, points, mode = 'day') {
       },
     },
   });
+}
+
+/** 몸무게: 날짜별 한 줄 + 목표 체중 점선 */
+export function weightChart(canvas, points, goal = 0) {
+  const color = css('--series-1');
+  const datasets = [{
+    label: '몸무게', data: points.map((p) => p.kg), spanGaps: true,
+    borderColor: color, backgroundColor: color, pointBackgroundColor: color,
+    pointRadius: points.length > 60 ? 0 : 3, pointBorderColor: css('--surface-1'), pointBorderWidth: 2,
+  }];
+  if (goal) datasets.push({ label: '목표', data: points.map(() => goal), borderColor: css('--series-2'), borderDash: [5, 4], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0 });
+  const o = base();
+  o.scales.y.ticks.callback = (v) => `${Math.round(v * 10) / 10}kg`;
+  o.plugins.tooltip.callbacks = { label: (c) => ` ${c.dataset.label}  ${c.parsed.y}kg` };
+  draw(canvas, { type: 'line', data: { labels: points.map((p) => `${Number(p.date.slice(5, 7))}.${Number(p.date.slice(8))}`), datasets }, options: o });
 }
 
 export function homeChart(canvas, monthly) {
