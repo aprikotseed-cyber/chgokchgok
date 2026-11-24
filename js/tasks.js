@@ -1,14 +1,32 @@
 // 할일: 차곡차곡에 직접 저장해요 (users/{uid}/tasks/{id}). 여러 기기에서 함께 보여요.
 // 구글 태스크는 앱에서 시간·반복을 넣을 수 없어서, 할일은 차곡차곡이 직접 관리하고 일정만 구글 캘린더와 연동해요.
 // task: { id, title, notes, due: 'YYYY-MM-DD'|'', time: 'HH:MM'|'', repeat: 규칙|null, series, done, completedAt, createdAt, updatedAt }
-import { nextFrom } from './agenda.js?v=20261124d';
+import { nextFrom } from './agenda.js?v=20261124f';
 
 const rid = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /** 새 할일 한 개 */
-export function makeTask({ title, due = '', time = '', repeat = null, notes = '', series = '' }, nowMs = Date.now()) {
+export function makeTask({ title, due = '', time = '', repeat = null, notes = '', series = '', routine }, nowMs = Date.now()) {
   const id = rid();
-  return { id, title: String(title || '').trim(), notes: notes || '', due: due || '', time: time || '', repeat: repeat || null, series: repeat ? series || id : '', done: false, completedAt: '', createdAt: nowMs, updatedAt: nowMs };
+  return { id, title: String(title || '').trim(), notes: notes || '', due: due || '', time: time || '', repeat: repeat || null, series: repeat ? series || id : '', ...(routine != null ? { routine: !!routine } : {}), done: false, completedAt: '', createdAt: nowMs, updatedAt: nowMs };
+}
+
+/** 루틴인지: 직접 정했으면 그대로, 아니면 반복 할일은 루틴으로 봐요 */
+export const isRoutine = (t) => (t.routine != null ? !!t.routine : !!t.repeat);
+
+/**
+ * 오늘의 루틴: 아직 안 한 루틴(날짜가 지났어도 '지남' 없이 오늘 것으로) + 오늘 끝낸 루틴.
+ * 같은 반복에서 안 한 게 여러 개면 가장 최근 것 하나만.
+ */
+export function routinesToday(tasks, todayKey) {
+  const list = (tasks || []).filter((t) => isRoutine(t) && t.due && (t.done ? t.completedAt === todayKey : t.due <= todayKey));
+  const bySeries = new Map();
+  for (const t of list) {
+    const k = t.done ? `done:${t.id}` : `open:${t.series || t.id}`;
+    const prev = bySeries.get(k);
+    if (!prev || t.due > prev.due) bySeries.set(k, t);
+  }
+  return [...bySeries.values()].sort((a, b) => (a.done - b.done) || (a.time || '99').localeCompare(b.time || '99') || a.title.localeCompare(b.title));
 }
 
 /** 저장된 모양 → 화면용 (빠진 칸 채우기) */
@@ -29,7 +47,7 @@ export function nextRepeatTask(t, all, todayKey, nowMs = Date.now()) {
   const last = [t.due || todayKey, ...same.map((x) => x.due)].sort().at(-1);
   const next = nextFrom(t.repeat, last, todayKey);
   if (!next) return null;
-  return { ...makeTask({ title: t.title, due: next, time: t.time, repeat: t.repeat, notes: t.notes, series }, nowMs) };
+  return { ...makeTask({ title: t.title, due: next, time: t.time, repeat: t.repeat, notes: t.notes, series, routine: t.routine }, nowMs) };
 }
 
 /** 'YYYY-MM-DD' + 'HH:MM' (한국 시간) → 시각(ms) */

@@ -26,3 +26,24 @@ test('30분 전 알림: 0~30분 남은 것만, 한 번만', () => {
   assert.match(reminderText([items[0]]).body, /21:00에 할 일 ‘귀 세척’/);
   assert.match(reminderText(items.slice(0, 2)).title, /2개/);
 });
+
+test('루틴: 반복 할일은 루틴, 직접 끈 건 아니고, 오늘 루틴은 지난 것도 하나만', async () => {
+  const { isRoutine, routinesToday, makeTask, nextRepeatTask } = await import('../js/tasks.js');
+  const daily = { freq: 'daily', interval: 1 };
+  assert.equal(isRoutine({ repeat: daily }), true);
+  assert.equal(isRoutine({ repeat: daily, routine: false }), false);
+  assert.equal(isRoutine({ routine: true }), true);
+  assert.equal(isRoutine({}), false);
+  const tasks = [
+    { id: 'a', title: '영양제', repeat: daily, series: 'a', due: '2026-11-23', done: false },
+    { id: 'b', title: '영양제', repeat: daily, series: 'a', due: '2026-11-22', done: false },
+    { id: 'c', title: '물 마시기', repeat: daily, series: 'c', due: '2026-11-24', done: true, completedAt: '2026-11-24' },
+    { id: 'd', title: '보고서', due: '2026-11-24', done: false },
+    { id: 'e', title: '공과금', repeat: { freq: 'monthly', interval: 1 }, routine: false, due: '2026-11-24', done: false },
+  ];
+  const r = routinesToday(tasks, '2026-11-24');
+  assert.deepEqual(r.map((t) => t.id), ['a', 'c']);
+  // 다음 차례에도 루틴 표시가 이어져요
+  const t = makeTask({ title: '스트레칭', due: '2026-11-24', repeat: daily, routine: true });
+  assert.equal(nextRepeatTask(t, [t], '2026-11-24').routine, true);
+});

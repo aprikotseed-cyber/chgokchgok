@@ -47,3 +47,16 @@ test('숫자 이모지', async () => {
   const { numEmoji } = await import('../js/briefing.js');
   assert.deepEqual([0, 3, 10, 12].map(numEmoji), ['0️⃣', '3️⃣', '🔟', '1️⃣2️⃣']);
 });
+
+test('아침 브리핑: 루틴은 할일과 따로 한 줄', async () => {
+  const { morningBriefing } = await import('../js/briefing.js');
+  const today = new Date(2026, 10, 24);
+  const agenda = { syncedAt: 1, until: '2026-12-31', events: [], calendars: [] };
+  const tasks = [
+    { id: 'r', title: '영양제 먹기', due: '2026-11-24', repeat: { freq: 'daily', interval: 1 }, done: false },
+    { id: 't', title: '보고서 제출', due: '2026-11-24', done: false },
+  ];
+  const n = morningBriefing({ settings: {} }, agenda, today, tasks);
+  assert.match(n.body, /할일 1️⃣ : 보고서 제출/);
+  assert.match(n.body, /루틴 1️⃣ : 영양제 먹기/);
+});
