@@ -1,24 +1,24 @@
-import { connect, isDemo } from './store.js?v=20261124j';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124j';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124j';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124j';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124j';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124j';
-import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124j';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124j';
-import { estimateMonths } from './estimate.js?v=20261124j';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124j';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124j';
-import { addFeedback, feedbackText } from './feedback.js?v=20261124j';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124j';
-import { createGoogle, freshServerToken } from './google.js?v=20261124j';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124j';
-import { createDemoGoogle } from './google-demo.js?v=20261124j';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124j';
-import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261124j';
-import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124j';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124j';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124j';
+import { connect, isDemo } from './store.js?v=20261124k';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261124k';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261124k';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261124k';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261124k';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261124k';
+import { trendChart, homeChart, redrawAll } from './charts.js?v=20261124k';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261124k';
+import { estimateMonths } from './estimate.js?v=20261124k';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261124k';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261124k';
+import { addFeedback, feedbackText } from './feedback.js?v=20261124k';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261124k';
+import { createGoogle, freshServerToken } from './google.js?v=20261124k';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261124k';
+import { createDemoGoogle } from './google-demo.js?v=20261124k';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261124k';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261124k';
+import { goalProgress, GOAL_KINDS, weeklyReview } from './goals.js?v=20261124k';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261124k';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261124k';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -526,7 +526,7 @@ function bookPaint() {
   $('#bk-status').querySelectorAll('button').forEach((x) => x.setAttribute('aria-selected', String(x.dataset.v === e.status)));
   $('#bk-end-field').hidden = e.status !== 'done';
   $('#bk-stars').innerHTML = [1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="${n === (Number(e.rating) || 0)}" aria-label="별 ${n}개" data-star="${n}" class="${n <= (Number(e.rating) || 0) ? 'on' : ''}">${STAR}</button>`).join('');
-  $('#bk-quotes').innerHTML = e.quotes.map((q, i) => `<div class="bk-quote" data-i="${i}"><textarea rows="1" data-grow data-q="text" aria-label="인상 깊은 문장 ${i + 1}">${esc(q.text || '')}</textarea><input type="text" inputmode="numeric" data-q="page" value="${esc(q.page || '')}" aria-label="페이지"><button type="button" class="icon-btn" data-q-del="${i}" aria-label="이 문장 지우기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('');
+  $('#bk-quotes').innerHTML = e.quotes.map((q, i) => `<div class="bk-quote" data-i="${i}"><div class="bk-q-text"><textarea rows="1" data-grow data-q="text" placeholder="인상 깊은 문장" aria-label="인상 깊은 문장 ${i + 1}">${esc(q.text || '')}</textarea><button type="button" class="icon-btn" data-q-del="${i}" aria-label="이 문장 지우기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div><input type="text" inputmode="numeric" data-q="page" value="${esc(q.page || '')}" placeholder="페이지" aria-label="페이지"></div>`).join('');
   $('#bk-quotes').querySelectorAll('textarea[data-grow]').forEach(growBox);
 }
 /** 창의 글 칸 → bookEditing (다시 그리기 전에 쓴 글을 지켜요) */

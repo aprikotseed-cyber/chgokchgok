@@ -1,6 +1,6 @@
 // 올해 목표와 진행률 · 주간 돌아보기 (화면·서버·테스트가 함께 쓰는 순수 함수)
-import { currentTotals } from './projection.js?v=20261124j';
-import { scheduleRecords } from './records.js?v=20261124j';
+import { currentTotals } from './projection.js?v=20261124k';
+import { scheduleRecords } from './records.js?v=20261124k';
 
 const pad = (n) => String(n).padStart(2, '0');
 const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

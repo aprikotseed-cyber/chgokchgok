@@ -1195,9 +1195,11 @@ textarea[data-grow] { resize: none; overflow: hidden; min-height: 2.8em; }
 .bk-stars button svg { width: 100%; height: 100%; fill: currentColor; }
 .bk-stars button.on { color: #e0a43a; }
 .bk-quotes { display: flex; flex-direction: column; gap: 8px; }
-.bk-quote { display: grid; grid-template-columns: 1fr 64px 32px; gap: 6px; align-items: start; }
-.bk-quote input { text-align: center; }
-.bk-quote .icon-btn { width: 32px; height: 38px; }
+.bk-quote { display: grid; grid-template-columns: 1fr 72px; gap: 6px; align-items: start; }
+.bk-quote input { text-align: center; min-width: 0; width: 100%; }
+.bk-q-text { position: relative; min-width: 0; }
+.bk-q-text textarea { width: 100%; padding-right: 34px; }
+.bk-quote .icon-btn { position: absolute; top: 7px; right: 2px; width: 30px; height: 32px; }
 .bk-quote .icon-btn svg { width: 14px; height: 14px; }
 .bk-add-quote { align-self: flex-start; font-size: 20px; line-height: 1; padding: 4px 10px; }
 .bk-dates input { min-width: 0; width: 100%; }
