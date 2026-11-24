@@ -1,25 +1,26 @@
-import { connect, isDemo } from './store.js?v=20261125b';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125b';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125b';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125b';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125b';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125b';
-import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125b';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125b';
-import { estimateMonths } from './estimate.js?v=20261125b';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125b';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125b';
-import { addFeedback, feedbackText } from './feedback.js?v=20261125b';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125b';
-import { createGoogle, freshServerToken } from './google.js?v=20261125b';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125b';
-import { createDemoGoogle } from './google-demo.js?v=20261125b';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125b';
-import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261125b';
-import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125b';
-import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125b';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125b';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125b';
+import { connect, isDemo } from './store.js?v=20261125d';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125d';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125d';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125d';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125d';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125d';
+import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125d';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125d';
+import { estimateMonths } from './estimate.js?v=20261125d';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125d';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125d';
+import { addFeedback, feedbackText } from './feedback.js?v=20261125d';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125d';
+import { createGoogle, freshServerToken } from './google.js?v=20261125d';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125d';
+import { createDemoGoogle } from './google-demo.js?v=20261125d';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125d';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261125d';
+import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125d';
+import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261125d';
+import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125d';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125d';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125d';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -43,7 +44,8 @@ const state = {
   reorder: null,        // 순서 바꾸는 중인 목록 (예: 'savings')
   dragging: false,
   memos: [],            // 메모 [{id, text, pinned, createdAt, updatedAt}]
-  diary: {},            // 일기 { 'YYYY-MM-DD': {happy, moved, thanks, worry, updatedAt} }
+  diary: {},            // 일기 { 'YYYY-MM-DD': {happy, moved, thanks, worryEnc(암호문), updatedAt} }
+  vault: undefined,     // 고민거리 금고 (undefined: 아직 못 받음, null: 아직 안 만듦)
   workouts: [],         // 운동 일지 [{id, date, start, type, minutes, km, kcal, source, memo}]
   weights: {},          // 몸무게 { 'YYYY-MM-DD': {kg, source, at} }
   books: [],            // 독서 기입장 [{id, title, author, cover, status, start, end, rating, review, quotes}]
@@ -432,17 +434,158 @@ function openDiaryFromLink() {
 /** 일기 칸: 쓰는 만큼 저절로 늘어나요 */
 function growBox(t) { t.style.height = 'auto'; t.style.height = `${t.scrollHeight + 2}px`; }
 const DIARY_PARTS = [['happy', '행복했던 일'], ['moved', '인상 깊었던 일'], ['thanks', '감사했던 일'], ['worry', '고민거리']];
-const diaryHas = (e) => !!e && DIARY_PARTS.some(([k]) => String(e[k] || '').trim());
+const OPEN_PARTS = DIARY_PARTS.filter(([k]) => k !== 'worry');
+/** 고민거리가 있는지 (암호문이든, 아직 잠그기 전 글이든) */
+const hasWorry = (e) => !!e && (isSealed(e.worryEnc) || !!String(e.worry || '').trim());
+const diaryHas = (e) => !!e && (OPEN_PARTS.some(([k]) => String(e[k] || '').trim()) || hasWorry(e));
+
+// ───── 고민거리 잠금 ─────
+// 비밀번호를 넣으면 이 탭에 있는 동안만 열려요. 탭을 옮기거나 창을 닫으면 다시 잠겨요.
+// 여는 열쇠와 푼 글은 메모리에만 있어요 (저장하지 않아요).
+const worry = { key: null, plain: new Map(), newPw: null, sealing: false };
+const LOCK_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5"/></svg>';
+const UNLOCK_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8.5 10.5V8a3.5 3.5 0 0 1 6.8-1.2"/></svg>';
+const worryOpen = () => !!worry.key;
+
+function lockWorries() {
+  worry.key = null;
+  worry.plain.clear();
+  worry.newPw = null;
+}
+
+/** 열린 동안: 잠긴 고민거리를 모두 풀어 메모리에 */
+async function decryptWorries() {
+  if (!worry.key) return;
+  for (const [k, e] of Object.entries(state.diary)) {
+    if (worry.plain.has(k)) continue;
+    if (isSealed(e.worryEnc)) { try { worry.plain.set(k, await openText(worry.key, e.worryEnc)); } catch { /* 다른 금고로 잠긴 글 */ } }
+    else if (String(e.worry || '').trim()) worry.plain.set(k, String(e.worry).trim());
+  }
+}
+
+/** 아직 잠그기 전 고민거리(예전 글)를 공개키로 잠가서 다시 저장 (비밀번호 없이 돼요) */
+async function sealOldWorries() {
+  if (!state.vault || worry.sealing) return;
+  const old = Object.entries(state.diary).filter(([, e]) => String(e.worry || '').trim());
+  if (!old.length) return;
+  worry.sealing = true;
+  try {
+    for (const [k, e] of old) {
+      const { worry: text, ...rest } = e;
+      const entry = { ...rest, worryEnc: await sealText(state.vault, String(text).trim()) };
+      state.diary = { ...state.diary, [k]: entry };
+      await store.saveDiary(k, entry); // 문서를 통째로 바꿔서, 예전 글자 칸은 서버에서 지워져요
+    }
+  } catch (err) { console.warn('고민거리 잠그기 실패', err); }
+  worry.sealing = false;
+}
+
+/** 비밀번호 확인 → 열기. 'old'를 돌려주면 예전 비밀번호를 한 번 더 물어봐요 */
+async function unlockWorries(pw, mode) {
+  if (mode === 'old') {
+    const next = await rewrapVault(state.vault, pw, worry.newPw);
+    await store.saveVault(next);
+    state.vault = next;
+    worry.key = await openVault(next, worry.newPw);
+    worry.newPw = null;
+  } else if (!state.vault) {
+    // 처음: 로그인 비밀번호가 맞는지 확인하고 금고를 만들어요
+    if (!(await store.checkPassword(pw))) throw new WrongPassword();
+    const v = await createVault(pw);
+    await store.saveVault(v);
+    state.vault = v;
+    worry.key = await openVault(v, pw);
+  } else {
+    try { worry.key = await openVault(state.vault, pw); }
+    catch (e) {
+      // 금고와 맞지 않지만 로그인 비밀번호는 맞아요 → 다른 곳에서 비밀번호를 바꿨어요
+      if (e instanceof WrongPassword && !isDemo() && (await store.checkPassword(pw))) { worry.newPw = pw; return 'old'; }
+      throw e;
+    }
+  }
+  await decryptWorries();
+  sealOldWorries();
+  return 'ok';
+}
+
+// 비밀번호 창
+const PW_TEXT = {
+  open: ['고민거리', '비밀번호를 입력하면, 이 화면을 떠나기 전까지 고민거리를 볼 수 있어요.', '열기', ''],
+  setup: ['고민거리 잠그기', '차곡차곡 비밀번호로 고민거리를 암호화해요. 지금까지 쓴 고민거리도 함께 잠가요.', '잠그기', '비밀번호를 잊으면 고민거리는 누구도 다시 열 수 없어요.'],
+  old: ['예전 비밀번호', '비밀번호가 바뀌었네요. 고민거리를 잠갔던 예전 비밀번호를 한 번만 입력해 주세요.', '확인', '새 비밀번호로 다시 잠가 둘게요.'],
+};
+let pwMode = 'open';
+let pwDone = null;
+function pwPaint(mode) {
+  pwMode = mode;
+  const [title, sub, go, note] = PW_TEXT[mode];
+  $('#pw-title').textContent = title;
+  $('#pw-sub').textContent = sub;
+  $('#pw-go').textContent = go;
+  $('#pw-note').textContent = note;
+  $('#pw-note').hidden = !note;
+  $('#pw-error').textContent = '';
+  $('#pw-input').value = '';
+  $('#pw-input').type = 'password';
+  $('#pw-eye').setAttribute('aria-pressed', 'false');
+  $('#pw-sheet').classList.remove('busy', 'bad');
+}
+/** 비밀번호 창을 띄워요 → 열리면 true */
+function askPassword(mode = state.vault ? 'open' : 'setup') {
+  const d = $('#pw-sheet');
+  pwPaint(mode);
+  $('#pw-user').value = store.userEmail?.() || '';
+  d.showModal();
+  $('#pw-input').focus(); // 누른 바로 그 순간에 포커스해야 휴대폰 키보드가 올라와요
+  return new Promise((res) => { pwDone = res; });
+}
+function pwFinish(ok) {
+  const done = pwDone;
+  pwDone = null;
+  if (!ok) worry.newPw = null;
+  $('#pw-sheet').close();
+  done?.(ok);
+}
+function pwFail(msg) {
+  const d = $('#pw-sheet');
+  $('#pw-error').textContent = msg;
+  d.classList.remove('busy', 'bad');
+  void d.offsetWidth;
+  d.classList.add('bad');
+  $('#pw-input').select();
+}
+async function pwSubmit() {
+  const d = $('#pw-sheet');
+  if (d.classList.contains('busy')) return;
+  const pw = $('#pw-input').value;
+  if (!pw) return pwFail('비밀번호를 입력해 주세요.');
+  d.classList.add('busy');
+  $('#pw-error').textContent = '';
+  try {
+    const r = await unlockWorries(pw, pwMode);
+    if (r === 'old') { pwPaint('old'); $('#pw-input').focus(); return; }
+    pwFinish(true);
+    render();
+    document.querySelectorAll('.worry-text').forEach((el) => el.classList.add('reveal'));
+  } catch (err) {
+    pwFail(err instanceof WrongPassword ? '비밀번호가 맞지 않아요.' : err.message || '열지 못했어요. 다시 해 주세요.');
+  }
+}
 
 /** 일기 한 장 (일기 목록과 오늘 탭에서 같은 모양). 누르면 고치기 창 */
 function diaryCard(key, e) {
   const d = fromKey(key);
-  const rows = DIARY_PARTS.filter(([k]) => String(e[k] || '').trim()).map(([k, l]) => k === 'worry'
-    ? `<details class="diary-worry"><summary>${l}</summary><p>${esc(e[k]).replace(/\n/g, '<br>')}</p></details>`
-    : `<div class="diary-line"><span class="diary-label">${l}</span><p>${esc(e[k]).replace(/\n/g, '<br>')}</p></div>`).join('');
+  const rows = OPEN_PARTS.filter(([k]) => String(e[k] || '').trim())
+    .map(([k, l]) => `<div class="diary-line"><span class="diary-label">${l}</span><p>${esc(e[k]).replace(/\n/g, '<br>')}</p></div>`);
+  if (hasWorry(e)) {
+    const text = worryOpen() ? worry.plain.get(key) : null;
+    rows.push(text != null
+      ? `<div class="diary-line worry-line"><span class="diary-label">고민거리 <span class="worry-ic open">${UNLOCK_ICON}</span></span><p class="worry-text">${esc(text).replace(/\n/g, '<br>')}</p></div>`
+      : `<button class="worry-lock" data-action="worry-unlock" aria-label="고민거리 열기 (비밀번호)"><span class="worry-ic">${LOCK_ICON}</span><span>고민거리</span></button>`);
+  }
   return `<article class="panel diary-card" id="diary-${key}">
     <button class="diary-head" data-action="diary-write" data-key="${key}" aria-label="${mdw(d)} 일기 고치기"><b>${d.getMonth() + 1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})</b>${d.getFullYear() !== now().getFullYear() ? `<span class="hint">${d.getFullYear()}년</span>` : ''}<span class="hint">고치기</span></button>
-    <div class="diary-body">${rows}</div>
+    <div class="diary-body">${rows.join('')}</div>
   </article>`;
 }
 
@@ -456,21 +599,55 @@ function diaryToday() {
 
 function openDiary(key) {
   const e = state.diary[key];
-  openForm('diary', diaryHas(e) ? { id: key, date: key, ...e } : null, { date: key });
+  const locked = hasWorry(e) && !(worryOpen() && worry.plain.has(key));
+  openForm('diary', diaryHas(e) ? { id: key, date: key, ...e, worry: locked ? '' : worry.plain.get(key) || '' } : null, { date: key });
+  editing.worryLocked = locked;
+  if (!locked) return;
+  // 잠긴 고민거리: 글 칸 대신 '열기' 줄. 열면 그 자리에서 고칠 수 있어요 (안 열면 그대로 둬요)
+  const box = $('#f-worry');
+  box.hidden = true;
+  box.insertAdjacentHTML('afterend', `<button type="button" class="worry-lock in-form" id="worry-form-open"><span class="worry-ic">${LOCK_ICON}</span><span>잠겨 있어요 · 열어서 보기</span></button>`);
+  $('#worry-form-open').addEventListener('click', async () => {
+    if (!(await askPassword())) return;
+    $('#worry-form-open')?.remove();
+    box.value = worry.plain.get(key) || '';
+    box.hidden = false;
+    editing.worryLocked = false;
+    growBox(box);
+    box.focus();
+  });
 }
 
 function saveDiaryForm(vals) {
   const key = vals.date || today();
-  const entry = Object.fromEntries(DIARY_PARTS.map(([k]) => [k, String(vals[k] || '').trim()]));
   const old = editing.id || '';
-  if (!diaryHas(entry)) { // 다 비우면 저장하지 않아요 (고치던 일기면 지워요)
-    if (old) store.deleteDiary(old).catch(() => {});
+  const prev = state.diary[old] || {};
+  const texts = Object.fromEntries(OPEN_PARTS.map(([k]) => [k, String(vals[k] || '').trim()]));
+  const worryText = editing.worryLocked ? '' : String(vals.worry || '').trim();
+  const keep = editing.worryLocked ? { worryEnc: prev.worryEnc, worry: prev.worry } : {}; // 안 열고 저장하면 고민거리는 그대로
+  const draft = { ...texts, worry: worryText || keep.worry, worryEnc: keep.worryEnc };
+  if (!diaryHas(draft)) { // 다 비우면 저장하지 않아요 (고치던 일기면 지워요)
+    if (old) { store.deleteDiary(old).catch(() => {}); worry.plain.delete(old); }
     return;
   }
   if (key !== old && diaryHas(state.diary[key]) && !confirm(`${mdw(fromKey(key))}에는 이미 일기가 있어요. 새로 쓴 걸로 바꿀까요?`)) return false;
-  if (old && old !== key) store.deleteDiary(old).catch(() => {});
-  state.diary = { ...state.diary, [key]: { ...entry, updatedAt: Date.now() } };
-  store.saveDiary(key, { ...entry, updatedAt: Date.now() }).catch((e) => toast(`저장하지 못했어요: ${e.message}`));
+  // 고민거리를 처음 쓰면: 금고부터 (비밀번호 한 번)
+  if (worryText && !state.vault) {
+    askPassword('setup').then((ok) => { if (ok && saveDiaryForm(vals) !== false) $('#editor').close(); });
+    return false;
+  }
+  if (old && old !== key) { store.deleteDiary(old).catch(() => {}); worry.plain.delete(old); }
+  const wasLocked = editing.worryLocked;
+  (async () => {
+    const entry = { ...texts, updatedAt: Date.now() };
+    const plain = worryText || (keep.worry ? String(keep.worry).trim() : '');
+    if (plain) entry.worryEnc = await sealText(state.vault, plain);
+    else if (isSealed(keep.worryEnc)) entry.worryEnc = keep.worryEnc;
+    if (worryText && worryOpen()) worry.plain.set(key, worryText); else if (!worryText && !wasLocked) worry.plain.delete(key);
+    state.diary = { ...state.diary, [key]: entry };
+    render();
+    await store.saveDiary(key, entry);
+  })().catch((e) => toast(`저장하지 못했어요: ${e.message}`));
   toast('일기를 저장했어요.');
 }
 
@@ -2323,6 +2500,7 @@ const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라�
 
 function render() {
   if (state.dragging) return; // 끄는 중에는 다시 그리지 않아요 (실시간 갱신이 와도)
+  if (lastTab && lastTab !== state.tab) lockWorries(); // 다른 화면으로 가면 고민거리는 다시 잠겨요
   $('#login').hidden = !!state.user;
   $('#app').hidden = !state.user;
   if (!state.user) return;
@@ -3210,6 +3388,7 @@ function bind() {
     if (a === 'coach-toggle') { state.data.settings = { ...(state.data.settings || {}), workoutCoach: state.data.settings?.workoutCoach === false }; commit(); }
     if (a === 'book-filter') { state.bookFilter = b.dataset.key || ''; render(); }
     if (a === 'diary-write') openDiary(b.dataset.key || today());
+    if (a === 'worry-unlock') askPassword();
     if (a === 'diary-month') { state.diaryMonth = b.dataset.key; render(); }
     if (a === 'diary-go') goDiary(b.dataset.key);
     if (a === 'diary-nudge-toggle') { state.data.settings = { ...(state.data.settings || {}), diaryNudge: state.data.settings?.diaryNudge === false }; commit(); }
@@ -3504,6 +3683,20 @@ function bind() {
 
   const md = $('#memo-editor');
   smoothDialog(md);
+  // 고민거리 비밀번호 창
+  const pw = $('#pw-sheet');
+  smoothDialog(pw);
+  pw.addEventListener('close', () => { if (pwDone) { const done = pwDone; pwDone = null; worry.newPw = null; done(false); } });
+  $('#pw-form').addEventListener('submit', (e) => { e.preventDefault(); pwSubmit(); });
+  $('#pw-cancel').addEventListener('click', () => pwFinish(false));
+  $('#pw-input').addEventListener('input', () => { if ($('#pw-error').textContent) { $('#pw-error').textContent = ''; pw.classList.remove('bad'); } });
+  $('#pw-eye').addEventListener('click', () => {
+    const show = $('#pw-input').type === 'password';
+    $('#pw-input').type = show ? 'text' : 'password';
+    $('#pw-eye').setAttribute('aria-pressed', String(show));
+    $('#pw-eye').setAttribute('aria-label', show ? '비밀번호 가리기' : '비밀번호 보기');
+    $('#pw-input').focus();
+  });
   $('#memo-edit-form').addEventListener('submit', (e) => { e.preventDefault(); if (saveMemoEdit()) md.close(); });
   $('#memo-edit-cancel').addEventListener('click', () => md.close());
   $('#memo-edit-delete').addEventListener('click', () => {
@@ -3675,7 +3868,15 @@ async function main() {
     onWorkouts: (list) => { state.workouts = (list || []).map((w) => normWorkout(w, now())).filter(Boolean); if (['workout', 'home'].includes(state.tab)) render(); },
     onWeights: (map) => { state.weights = map || {}; if (['workout', 'home'].includes(state.tab)) render(); },
     onBooks: (list) => { state.books = list || []; if (state.tab === 'books' || state.tab === 'home') render(); },
-    onDiary: (map) => { state.diary = map || {}; diaryLoaded = true; if (state.tab === 'diary' || state.tab === 'home') render(); openDiaryFromLink(); },
+    onDiary: async (map) => {
+      state.diary = map || {};
+      diaryLoaded = true;
+      if (worryOpen()) await decryptWorries(); // 다른 기기에서 쓴 고민거리도 열린 동안엔 보여요
+      if (state.tab === 'diary' || state.tab === 'home') render();
+      openDiaryFromLink();
+      sealOldWorries();
+    },
+    onVault: (v) => { state.vault = v || null; sealOldWorries(); },
     onTasks: (list) => { state.tasks = (list || []).map(normLocalTask); render(); },
     onAgenda: (a) => {
       const first = !agendaLoaded;

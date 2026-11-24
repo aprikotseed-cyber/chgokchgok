@@ -14,9 +14,9 @@
   <link rel="icon" href="favicon-48.png?v=2" sizes="48x48" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261125b">
+  <link rel="stylesheet" href="css/style.css?v=20261125d">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
-  <script type="module" src="js/app.js?v=20261125b"></script>
+  <script type="module" src="js/app.js?v=20261125d"></script>
 </head>
 <body>
   <div id="boot" class="boot">불러오는 중</div>
@@ -155,6 +155,22 @@
         <button type="button" id="bk-cancel" class="btn">취소</button>
         <button type="submit" class="btn primary">저장</button>
       </div>
+    </form>
+  </dialog>
+  <dialog id="pw-sheet" class="pw-sheet" aria-labelledby="pw-title" aria-describedby="pw-sub">
+    <form id="pw-form" novalidate>
+      <img class="pw-logo" src="logo-mark.png" alt="" width="52" height="52">
+      <h2 id="pw-title">고민거리</h2>
+      <p id="pw-sub" class="pw-sub"></p>
+      <input id="pw-user" type="text" name="username" autocomplete="username" class="sr-only" tabindex="-1" aria-hidden="true">
+      <div class="pw-field">
+        <input id="pw-input" type="password" name="password" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호" enterkeyhint="done" autocapitalize="off" spellcheck="false">
+        <button type="button" id="pw-eye" class="pw-eye" aria-label="비밀번호 보기" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="eye" d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle class="eye" cx="12" cy="12" r="3"/><path class="slash" d="M4 4l16 16"/></svg></button>
+      </div>
+      <p id="pw-error" class="pw-error" role="alert" aria-live="assertive"></p>
+      <button type="submit" id="pw-go" class="pw-go">열기</button>
+      <button type="button" id="pw-cancel" class="pw-cancel">취소</button>
+      <p id="pw-note" class="pw-note" hidden></p>
     </form>
   </dialog>
   <dialog id="memo-editor" class="memo-dialog" aria-label="메모 수정">

@@ -61,6 +61,8 @@ export async function connect(h) {
       F.onSnapshot(F.collection(db, 'users', user.uid, 'workouts'), (s) => h.onWorkouts?.(s.docs.map((d) => ({ id: d.id, ...d.data() })))),
       // 몸무게: 날짜('YYYY-MM-DD')가 문서 이름이에요 (하루 한 번)
       F.onSnapshot(F.collection(db, 'users', user.uid, 'weights'), (s) => h.onWeights?.(Object.fromEntries(s.docs.map((d) => [d.id, d.data()])))),
+      // 고민거리 금고: 공개키와, 비밀번호로 잠근 개인키 (고민거리 글은 일기 문서에 암호문으로만)
+      F.onSnapshot(F.doc(db, 'users', user.uid, 'data', 'vault'), (s) => h.onVault?.(s.exists() ? s.data() : null)),
       // 토큰 같은 비밀값: 백업 파일·개선 목록에 섞이지 않게 따로 저장
       F.onSnapshot(F.doc(db, 'users', user.uid, 'data', 'secrets'), (s) => h.onSecrets?.(s.exists() ? s.data() : {})),
     );
@@ -114,6 +116,25 @@ export async function connect(h) {
     saveWeight: (date, entry) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'weights', date), entry),
     deleteWeight: (date) => F.deleteDoc(F.doc(db, 'users', auth.currentUser.uid, 'weights', date)),
     saveAgenda: (agenda) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'agenda'), agenda),
+    saveVault: (vault) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'vault'), vault),
+    /**
+     * 지금 로그인 비밀번호가 맞는지 Firebase에 확인 (다시 로그인 확인). 맞으면 true, 틀리면 false.
+     * 여러 번 틀리면 Firebase가 잠시 막아요 → 오류를 던져요.
+     */
+    checkPassword: async (password) => {
+      const user = auth.currentUser;
+      if (!user?.email) throw new Error('로그인 정보를 찾지 못했어요');
+      try {
+        await A.reauthenticateWithCredential(user, A.EmailAuthProvider.credential(user.email, password));
+        return true;
+      } catch (e) {
+        if (/wrong-password|invalid-credential|invalid-login-credentials|missing-password/.test(e.code || '')) return false;
+        if (/too-many-requests/.test(e.code || '')) throw new Error('여러 번 틀려서 잠시 막혔어요. 조금 뒤에 다시 해 주세요.');
+        if (/network/.test(e.code || '')) throw new Error('인터넷 연결을 확인해 주세요.');
+        throw e;
+      }
+    },
+    userEmail: () => auth.currentUser?.email || '',
     saveSecret: (key, value) => F.setDoc(F.doc(db, 'users', auth.currentUser.uid, 'data', 'secrets'), { [key]: value || F.deleteField() }, { merge: true }),
     pushSupported: async () => {
       const M = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-messaging.js`);
@@ -174,6 +195,8 @@ function demoStore(h) {
   const GKEY = 'chgok-demo-weights';
   let weights = JSON.parse(localStorage.getItem(GKEY) || 'null') || {};
   const putWeights = () => { localStorage.setItem(GKEY, JSON.stringify(weights)); h.onWeights?.({ ...weights }); };
+  const VKEY = 'chgok-demo-vault';
+  let vault = JSON.parse(localStorage.getItem(VKEY) || 'null');
   const TKEY = 'chgok-demo-tasks';
   let tasks = JSON.parse(localStorage.getItem(TKEY) || 'null') || sampleTasks();
   const putTasks = () => { localStorage.setItem(TKEY, JSON.stringify(tasks)); h.onTasks?.(tasks); };
@@ -182,6 +205,7 @@ function demoStore(h) {
     h.onDiary?.({ ...diary });
     h.onBooks?.([...books]);
     h.onWorkouts?.([...workouts]);
+    h.onVault?.(vault);
     h.onWeights?.({ ...weights });
     h.onTasks?.(tasks);
     h.onAuth({ email: '체험 모드' });
@@ -204,6 +228,9 @@ function demoStore(h) {
     pushDevices: async () => [],
     saveSecret: async () => { throw new Error('체험 모드에서는 저장하지 않아요'); },
     saveAgenda: async () => {},
+    saveVault: async (v) => { vault = v; localStorage.setItem(VKEY, JSON.stringify(v)); h.onVault?.(v); },
+    checkPassword: async (pw) => !!pw, // 체험 모드는 로그인 비밀번호가 없어서, 처음 넣은 비밀번호로 잠가요
+    userEmail: () => '',
     shortcutKey: () => '',
     apiKey: '체험모드',
     saveMemo: async (m) => { memos = [m, ...memos.filter((x) => x.id !== m.id)]; putMemos(); },
