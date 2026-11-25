@@ -1374,3 +1374,11 @@ dialog.scroll-dialog > form { display: flex; flex-direction: column; flex: 1; mi
   }
   .app .fab { bottom: calc(var(--tab-h) + 16px + env(safe-area-inset-bottom)); }
 }
+
+/* ───── 독서: 작년 · 올해 · 누적 독서량 ───── */
+.read-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.read-stat { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 18px; min-height: 112px; }
+.rs-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.rs-num { margin-block: auto 0; display: flex; align-items: baseline; justify-content: center; padding-top: 10px; font-size: 40px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.rs-num small { margin-left: 3px; font-size: 20px; font-weight: 600; letter-spacing: 0; color: var(--text-primary); }
+@media (max-width: 600px) { .read-stats { gap: 8px; } .read-stat { padding: 12px 12px 16px; min-height: 100px; } .rs-label { font-size: 11px; } .rs-num { font-size: 34px; } .rs-num small { font-size: 17px; } }
