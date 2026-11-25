@@ -14,9 +14,9 @@
   <link rel="icon" href="favicon-48.png?v=2" sizes="48x48" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261125d">
+  <link rel="stylesheet" href="css/style.css?v=20261125e">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
-  <script type="module" src="js/app.js?v=20261125d"></script>
+  <script type="module" src="js/app.js?v=20261125e"></script>
 </head>
 <body>
   <div id="boot" class="boot">불러오는 중</div>
@@ -104,10 +104,12 @@
     </div>
   </dialog>
 
-  <dialog id="editor">
+  <dialog id="editor" class="scroll-dialog" aria-labelledby="editor-title">
     <form id="editor-form">
-      <h2 id="editor-title"></h2>
-      <div id="editor-fields"></div>
+      <div class="dialog-body">
+        <h2 id="editor-title" class="sr-only"></h2>
+        <div id="editor-fields"></div>
+      </div>
       <div class="dialog-actions">
         <button type="button" id="editor-delete" class="btn danger">삭제</button>
         <span class="spacer"></span>
@@ -116,14 +118,14 @@
       </div>
     </form>
   </dialog>
-  <dialog id="book-editor" aria-label="책">
+  <dialog id="book-editor" class="scroll-dialog" aria-labelledby="book-head">
     <form id="book-form" autocomplete="off">
-      <h2 id="book-head">책 추가</h2>
+      <div class="dialog-body">
+      <h2 id="book-head" class="sr-only">책 추가</h2>
       <div class="bk-top">
         <div class="bk-cover-edit">
           <span class="cover" id="bk-cover"></span>
           <div class="bk-cover-tools">
-            <button type="button" class="link-btn" id="bk-find">찾기</button>
             <label class="link-btn" for="bk-file">표지 삽입</label><input type="file" accept="image/*" id="bk-file" hidden>
             <button type="button" class="link-btn" id="bk-cover-clear" hidden>표지 지우기</button>
           </div>
@@ -133,7 +135,6 @@
           <label class="field"><span>저자</span><input id="bk-author" type="text"></label>
         </div>
       </div>
-      <div id="bk-results" class="bk-results" hidden></div>
       <div class="field"><span>상태</span>
         <div class="segment seg-field" id="bk-status" role="radiogroup" aria-label="상태">
           <button type="button" data-v="reading" role="radio">읽는 중</button><button type="button" data-v="done" role="radio">다 읽음</button><button type="button" data-v="want" role="radio">읽고 싶은 책</button>
@@ -148,6 +149,7 @@
       <div class="field"><span>인상 깊은 문장</span>
         <div id="bk-quotes" class="bk-quotes"></div>
         <button type="button" class="link-btn bk-add-quote" id="bk-add-quote" aria-label="인상 깊은 문장 더하기">+</button>
+      </div>
       </div>
       <div class="dialog-actions">
         <button type="button" id="bk-delete" class="btn danger">삭제</button>
@@ -175,7 +177,7 @@
   </dialog>
   <dialog id="memo-editor" class="memo-dialog" aria-label="메모 수정">
     <form id="memo-edit-form" class="ask-box memo-capture" autocomplete="off">
-      <label for="memo-edit-text" class="ask-label">메모</label>
+      <label for="memo-edit-text" class="sr-only">메모</label>
       <textarea id="memo-edit-text" rows="8" aria-label="메모"></textarea>
       <div class="memo-capture-foot">
         <span class="hint" id="memo-edit-stamp"></span>

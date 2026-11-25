@@ -1,26 +1,26 @@
-import { connect, isDemo } from './store.js?v=20261125d';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125d';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125d';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125d';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125d';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125d';
-import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125d';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125d';
-import { estimateMonths } from './estimate.js?v=20261125d';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125d';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125d';
-import { addFeedback, feedbackText } from './feedback.js?v=20261125d';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125d';
-import { createGoogle, freshServerToken } from './google.js?v=20261125d';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125d';
-import { createDemoGoogle } from './google-demo.js?v=20261125d';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125d';
-import { BOOK_STATUS, shelfOrder, cleanQuotes, parseGoogleBooks, googleBooksUrl } from './books.js?v=20261125d';
-import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125d';
-import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261125d';
-import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125d';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125d';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125d';
+import { connect, isDemo } from './store.js?v=20261125e';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125e';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125e';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125e';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125e';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125e';
+import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125e';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125e';
+import { estimateMonths } from './estimate.js?v=20261125e';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125e';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125e';
+import { addFeedback, feedbackText } from './feedback.js?v=20261125e';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125e';
+import { createGoogle, freshServerToken } from './google.js?v=20261125e';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125e';
+import { createDemoGoogle } from './google-demo.js?v=20261125e';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125e';
+import { BOOK_STATUS, shelfOrder, cleanQuotes } from './books.js?v=20261125e';
+import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125e';
+import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261125e';
+import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125e';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125e';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125e';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -699,7 +699,7 @@ function viewBooks() {
   const f = BOOK_STATUS.some(([k]) => k === state.bookFilter) ? state.bookFilter : '';
   const list = shelfOrder(all, f);
   const chips = `<div class="segment shelf-filter" role="tablist" aria-label="책 상태">${[['', '전체'], ...BOOK_STATUS].map(([k, l]) => `<button role="tab" aria-selected="${f === k}" data-action="book-filter" data-key="${k}">${l}<small>${k ? all.filter((b) => b.status === k).length : all.length}</small></button>`).join('')}</div>`;
-  const tiles = list.map((b) => `<button class="book-tile" data-action="book-open" data-id="${esc(b.id)}">
+  const tiles = list.map((b) => `<button class="book-tile${state.bookOpen === b.id ? ' on' : ''}" data-action="book-open" data-id="${esc(b.id)}" aria-expanded="${state.bookOpen === b.id}">
       <span class="cover${b.cover ? ' has' : ''}">${coverHtml(b)}</span>
       <span class="bt-title">${esc(b.title)}</span>
       <span class="bt-meta">${b.status === 'done' ? stars(Number(b.rating) || 0) || '다 읽음' : b.status === 'reading' ? '읽는 중' : '읽고 싶은 책'}</span>
@@ -707,6 +707,59 @@ function viewBooks() {
   const year = now().getFullYear();
   const readYear = all.filter((b) => b.status === 'done' && String(b.end || '').startsWith(`${year}-`)).length;
   return `${section('책장', `${chips}${tiles ? `<div class="shelf">${tiles}</div>` : `<div class="panel">${empty(f ? '이 칸에 책이 없어요.' : '아직 책이 없어요.')}</div>`}`, { sum: readYear ? `${year}년 ${readYear}권 읽음` : '', action: '<button class="link-btn" data-action="book-add">+ 책 추가</button>' })}`;
+}
+
+/** 책을 누르면: 그 줄 아래에 감상 상자가 부드럽게 열려요 (모달 없이). 상자 안 '수정'으로 고치기 창 */
+function bookDetailHtml(b) {
+  const quotes = (b.quotes || []).filter((q) => String(q.text || '').trim());
+  const review = String(b.review || '').trim();
+  const body = [
+    review ? `<div class="bd-part"><span class="bd-label">한 줄 감상</span><p class="bd-review">${esc(review)}</p></div>` : '',
+    quotes.length ? `<div class="bd-part"><span class="bd-label">인상 깊은 문장</span>${quotes.map((q) => `<blockquote class="bd-quote"><p>${esc(q.text).replace(/\n/g, '<br>')}</p>${String(q.page || '').trim() ? `<cite>p. ${esc(String(q.page).trim())}</cite>` : ''}</blockquote>`).join('')}</div>` : '',
+  ].join('');
+  return `<div class="bd-inner">
+    ${body || '<p class="bd-empty">아직 남긴 감상과 문장이 없어요.</p>'}
+    <div class="bd-foot"><button type="button" class="link-btn bd-edit" data-action="book-edit" data-id="${esc(b.id)}">수정</button></div>
+  </div>`;
+}
+/** 열린 책의 감상 상자를 그 책이 있는 줄 바로 아래에 (화면을 다시 그리거나 폭이 바뀌어도 제자리) */
+function placeBookDetail(animate = false) {
+  const shelf = $('#view .shelf');
+  const old = shelf?.querySelector('.book-detail');
+  const b = (state.books || []).find((x) => x.id === state.bookOpen);
+  const tile = b && shelf ? shelf.querySelector(`.book-tile[data-id="${CSS.escape(b.id)}"]`) : null;
+  if (!tile) { old?.remove(); return; }
+  const tiles = [...shelf.querySelectorAll('.book-tile')];
+  const rowEnd = tiles.filter((t) => t.offsetTop === tile.offsetTop).at(-1);
+  const box = old || Object.assign(document.createElement('div'), { className: 'book-detail' });
+  box.innerHTML = bookDetailHtml(b);
+  box.dataset.id = b.id;
+  rowEnd.after(box);
+  // 말풍선 꼬리: 누른 책 가운데를 가리켜요
+  box.style.setProperty('--caret-x', `${tile.offsetLeft + tile.offsetWidth / 2 - box.offsetLeft}px`);
+  if (animate && !reduceMotion()) {
+    const h = box.offsetHeight;
+    box.animate([{ height: '0px', opacity: 0, marginTop: '-8px' }, { height: `${h}px`, opacity: 1, marginTop: '0px' }], { duration: 340, easing: 'cubic-bezier(.22,.8,.24,1)' });
+  }
+}
+function toggleBook(id) {
+  const shelf = $('#view .shelf');
+  const box = shelf?.querySelector('.book-detail');
+  shelf?.querySelectorAll('.book-tile').forEach((t) => { const on = t.dataset.id === id && state.bookOpen !== id; t.classList.toggle('on', on); t.setAttribute('aria-expanded', String(on)); });
+  if (state.bookOpen === id) { // 같은 책을 다시 누르면 닫혀요
+    state.bookOpen = '';
+    if (box && !reduceMotion()) box.animate([{ height: `${box.offsetHeight}px`, opacity: 1 }, { height: '0px', opacity: 0, marginTop: '-8px' }], { duration: 220, easing: 'cubic-bezier(.4,0,1,1)' }).onfinish = () => box.remove();
+    else box?.remove();
+    return;
+  }
+  const sameRow = box && (() => { const t = shelf.querySelector(`.book-tile[data-id="${CSS.escape(id)}"]`); const prev = box.previousElementSibling; return t && prev && t.offsetTop === prev.offsetTop; })();
+  state.bookOpen = id;
+  if (box && !sameRow) box.remove();
+  placeBookDetail(!sameRow);
+  const nb = shelf?.querySelector('.book-detail');
+  if (nb && sameRow && !reduceMotion()) nb.querySelector('.bd-inner').animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+  // 상자가 화면 아래로 잘리면 살짝 올려서 보여 줘요
+  setTimeout(() => { const r = nb?.getBoundingClientRect(); if (r && r.bottom > innerHeight - 80) nb.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'nearest' }); }, 360);
 }
 
 let bookEditing = null; // 고치는 책 (창 안에서만)
@@ -720,10 +773,10 @@ function openBook(id) {
   $('#bk-start').value = bookEditing.start || '';
   $('#bk-end').value = bookEditing.end || '';
   $('#bk-review').value = bookEditing.review || '';
-  $('#bk-results').hidden = true;
   $('#bk-delete').hidden = !b;
   bookPaint();
   $('#book-editor').showModal();
+  $('#book-editor .dialog-body').scrollTop = 0;
   if (!b) setTimeout(() => $('#bk-title').focus(), 50);
 }
 /** 창 안의 표지·상태·별점·문장 칸을 지금 값대로 */
@@ -764,21 +817,6 @@ function shrinkCover(file) {
     img.onerror = () => reject(new Error('이미지를 열지 못했어요'));
     img.src = URL.createObjectURL(file);
   });
-}
-async function findBook() {
-  bookRead();
-  const q = [bookEditing.title, bookEditing.author].filter(Boolean).join(' ');
-  const box = $('#bk-results');
-  if (!q) { toast('먼저 제목을 적어 주세요.'); $('#bk-title').focus(); return; }
-  box.hidden = false;
-  box.innerHTML = '<p class="hint">찾는 중…</p>';
-  try {
-    const res = await fetch(googleBooksUrl(q));
-    if (!res.ok) throw new Error(`검색 오류 ${res.status}`);
-    const found = parseGoogleBooks(await res.json());
-    state.bookFound = found;
-    box.innerHTML = found.length ? found.map((r, i) => `<button type="button" class="bk-cand" data-cand="${i}"><span class="cover${r.cover ? ' has' : ''}">${coverHtml(r)}</span><span class="bt-title">${esc(r.title)}</span><span class="bt-meta">${esc(r.author)}</span></button>`).join('') : '<p class="hint">찾지 못했어요. 표지 삽입으로 넣어 주세요.</p>';
-  } catch (err) { box.innerHTML = `<p class="hint">찾지 못했어요 (${esc(err.message)}). 표지 삽입으로 넣어 주세요.</p>`; }
 }
 function saveBook() {
   bookRead();
@@ -2500,7 +2538,7 @@ const SYNC = { saving: '저장 중', saved: '동기화됨', offline: '오프라�
 
 function render() {
   if (state.dragging) return; // 끄는 중에는 다시 그리지 않아요 (실시간 갱신이 와도)
-  if (lastTab && lastTab !== state.tab) lockWorries(); // 다른 화면으로 가면 고민거리는 다시 잠겨요
+  if (lastTab && lastTab !== state.tab) { lockWorries(); state.bookOpen = ''; } // 다른 화면으로 가면 고민거리는 다시 잠기고, 열어 둔 책 상자는 닫혀요
   $('#login').hidden = !!state.user;
   $('#app').hidden = !state.user;
   if (!state.user) return;
@@ -2729,6 +2767,7 @@ function renderSync() {
 
 function afterRender() {
   state.calAnim = ''; // 달력 움직임은 한 번만
+  if (state.tab === 'books') placeBookDetail();
   if (state.tab === 'money') {
     const c = $('#chart-trend');
     const mode = state.data.settings?.trendMode || 'day';
@@ -2861,6 +2900,7 @@ function openForm(kind, item, preset = {}) {
     $('#editor-fields').insertAdjacentHTML('beforeend', `<p class="hint">${item.recurring ? '반복 일정이라 이 날 하나만 바뀌어요. ' : ''}${item.link ? `<a href="${esc(item.link)}" target="_blank" rel="noopener">구글 캘린더에서 열기</a>` : ''}</p>`);
   }
   $('#editor').showModal();
+  $('#editor .dialog-body').scrollTop = 0;
   $('#editor-fields').querySelectorAll('textarea[data-grow]').forEach(growBox);
   if (kind === 'diary') setTimeout(() => $('#f-happy')?.focus(), 50); // 날짜 칸보다 첫 칸에 바로 쓰게
   syncShowIf();
@@ -3375,7 +3415,8 @@ function bind() {
     if (a === 'task-toggle') toggleTask(id);
     if (a === 'memo-edit') { const m = state.memos.find((x) => x.id === id); if (m) openMemoEditor(m); }
     if (a === 'memo-pin') toggleMemoPin(id);
-    if (a === 'book-open') openBook(id);
+    if (a === 'book-open') toggleBook(id);
+    if (a === 'book-edit') openBook(id);
     if (a === 'book-add') openBook('');
     if (a === 'wk-add') openForm('workout');
     if (a === 'wk-edit') { const w = (state.workouts || []).find((x) => x.id === id); if (w) openForm('workout', w); }
@@ -3629,8 +3670,8 @@ function bind() {
     store.deleteBook(bookEditing.id).catch((err) => toast(`지우지 못했어요: ${err.message}`));
     bd.close();
   });
-  $('#bk-find').addEventListener('click', findBook);
-  $('#bk-title').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); findBook(); } });
+  // 제목 칸에서 엔터를 쳐도 창이 저장되며 닫히지 않게 (다음 칸으로)
+  $('#bk-title').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('#bk-author').focus(); } });
   $('#bk-file').addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -3669,17 +3710,6 @@ function bind() {
     bookPaint();
   });
   $('#bk-quotes').addEventListener('input', (e) => { if (e.target.matches('textarea[data-grow]')) growBox(e.target); });
-  $('#bk-results').addEventListener('click', (e) => {
-    const i = e.target.closest('[data-cand]')?.dataset.cand;
-    const r = i != null && state.bookFound?.[Number(i)];
-    if (!r) return;
-    bookRead();
-    Object.assign(bookEditing, { title: r.title, author: r.author || bookEditing.author, publisher: r.publisher || '', cover: r.cover || bookEditing.cover });
-    $('#bk-title').value = bookEditing.title;
-    $('#bk-author').value = bookEditing.author;
-    $('#bk-results').hidden = true;
-    bookPaint();
-  });
 
   const md = $('#memo-editor');
   smoothDialog(md);
