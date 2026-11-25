@@ -1,7 +1,7 @@
 // 올해 목표와 진행률 · 주간 돌아보기 (화면·서버·테스트가 함께 쓰는 순수 함수)
-import { currentTotals } from './projection.js?v=20261125f';
-import { scheduleRecords } from './records.js?v=20261125f';
-import { weekCount, workoutsBetween, workoutTotals, weightList, weightGoal, plannedBetween, minutesLabel } from './workouts.js?v=20261125f';
+import { currentTotals } from './projection.js?v=20261125g';
+import { scheduleRecords } from './records.js?v=20261125g';
+import { weekCount, workoutsBetween, workoutTotals, weightList, weightGoal, plannedBetween, minutesLabel } from './workouts.js?v=20261125g';
 
 const pad = (n) => String(n).padStart(2, '0');
 const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
