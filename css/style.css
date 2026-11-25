@@ -1382,3 +1382,13 @@ dialog.scroll-dialog > form { display: flex; flex-direction: column; flex: 1; mi
 .rs-num { margin-block: auto 0; display: flex; align-items: baseline; justify-content: center; padding-top: 10px; font-size: 40px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .rs-num small { margin-left: 3px; font-size: 20px; font-weight: 600; letter-spacing: 0; color: var(--text-primary); }
 @media (max-width: 600px) { .read-stats { gap: 8px; } .read-stat { padding: 12px 12px 16px; min-height: 100px; } .rs-label { font-size: 11px; } .rs-num { font-size: 34px; } .rs-num small { font-size: 17px; } }
+
+/* ───── 아이패드 가로·PC: 왼쪽 메뉴는 어떤 경우에도 고정, 본문만 스크롤 ─────
+   페이지 전체가 스크롤하면 아이패드에서 당기거나 끝까지 내릴 때 메뉴까지 같이 튕겨요. 본문(#view)만 스크롤해요. */
+@media (min-width: 900px) {
+  body:has(.app:not([hidden])) { height: 100dvh; overflow: hidden; overscroll-behavior: none; }
+  .app:not([hidden]) { height: 100dvh; min-height: 0; overflow: hidden; }
+  .app .side { position: relative; top: auto; height: 100%; }
+  .app .view { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+}
+@media (max-width: 899px) { body:has(.app:not([hidden])) { overscroll-behavior: none; } }
