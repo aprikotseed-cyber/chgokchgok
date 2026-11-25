@@ -1,26 +1,26 @@
-import { connect, isDemo } from './store.js?v=20261125f';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125f';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125f';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125f';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125f';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125f';
-import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125f';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125f';
-import { estimateMonths } from './estimate.js?v=20261125f';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125f';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125f';
-import { addFeedback, feedbackText } from './feedback.js?v=20261125f';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125f';
-import { createGoogle, freshServerToken } from './google.js?v=20261125f';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125f';
-import { createDemoGoogle } from './google-demo.js?v=20261125f';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125f';
-import { BOOK_STATUS, shelfOrder, cleanQuotes } from './books.js?v=20261125f';
-import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125f';
-import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261125f';
-import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125f';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125f';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125f';
+import { connect, isDemo } from './store.js?v=20261125h';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125h';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125h';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125h';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125h';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125h';
+import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125h';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125h';
+import { estimateMonths } from './estimate.js?v=20261125h';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125h';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125h';
+import { addFeedback, feedbackText } from './feedback.js?v=20261125h';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125h';
+import { createGoogle, freshServerToken } from './google.js?v=20261125h';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125h';
+import { createDemoGoogle } from './google-demo.js?v=20261125h';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125h';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, booksReadIn } from './books.js?v=20261125h';
+import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125h';
+import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261125h';
+import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125h';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125h';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125h';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -690,7 +690,7 @@ function viewDiary() {
 
 // ───────────────────────── 기록 → 독서 ─────────────────────────
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
-const stars = (n) => (n ? `<span class="bt-stars" aria-label="별 ${n}개">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>` : '');
+const stars = (n) => (n ? `<span class="bt-stars" aria-label="별 ${n}개">${'★'.repeat(n)}</span>` : ''); // 빈 별은 그리지 않아요
 /** 표지: 칸을 빈틈 없이 꽉 채워요 (비율이 달라도 늘려서) */
 const coverHtml = (b) => (b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : '') + `<span class="cover-title">${esc(b.title || '')}</span>`;
 
@@ -705,8 +705,10 @@ function viewBooks() {
       <span class="bt-meta">${b.status === 'done' ? stars(Number(b.rating) || 0) || '다 읽음' : b.status === 'reading' ? '읽는 중' : '읽고 싶은 책'}</span>
     </button>`).join('');
   const year = now().getFullYear();
-  const readYear = all.filter((b) => b.status === 'done' && String(b.end || '').startsWith(`${year}-`)).length;
-  return `${section('책장', `${chips}${tiles ? `<div class="shelf">${tiles}</div>` : `<div class="panel">${empty(f ? '이 칸에 책이 없어요.' : '아직 책이 없어요.')}</div>`}`, { sum: readYear ? `${year}년 ${readYear}권 읽음` : '', action: '<button class="link-btn" data-action="book-add">+ 책 추가</button>' })}`;
+  const done = all.filter((b) => b.status === 'done');
+  const box = (label, n) => `<div class="panel read-stat"><span class="rs-label">${label}</span><span class="rs-num">${n}<small>권</small></span></div>`;
+  const stats = `<section class="read-stats" aria-label="독서량">${box(`${year - 1}년 독서량`, booksReadIn(all, year - 1))}${box(`${year}년 독서량`, booksReadIn(all, year))}${box('누적 독서량', done.length)}</section>`;
+  return `${stats}${section('책장', `${chips}${tiles ? `<div class="shelf">${tiles}</div>` : `<div class="panel">${empty(f ? '이 칸에 책이 없어요.' : '아직 책이 없어요.')}</div>`}`, { action: '<button class="link-btn" data-action="book-add">+ 책 추가</button>' })}`;
 }
 
 /** 책을 누르면: 그 줄 아래에 감상 상자가 부드럽게 열려요 (모달 없이). 상자 안 '수정'으로 고치기 창 */
@@ -2601,6 +2603,8 @@ function keepTyping() {
  * 맨 위에서 아래로 당기면 로고가 따라 내려오며 돌고, 충분히 당긴 뒤 놓으면 새로 받아요.
  * 페이지를 다시 불러오지 않아서 잠금 화면이 다시 뜨지 않아요.
  */
+/** 지금 스크롤 위치 (휴대폰은 본문, PC는 페이지) */
+const pageScrollTop = () => window.scrollY + ($('#view')?.scrollTop || 0);
 function pullToRefresh() {
   const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   if (!standalone || !matchMedia('(pointer: coarse)').matches) return;
@@ -2625,7 +2629,7 @@ function pullToRefresh() {
   };
   document.addEventListener('touchstart', (e) => {
     y0 = null;
-    if (busy || window.scrollY > 0 || e.touches.length > 1 || !state.user || document.querySelector('dialog[open]')) return;
+    if (busy || pageScrollTop() > 0 || e.touches.length > 1 || !state.user || document.querySelector('dialog[open]')) return;
     const field = e.target.closest('textarea, input, select');
     if ((field && field === document.activeElement) || e.target.closest('.as-log')) return; // 글 쓰는 중에는 당기지 않아요
     x0 = e.touches[0].clientX;
@@ -2636,7 +2640,7 @@ function pullToRefresh() {
     if (y0 == null) return;
     const dy = e.touches[0].clientY - y0;
     const dx = Math.abs(e.touches[0].clientX - x0);
-    if (dy <= 0 || window.scrollY > 0 || (d === 0 && dx > dy)) { if (d) draw(0, true); y0 = d ? y0 : null; d = 0; return; }
+    if (dy <= 0 || pageScrollTop() > 0 || (d === 0 && dx > dy)) { if (d) draw(0, true); y0 = d ? y0 : null; d = 0; return; }
     if (e.cancelable) e.preventDefault(); // 아이폰 고무줄 튕김 대신 우리 효과
     d = Math.min(MAX, dy * 0.5);
     draw(d);
@@ -3325,6 +3329,7 @@ function bind() {
     if (state.tab === 'diary-today') { wantDiary = true; state.tab = 'home'; history.replaceState(null, '', '#home'); }
     render();
     window.scrollTo(0, 0);
+    $('#view').scrollTop = 0; // 휴대폰은 본문만 스크롤해요
     openDiaryFromLink();
   });
 

@@ -1,6 +1,6 @@
 // 중도상환 계산: 원금 일부를 먼저 갚으면 월상환액·이자·기간이 어떻게 바뀌는지, 중도상환수수료는 얼마인지.
 // 금리가 그대로라고 보고 계산한 예상치예요.
-import { loanRows, monthsFrom } from './projection.js?v=20261125f';
+import { loanRows, monthsFrom } from './projection.js?v=20261125h';
 
 /**
  * 중도상환수수료: 갚는 금액 × 수수료율 × (면제될 때까지 남은 달 ÷ 수수료 기간)

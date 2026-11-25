@@ -1168,9 +1168,9 @@ dialog.memo-dialog form { padding: 14px 16px 12px; }
 textarea[data-grow] { resize: none; overflow: hidden; min-height: 2.8em; }
 
 /* ───── 기록 → 독서 ───── */
-.shelf-filter { margin-bottom: 14px; }
-.shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 22px 16px; }
-@media (max-width: 899px) { .shelf { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 12px; } }
+.block > .shelf-filter { margin-bottom: 24px; }
+.shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 32px 24px; }
+@media (max-width: 899px) { .shelf { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px 18px; } }
 .book-tile { display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; min-width: 0; }
 /* 표지 칸: 모두 같은 크기(2:3), 표지는 비율과 상관없이 칸을 꽉 채워요 */
 .cover { position: relative; display: block; aspect-ratio: 2 / 3; width: 100%; overflow: hidden; border-radius: 6px; background: var(--surface-2); box-shadow: 0 1px 3px rgb(0 0 0 / .12), 0 6px 14px rgb(0 0 0 / .06); }
@@ -1358,3 +1358,27 @@ dialog.scroll-dialog > form { display: flex; flex-direction: column; flex: 1; mi
 .bk-pick:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
 .bk-pick:focus-visible::after { opacity: 1; }
 .bk-pick:active { transform: scale(.98); }
+
+/* ───── 휴대폰: 위 머리줄과 아래 탭바는 고정, 본문만 스크롤 ─────
+   페이지 전체가 아니라 본문(#view)이 스크롤해서, 스크롤 막대가 머리줄·탭바 위로 지나가지 않아요. */
+@media (max-width: 899px) {
+  body:has(.app:not([hidden])) { height: 100dvh; overflow: hidden; }
+  .app:not([hidden]) { display: flex; flex-direction: column; height: 100dvh; }
+  .app .top { position: relative; flex-shrink: 0; }
+  .app .tabs { position: relative; inset: auto; flex-shrink: 0; order: 3; } /* 탭바는 맨 아래 (마크업은 본문보다 앞에 있어요) */
+  .app .view { order: 2; }
+  .app .view {
+    flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0;
+    overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch;
+    padding: 8px max(16px, calc((100% - 728px) / 2)) calc(40px + 72px); /* 비서 버튼에 가리지 않게 아래 여백 */
+  }
+  .app .fab { bottom: calc(var(--tab-h) + 16px + env(safe-area-inset-bottom)); }
+}
+
+/* ───── 독서: 작년 · 올해 · 누적 독서량 ───── */
+.read-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.read-stat { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 18px; min-height: 112px; }
+.rs-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.rs-num { margin-block: auto 0; display: flex; align-items: baseline; justify-content: center; padding-top: 10px; font-size: 40px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.rs-num small { margin-left: 3px; font-size: 20px; font-weight: 600; letter-spacing: 0; color: var(--text-primary); }
+@media (max-width: 600px) { .read-stats { gap: 8px; } .read-stat { padding: 12px 12px 16px; min-height: 100px; } .rs-label { font-size: 11px; } .rs-num { font-size: 34px; } .rs-num small { font-size: 17px; } }
