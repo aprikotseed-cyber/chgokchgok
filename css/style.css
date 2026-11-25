@@ -1345,3 +1345,16 @@ dialog.scroll-dialog > form { display: flex; flex-direction: column; flex: 1; mi
 .bd-foot { display: flex; justify-content: flex-end; margin-top: -6px; }
 .bd-edit { font-size: 13px; color: var(--text-muted); padding: 4px 2px; }
 .bd-edit:hover { color: var(--text-secondary); }
+
+/* 책 창: 표지 칸을 누르면 사진 고르기 (빈 칸은 추가, 있으면 바꾸기) */
+.bk-pick { cursor: pointer; position: relative; transition: transform .2s var(--ease), box-shadow .2s var(--ease); }
+.bk-pick::after {
+  content: '바꾸기'; position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; border-radius: inherit;
+  background: rgb(0 0 0 / .38); color: #fff; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .2s var(--ease);
+}
+.bk-pick:not(.has)::after { content: '+ 표지'; background: color-mix(in srgb, var(--text-primary) 8%, transparent); color: var(--text-secondary); }
+.bk-pick:not(.has):hover .cover-title, .bk-pick:not(.has):focus-visible .cover-title { opacity: 0; }
+@media (hover: hover) { .bk-pick:hover::after { opacity: 1; } .bk-pick:hover { transform: translateY(-1px); } }
+.bk-pick:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+.bk-pick:focus-visible::after { opacity: 1; }
+.bk-pick:active { transform: scale(.98); }

@@ -14,9 +14,9 @@
   <link rel="icon" href="favicon-48.png?v=2" sizes="48x48" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-  <link rel="stylesheet" href="css/style.css?v=20261125e">
+  <link rel="stylesheet" href="css/style.css?v=20261125f">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
-  <script type="module" src="js/app.js?v=20261125e"></script>
+  <script type="module" src="js/app.js?v=20261125f"></script>
 </head>
 <body>
   <div id="boot" class="boot">불러오는 중</div>
@@ -124,9 +124,9 @@
       <h2 id="book-head" class="sr-only">책 추가</h2>
       <div class="bk-top">
         <div class="bk-cover-edit">
-          <span class="cover" id="bk-cover"></span>
+          <label class="cover bk-pick" id="bk-cover" for="bk-file" tabindex="0" role="button" aria-label="표지 이미지 고르기"></label>
+          <input type="file" accept="image/*" id="bk-file" hidden>
           <div class="bk-cover-tools">
-            <label class="link-btn" for="bk-file">표지 삽입</label><input type="file" accept="image/*" id="bk-file" hidden>
             <button type="button" class="link-btn" id="bk-cover-clear" hidden>표지 지우기</button>
           </div>
         </div>
