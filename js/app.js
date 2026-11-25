@@ -1,26 +1,26 @@
-import { connect, isDemo } from './store.js?v=20261125i';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125i';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125i';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125i';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125i';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125i';
-import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125i';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125i';
-import { estimateMonths } from './estimate.js?v=20261125i';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125i';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125i';
-import { addFeedback, feedbackText } from './feedback.js?v=20261125i';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125i';
-import { createGoogle, freshServerToken } from './google.js?v=20261125i';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125i';
-import { createDemoGoogle } from './google-demo.js?v=20261125i';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125i';
-import { BOOK_STATUS, shelfOrder, cleanQuotes, booksReadIn } from './books.js?v=20261125i';
-import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125i';
-import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261125i';
-import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125i';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125i';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125i';
+import { connect, isDemo } from './store.js?v=20261125j';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125j';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125j';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125j';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125j';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125j';
+import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125j';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125j';
+import { estimateMonths } from './estimate.js?v=20261125j';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125j';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125j';
+import { addFeedback, feedbackText } from './feedback.js?v=20261125j';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125j';
+import { createGoogle, freshServerToken } from './google.js?v=20261125j';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125j';
+import { createDemoGoogle } from './google-demo.js?v=20261125j';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125j';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, booksReadIn } from './books.js?v=20261125j';
+import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125j';
+import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261125j';
+import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125j';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125j';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125j';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -3233,7 +3233,9 @@ function askAssistant(q) {
   const last = [...chat].reverse().find((m) => !m.me && !m.typing);
   const picked = last?.choose && !last.chosen ? pickChoice(q, last.choose) : null;
   if (last?.choose) last.chosen = true;
-  const a = ask(picked || q, { ...state.data, books: state.books }, state.market, new Date(), ag, state.memos);
+  // 기록도 함께 (일기는 고민거리 내용 없이 '있는지'만)
+  const diaryLog = Object.fromEntries(Object.entries(state.diary || {}).map(([k, e]) => [k, { happy: e.happy || '', moved: e.moved || '', thanks: e.thanks || '', worry: hasWorry(e) }]));
+  const a = ask(picked || q, { ...state.data, books: state.books, workouts: state.workouts, weights: state.weights, diaryLog }, state.market, new Date(), ag, state.memos);
   // 모르는 질문은 저절로 개선 목록에
   if (a.unknown) saveFeedback({ q: picked || q, kind: 'unknown' });
   replying = replying.then(async () => {

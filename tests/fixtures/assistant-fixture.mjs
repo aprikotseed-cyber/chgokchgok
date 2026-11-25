@@ -55,6 +55,31 @@ export const DATA = {
     { id: 'r4', type: 'repayment', targetId: 'd2', date: '2025-10-17', amount: 690_000, interest: 150_000 },
   ],
   snapshots: { '2026-10': { net: 700_000_000 } },
+  // 기록 (일기·독서·운동·몸무게) — 기준일 2026-11-13(금), 이번 주는 11-09(월)~11-15(일)
+  goals: [
+    { id: 'g1', title: '주 3회 운동', kind: 'exercise', targetCount: 3 },
+    { id: 'g2', title: '올해 책 20권', kind: 'books', targetCount: 20 },
+  ],
+  body: { height: 175, goalWeight: 72 },
+  books: [
+    { id: 'b1', title: '도둑맞은 집중력', author: '요한 하리', status: 'done', start: '2026-10-01', end: '2026-10-20', rating: 5, review: '집중력은 개인의 문제가 아니었다', quotes: [{ text: '우리는 집중하지 못하는 게 아니라 빼앗기고 있다', page: '42' }] },
+    { id: 'b2', title: '불편한 편의점', author: '김호연', status: 'done', start: '2026-03-01', end: '2026-03-15', rating: 4, review: '따뜻했다', quotes: [] },
+    { id: 'b3', title: '역행자', status: 'done', end: '2025-08-10', rating: 3, quotes: [] },
+    { id: 'b4', title: '아주 작은 습관의 힘', status: 'reading', start: '2026-11-02', quotes: [{ text: '목표가 아니라 시스템', page: '' }] },
+    { id: 'b5', title: '사피엔스', status: 'want', quotes: [] },
+  ],
+  workouts: [
+    { id: 'w1', date: '2026-11-10', start: '06:30', type: '러닝', minutes: 32, km: 5.1, kcal: 312, source: 'watch' },
+    { id: 'w2', date: '2026-11-12', start: '19:40', type: '헬스', minutes: 58, km: 0, kcal: 345, source: 'watch' },
+    { id: 'w3', date: '2026-11-03', start: '', type: '등산', minutes: 150, km: 7.2, kcal: 820, source: 'manual' },
+    { id: 'w4', date: '2026-10-25', start: '07:00', type: '러닝', minutes: 40, km: 6.5, kcal: 400, source: 'watch' },
+  ],
+  weights: { '2026-10-10': { kg: 79.4 }, '2026-11-01': { kg: 78.6 }, '2026-11-12': { kg: 77.8, source: 'health' } },
+  diaryLog: {
+    '2026-11-11': { happy: '아이들이 발표를 잘했다', moved: '', thanks: '동료 선생님의 도움', worry: true },
+    '2026-11-12': { happy: '산책', moved: '노을이 예뻤다', thanks: '', worry: false },
+    '2026-10-30': { happy: '주말 등산 계획', moved: '', thanks: '', worry: false },
+  },
 };
 
 export const MARKET = {

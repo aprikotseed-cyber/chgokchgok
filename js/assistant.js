@@ -1,15 +1,16 @@
 // 앱 안 비서: 덕준님이 입력한 데이터만 보고 답해요. 인터넷이나 AI를 쓰지 않아요.
 // 질문에서 ① 무엇을 묻는지 ② 어떤 항목인지(직접 등록한 이름) ③ 언제인지 를 뽑아서 답을 만들고,
 // 애매하면 되묻고, 모르면 모른다고 말해요.
-import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261125i';
-import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261125i';
-import { scheduleRecords, yearlySummary } from './records.js?v=20261125i';
-import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261125i';
-import { won, wonExact, mdw, pct } from './format.js?v=20261125i';
-import { weeklyReview, goalProgress } from './goals.js?v=20261125i';
-import { maturityEstimate, depositTotal } from './deposits.js?v=20261125i';
-import { simulatePrepay, prepayFee } from './prepay.js?v=20261125i';
-import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261125i';
+import { currentTotals, currentPayment, loanBalance, stockDetail, stockMarket, homeValue } from './projection.js?v=20261125j';
+import { upcoming, fixedSummary, nextDue, fixedNext, cycleLabel, daysBetween, dateOnly, monthlyAmount, subsSummary } from './reminders.js?v=20261125j';
+import { scheduleRecords, yearlySummary } from './records.js?v=20261125j';
+import { nextScheduled, scheduleBalanceAt, paidRows, ymd } from './schedule.js?v=20261125j';
+import { won, wonExact, mdw, pct } from './format.js?v=20261125j';
+import { weeklyReview, goalProgress } from './goals.js?v=20261125j';
+import { journalAnswer } from './journal-ask.js?v=20261125j';
+import { maturityEstimate, depositTotal } from './deposits.js?v=20261125j';
+import { simulatePrepay, prepayFee } from './prepay.js?v=20261125j';
+import { eventsOn, groupTasks, dueLabel, fromKey, parseQuickEvent, parseQuickTask, classifyEvent, eventLine, repeatLabel, parseEventInput } from './agenda.js?v=20261125j';
 
 // ───── 글자 다루기 ─────
 export const norm = (s) => String(s || '').toLowerCase().replace(/[\s·.,!?~'"()\-_/]+/g, '');
@@ -250,6 +251,9 @@ function route(question, data, market, now, agenda, memos) {
   }
   // '내일 3시 상담 넣어줘', '우유 사기 할일 추가해줘': 일정·할일 넣기 (확인 카드로)
   if (ADD_RE.test(q) && !ctx.ents.some((e) => ['loan', 'fixed', 'saving', 'stock', 'home'].includes(e.type) && e.score >= 5)) { const r = addAnswer(ctx, now); return { via: r.action?.kind === 'task' || r.action?.kind === 'tasks' ? 'addTask' : r.action ? 'addEvent' : 'add', ...r }; }
+  // '이번 주 운동 몇 번 했어?', '올해 몇 권 읽었어?', '몸무게 얼마야?', '오늘 일기 썼어?': 기록(일기·독서·운동·몸무게)
+  const jr = journalAnswer(ctx);
+  if (jr) return jr;
 
   // 날씨·뉴스·로또처럼 차곡차곡에 없는 것
   if (OUT_OF_SCOPE.test(q) && !ctx.ents.some((e) => e.score >= 5)) return { text: '그건 차곡차곡에 없는 정보라 알려드릴 수 없어요. 일정·할일·메모·자산은 편하게 물어봐 주세요.', chips: SUGGEST, unknown: true, via: 'unknown' };
@@ -391,21 +395,21 @@ const H = {
   },
 
   weekly(ctx) {
-    const r = weeklyReview({ data: ctx.data, agenda: ctx.agenda, tasks: ctx.agenda?.tasks || [], market: ctx.market, today: ctx.now, outflows: (a, b) => outflowItems(ctx, a, b) });
+    const r = weeklyReview({ data: ctx.data, agenda: ctx.agenda, tasks: ctx.agenda?.tasks || [], market: ctx.market, today: ctx.now, outflows: (a, b) => outflowItems(ctx, a, b), books: ctx.data.books, workouts: ctx.data.workouts, weights: ctx.data.weights });
     return { text: `이번 주 돌아보기예요. (일요일 저녁 8시에 알림으로도 보내 드려요)\n${r.body}` };
   },
 
   goals(ctx) {
     const goals = ctx.data.goals || [];
     if (!goals.length) return { text: '아직 올해 목표가 없어요. 오늘 탭 맨 아래 ‘올해 목표’에서 + 추가로 적어 두면 진행률을 알려 드릴게요.' };
-    const c = { data: ctx.data, market: ctx.market, agenda: ctx.agenda, today: ctx.now };
+    const c = { data: ctx.data, market: ctx.market, agenda: ctx.agenda, today: ctx.now, books: ctx.data.books, workouts: ctx.data.workouts, weights: ctx.data.weights };
     return { text: `${ctx.now.getFullYear()}년 목표 진행률이에요.\n${goals.map((g) => { const p = goalProgress(g, c); return `· ${g.title}: ${p.pct >= 100 ? '달성' : `${Math.floor(p.pct)}%`} (${p.text})${p.sub ? ` · ${p.sub}` : ''}`; }).join('\n')}` };
   },
 
   hello: () => ({ text: '네, 덕준님. 일정·할일·메모부터 자산·대출까지 편하게 말씀해 주세요.' }),
 
   help: () => ({
-    text: '입력해 두신 내용으로 이런 걸 알려드릴 수 있어요.\n· 일정: 오늘·내일·요일·이번 주 일정, 일정이 언제인지\n· 일정·할일 넣기: ‘금요일 7시 헬스 넣어줘’, ‘우유 사기 할일 추가해줘’\n· 할일: 오늘·이번 주·밀린 할일\n· 총자산, 저축액, 주택 시세\n· 대출: 다음 상환일과 금액, 남은 원금, 회차, 낸 이자, 다 갚는 날\n· 고정지출: 합계, 가장 먼저 빠져나가는 것, 항목별 출금일, 분류별 합계\n· 이번 달·이번 주·내일 나갈 돈\n· 주식: 묶음별·종목별 수익, 환율과 환율 효과\n· 연도별 저축·상환 기록',
+    text: '입력해 두신 내용으로 이런 걸 알려드릴 수 있어요.\n· 일정: 오늘·내일·요일·이번 주 일정, 일정이 언제인지\n· 일정·할일 넣기: ‘금요일 7시 헬스 넣어줘’, ‘우유 사기 할일 추가해줘’\n· 할일: 오늘·이번 주·밀린 할일\n· 총자산, 저축액, 주택 시세\n· 대출: 다음 상환일과 금액, 남은 원금, 회차, 낸 이자, 다 갚는 날\n· 고정지출: 합계, 가장 먼저 빠져나가는 것, 항목별 출금일, 분류별 합계\n· 이번 달·이번 주·내일 나갈 돈\n· 주식: 묶음별·종목별 수익, 환율과 환율 효과\n· 연도별 저축·상환 기록\n· 운동: 이번 주·이번 달 운동 횟수, 시간, 칼로리, 거리, 마지막 운동\n· 몸무게: 최근 몸무게, BMI, 목표 체중까지 남은 kg\n· 독서: 올해·작년 읽은 책 수, 지금 읽는 책, 읽고 싶은 책, 인상 깊은 문장, 책 이름으로 감상 보기\n· 일기: 오늘 썼는지, 이번 달 몇 번 썼는지, 어제 일기 (고민거리는 잠겨 있어 비서도 못 봐요)',
     chips: SUGGEST,
   }),
 
