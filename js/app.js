@@ -1,26 +1,26 @@
-import { connect, isDemo } from './store.js?v=20261125j';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261125j';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261125j';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261125j';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261125j';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261125j';
-import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261125j';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261125j';
-import { estimateMonths } from './estimate.js?v=20261125j';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261125j';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261125j';
-import { addFeedback, feedbackText } from './feedback.js?v=20261125j';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261125j';
-import { createGoogle, freshServerToken } from './google.js?v=20261125j';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261125j';
-import { createDemoGoogle } from './google-demo.js?v=20261125j';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261125j';
-import { BOOK_STATUS, shelfOrder, cleanQuotes, booksReadIn } from './books.js?v=20261125j';
-import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261125j';
-import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261125j';
-import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261125j';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261125j';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261125j';
+import { connect, isDemo } from './store.js?v=20261126a';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261126a';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261126a';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261126a';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261126a';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261126a';
+import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261126a';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261126a';
+import { estimateMonths } from './estimate.js?v=20261126a';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261126a';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261126a';
+import { addFeedback, feedbackText } from './feedback.js?v=20261126a';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261126a';
+import { createGoogle, freshServerToken } from './google.js?v=20261126a';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261126a';
+import { createDemoGoogle } from './google-demo.js?v=20261126a';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261126a';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, booksReadIn } from './books.js?v=20261126a';
+import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261126a';
+import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261126a';
+import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261126a';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261126a';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261126a';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -597,11 +597,31 @@ function diaryToday() {
   return `<section class="block"><button class="panel diary-empty" data-action="diary-write" data-key="${k}">오늘 일기를 기록해 보세요.</button></section>`;
 }
 
+// ───── 일기 임시 저장 (이 기기에만) ─────
+// 쓰는 동안 행복·인상·감사 칸을 이 기기에 잠깐 남겨 둬요. 서버에 저장되면 지워요.
+// 저장이 안 됐거나 창이 닫혀도, 같은 날 일기를 다시 열면 되살려요. 고민거리는 절대 남기지 않아요.
+const DRAFT_KEY = 'chgok-diary-draft';
+const readDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch { return null; } };
+function writeDraft() {
+  if (editing?.kind !== 'diary') return;
+  const d = { date: $('#f-date')?.value || '', at: Date.now() };
+  for (const [k] of OPEN_PARTS) d[k] = $(`#f-${k}`)?.value || '';
+  if (OPEN_PARTS.some(([k]) => d[k].trim())) localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+}
+const clearDraft = (date) => { const d = readDraft(); if (d && (!date || d.date === date)) localStorage.removeItem(DRAFT_KEY); };
+
 function openDiary(key) {
   const e = state.diary[key];
   const locked = hasWorry(e) && !(worryOpen() && worry.plain.has(key));
   openForm('diary', diaryHas(e) ? { id: key, date: key, ...e, worry: locked ? '' : worry.plain.get(key) || '' } : null, { date: key });
   editing.worryLocked = locked;
+  // 저장되지 않은 채 남은 글이 있으면 되살려요 (서버에 저장된 것보다 새것일 때만)
+  const dr = readDraft();
+  if (dr && dr.date === key && dr.at > (e?.updatedAt || 0) && OPEN_PARTS.some(([k]) => String(dr[k] || '').trim() && dr[k] !== (e?.[k] || ''))) {
+    for (const [k] of OPEN_PARTS) { const el = $(`#f-${k}`); if (el && dr[k]) { el.value = dr[k]; growBox(el); } }
+    toast('저장되지 않았던 일기를 되살렸어요.', { label: '버리기', fn: () => { clearDraft(key); openDiary(key); } });
+  }
+  $('#editor-fields').oninput = writeDraft; // 쓰는 대로 이 기기에 잠깐 남겨요
   if (!locked) return;
   // 잠긴 고민거리: 글 칸 대신 '열기' 줄. 열면 그 자리에서 고칠 수 있어요 (안 열면 그대로 둬요)
   const box = $('#f-worry');
@@ -646,8 +666,9 @@ function saveDiaryForm(vals) {
     if (worryText && worryOpen()) worry.plain.set(key, worryText); else if (!worryText && !wasLocked) worry.plain.delete(key);
     state.diary = { ...state.diary, [key]: entry };
     render();
-    await store.saveDiary(key, entry);
-  })().catch((e) => toast(`저장하지 못했어요: ${e.message}`));
+    await store.saveDiary(key, entry); // 서버가 받으면 끝나요 (인터넷이 끊겨 있으면 이어지면 올라가요)
+    clearDraft(key);
+  })().catch((e) => toast(`일기를 저장하지 못했어요. 쓴 글은 이 기기에 남겨 뒀어요. (${e.message})`));
   toast('일기를 저장했어요.');
 }
 
@@ -3898,7 +3919,7 @@ async function main() {
   bind();
   initLock({ active: () => !!state.user, onForgot: () => store.logout() });
   store = await connect({
-    onAuth: (u) => { state.user = u; state.push.loaded = false; if (!u) { state.agenda = null; agendaLoaded = false; } lockNow(); render(); },
+    onAuth: (u) => { state.user = u; state.push.loaded = false; if (!u) { state.agenda = null; agendaLoaded = false; } lockNow(); render(); openDiaryFromLink(); },
     onData: (d) => { serverBase = JSON.parse(JSON.stringify(d || {})); state.data = { ...EMPTY(), ...(d || {}) }; refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onMarket: (m) => { state.marketRaw = m || {}; const first = !state.marketLoaded; state.marketLoaded = true; if (first) setTimeout(autoRefresh, 1500); refreshMarket(); render(); recordSnapshot(); recordDaily(); },
     onSecrets: (sc) => { const first = !state.secretsLoaded; state.secretsLoaded = true; state.secrets = sc || {}; if (first) setTimeout(autoRefresh, 1500); if (['settings', 'home', 'calendar', 'tasks'].includes(state.tab)) render(); },
