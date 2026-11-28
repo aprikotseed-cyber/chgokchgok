@@ -47,3 +47,14 @@ test('루틴: 반복 할일은 루틴, 직접 끈 건 아니고, 오늘 루틴�
   const t = makeTask({ title: '스트레칭', due: '2026-11-24', repeat: daily, routine: true });
   assert.equal(nextRepeatTask(t, [t], '2026-11-24').routine, true);
 });
+
+test('반복 할일 첫 날: 규칙에 맞는 날로 (토요일에 만든 평일 루틴은 월요일부터)', async () => {
+  const { makeTask } = await import('../js/tasks.js');
+  const wk = { freq: 'weekly', interval: 1, byday: [1, 2, 3, 4, 5] };
+  assert.equal(makeTask({ title: '공복 유산균', due: '2026-11-28', repeat: wk }).due, '2026-11-30'); // 토 → 월
+  assert.equal(makeTask({ title: 'a', due: '2026-11-27', repeat: wk }).due, '2026-11-27'); // 금요일은 그대로
+  assert.equal(makeTask({ title: 'b', due: '2026-11-28', repeat: { freq: 'weekly', interval: 1, byday: [0] } }).due, '2026-11-29'); // 일요일마다
+  assert.equal(makeTask({ title: 'c', due: '2026-11-28', repeat: { freq: 'monthly', interval: 1, day: 25 } }).due, '2026-12-25');
+  assert.equal(makeTask({ title: 'd', due: '2026-11-28', repeat: { freq: 'daily', interval: 1 } }).due, '2026-11-28');
+  assert.equal(makeTask({ title: 'e', due: '2026-11-28' }).due, '2026-11-28'); // 반복 아니면 그대로
+});

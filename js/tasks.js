@@ -1,13 +1,15 @@
 // 할일: 차곡차곡에 직접 저장해요 (users/{uid}/tasks/{id}). 여러 기기에서 함께 보여요.
 // 구글 태스크는 앱에서 시간·반복을 넣을 수 없어서, 할일은 차곡차곡이 직접 관리하고 일정만 구글 캘린더와 연동해요.
 // task: { id, title, notes, due: 'YYYY-MM-DD'|'', time: 'HH:MM'|'', repeat: 규칙|null, series, done, completedAt, createdAt, updatedAt }
-import { nextFrom } from './agenda.js?v=20261128a';
+import { nextFrom, firstOccurrence } from './agenda.js?v=20261128b';
 
 const rid = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /** 새 할일 한 개 */
 export function makeTask({ title, due = '', time = '', repeat = null, notes = '', series = '', routine }, nowMs = Date.now()) {
   const id = rid();
+  // 반복 할일은 첫 날을 규칙에 맞는 날로 (토요일에 '평일마다'를 만들면 돌아오는 월요일부터)
+  if (repeat && due) due = firstOccurrence(repeat, due);
   return { id, title: String(title || '').trim(), notes: notes || '', due: due || '', time: time || '', repeat: repeat || null, series: repeat ? series || id : '', ...(routine != null ? { routine: !!routine } : {}), done: false, completedAt: '', createdAt: nowMs, updatedAt: nowMs };
 }
 
