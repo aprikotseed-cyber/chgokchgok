@@ -1,26 +1,26 @@
-import { connect, isDemo } from './store.js?v=20261128a';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261128a';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261128a';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261128a';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261128a';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261128a';
-import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261128a';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261128a';
-import { estimateMonths } from './estimate.js?v=20261128a';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261128a';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261128a';
-import { addFeedback, feedbackText } from './feedback.js?v=20261128a';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261128a';
-import { createGoogle, freshServerToken } from './google.js?v=20261128a';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261128a';
-import { createDemoGoogle } from './google-demo.js?v=20261128a';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261128a';
-import { BOOK_STATUS, shelfOrder, cleanQuotes, booksReadIn } from './books.js?v=20261128a';
-import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261128a';
-import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261128a';
-import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261128a';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261128a';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261128a';
+import { connect, isDemo } from './store.js?v=20261128b';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261128b';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261128b';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261128b';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261128b';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261128b';
+import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261128b';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261128b';
+import { estimateMonths } from './estimate.js?v=20261128b';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261128b';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261128b';
+import { addFeedback, feedbackText } from './feedback.js?v=20261128b';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261128b';
+import { createGoogle, freshServerToken } from './google.js?v=20261128b';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261128b';
+import { createDemoGoogle } from './google-demo.js?v=20261128b';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261128b';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, booksReadIn } from './books.js?v=20261128b';
+import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261128b';
+import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261128b';
+import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261128b';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261128b';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay, firstOccurrence } from './agenda.js?v=20261128b';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1983,12 +1983,13 @@ function taskPreview(text) {
   const p = parseQuickTask(text, now());
   const { title, repeat, time } = p;
   if (!title) return ENTER_HINT;
-  const due = p.due || today(); // 날짜를 안 쓰면 오늘
+  const due = repeat ? firstOccurrence(repeat, p.due || today()) : p.due || today(); // 날짜를 안 쓰면 오늘 (반복이면 규칙에 맞는 첫 날)
   return `‘${title}’ · ${dueLabel(due, today())}${time ? ` ${time}` : ''}${due <= today() || repeat ? '' : '까지'}${p.due ? '' : ' (날짜를 안 써서 오늘)'}${repeat ? ` · ${repeatLabel(repeat, due)}` : ''}${time ? ' · 30분 전 알림' : ''}`;
 }
 
 async function addTaskItem(title, due, { time = '', repeat = null, notes = '', routine } = {}, quiet = false) {
   const t = makeTask({ title, due, time, repeat, notes, routine });
+  due = t.due; // 반복이면 첫 차례 날로 맞춰져 있어요
   const ok = await putTask(t);
   if (ok && !quiet) toast(`‘${title}’${due ? ` · ${dueLabel(due, today())}${time ? ` ${time}` : ''}` : ''}${repeat ? ` · ${repeatLabel(repeat, due)}` : ''} 추가했어요.`);
   return ok;
@@ -2018,7 +2019,9 @@ function saveTask(vals) {
   if (!id) { addTaskItem(vals.title, due, { time: vals.time || '', repeat, notes: vals.notes || '', routine: !!vals.routine }); return; }
   const old = findTask(id);
   if (!old) return;
-  putTask({ ...old, title: vals.title, due, time: vals.time || '', notes: vals.notes || '', repeat, series: repeat ? old.series || old.id : '', routine: !!vals.routine, updatedAt: Date.now() });
+  // 반복을 새로 정하거나 바꾸면 날짜도 규칙에 맞는 첫 날로
+  const newDue = repeat && due && JSON.stringify(repeat) !== JSON.stringify(old.repeat || null) ? firstOccurrence(repeat, due) : due;
+  putTask({ ...old, title: vals.title, due: newDue, time: vals.time || '', notes: vals.notes || '', repeat, series: repeat ? old.series || old.id : '', routine: !!vals.routine, updatedAt: Date.now() });
 }
 
 function removeTask(id) {
