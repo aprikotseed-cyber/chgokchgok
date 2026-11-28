@@ -1,9 +1,9 @@
 // 비서: 기록(일기 · 독서 · 운동 · 몸무게) 질문에 답해요.
 // data에 함께 넘겨받는 것: books, workouts, weights, diaryLog({날짜: {happy, moved, thanks, worry: true/false}})
 // 고민거리 내용은 비서에게 넘어오지 않아요 (있는지만). 그래서 비서도 고민거리는 절대 보여 줄 수 없어요.
-import { weekOf, goalProgress } from './goals.js?v=20261126a';
-import { normWorkout, workoutsBetween, workoutTotals, weekCount, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightGoal, plannedBetween, normType } from './workouts.js?v=20261126a';
-import { booksReadIn, shelfOrder } from './books.js?v=20261126a';
+import { weekOf, goalProgress } from './goals.js?v=20261128a';
+import { normWorkout, workoutsBetween, workoutTotals, weekCount, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightGoal, plannedBetween, normType } from './workouts.js?v=20261128a';
+import { booksReadIn, shelfOrder } from './books.js?v=20261128a';
 
 const pad = (n) => String(n).padStart(2, '0');
 const key = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;

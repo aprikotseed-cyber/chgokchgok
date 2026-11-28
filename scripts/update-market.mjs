@@ -100,7 +100,8 @@ for (const d of docs) {
     } catch (e) {
       homes[h.id] = { ...(prev.homes?.[h.id] || {}), error: String(e.message || e) };
     }
-    homes[h.id].checkedAt = new Date().toISOString();
+    // 받아온 날짜는 성공했을 때만 바꿔요 (실패하면 지난번 받은 날 그대로 보여요)
+    if (!homes[h.id].error || !prev.homes?.[h.id]?.checkedAt) homes[h.id].checkedAt = new Date().toISOString();
     console.log(`집 ${h.name}: ${homes[h.id].error || homes[h.id].estimate}`);
   }
   const { stocks, fx } = await updateStocks(data.stocks || []);

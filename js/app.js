@@ -1,26 +1,26 @@
-import { connect, isDemo } from './store.js?v=20261126a';
-import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261126a';
-import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261126a';
-import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261126a';
-import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261126a';
-import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261126a';
-import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261126a';
-import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261126a';
-import { estimateMonths } from './estimate.js?v=20261126a';
-import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261126a';
-import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261126a';
-import { addFeedback, feedbackText } from './feedback.js?v=20261126a';
-import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261126a';
-import { createGoogle, freshServerToken } from './google.js?v=20261126a';
-import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261126a';
-import { createDemoGoogle } from './google-demo.js?v=20261126a';
-import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261126a';
-import { BOOK_STATUS, shelfOrder, cleanQuotes, booksReadIn } from './books.js?v=20261126a';
-import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261126a';
-import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261126a';
-import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261126a';
-import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261126a';
-import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261126a';
+import { connect, isDemo } from './store.js?v=20261128a';
+import { currentTotals, currentPayment, homeValue, loanThisMonth, graduatedInfo, loanBalance, stockDetail, stockMarket, normTicker, coveredMarkets } from './projection.js?v=20261128a';
+import { parseSchedule, scheduleBalanceAt, nextScheduled, paidRows, ymd } from './schedule.js?v=20261128a';
+import { upsertRecord, deleteRecord, yearlySummary, monthlySummary, byTarget, today, scheduleRecords } from './records.js?v=20261128a';
+import { upcoming, fixedSummary, subsSummary, cycleLabel, nextDue, daysBetween, ALERT_DAYS, alertsFor } from './reminders.js?v=20261128a';
+import { won, wonExact, pct, esc, ymLabel, dateTime, mdw } from './format.js?v=20261128a';
+import { trendChart, homeChart, weightChart, redrawAll } from './charts.js?v=20261128a';
+import { trend, makeEntry, sameEntry, sinceLast } from './history.js?v=20261128a';
+import { estimateMonths } from './estimate.js?v=20261128a';
+import { ask, outflowsBetween, pickChoice, josa as josaOf } from './assistant.js?v=20261128a';
+import { applyTrade, undoLastTrade, realizedKrw } from './trades.js?v=20261128a';
+import { addFeedback, feedbackText } from './feedback.js?v=20261128a';
+import { repoFromLocation, dispatchWorkflow, WORKFLOWS, autoRefreshPlan } from './github.js?v=20261128a';
+import { createGoogle, freshServerToken } from './google.js?v=20261128a';
+import { initLock, lockNow, lockConfig, lockSupported, enableLock, enablePin, disableLock, setLockAfter } from './lock.js?v=20261128a';
+import { createDemoGoogle } from './google-demo.js?v=20261128a';
+import { makeTask, normLocalTask, nextRepeatTask, isRoutine, routinesToday } from './tasks.js?v=20261128a';
+import { BOOK_STATUS, shelfOrder, cleanQuotes, booksReadIn } from './books.js?v=20261128a';
+import { goalProgress, GOAL_KINDS, weeklyReview, weekOf } from './goals.js?v=20261128a';
+import { createVault, openVault, rewrapVault, sealText, openText, isSealed, WrongPassword } from './vault.js?v=20261128a';
+import { WORKOUT_TYPES, normWorkout, workoutsBetween, workoutTotals, weekCount, plannedBetween, minutesLabel, workoutLine, weightList, latestWeight, bmi, bmiLabel, weightSeries, weightGoal } from './workouts.js?v=20261128a';
+import { depositTotal, yearTable, depositYears, maturityEstimate } from './deposits.js?v=20261128a';
+import { normEvent, eventsOn, agendaDays, groupTasks, todayTasks, parseQuickTask, dueLabel, toTaskDue, fromKey, PARTNER_NAMES, calPref as calPrefOf, visibleEvents, agendaUntil, parseQuickEvent, classifyEvent, toGoogleEvent, eventLine, fetchAgenda, keepExternal, parseEventInput, nextFrom, repeatLabel, REPEAT_CHOICES, ruleFromChoice, choiceOf, lunarDay } from './agenda.js?v=20261128a';
 
 const APP_VERSION = new URL(import.meta.url).searchParams.get('v') || 'dev';
 
@@ -1086,12 +1086,14 @@ function viewAssets() {
 
   const stk = stockSection(d, m);
 
+  const TRANSIENT_HOME = /HTTP|TIMEOUT|시간\s*초과|연결 실패|잠시 응답|APPLICATION_ERROR|DB_ERROR/i;
   const homes = (d.homes || []).map((h) => {
     const mh = m.homes?.[h.id];
     const auto = h.useAuto !== false;
     const status = !auto ? '직접 입력한 시세' : mh?.estimate ? `${esc(mh.basis || '')} · ${dateTime(mh.checkedAt)}` : '다음 자동 수집 때 반영돼요';
     const extra = [
-      mh?.error && auto ? `<p class="warn pad">${esc(mh.error)}</p>` : '',
+      // 국토부 서버가 잠깐 오류를 낸 건 알리지 않아요 (지난번 값을 그대로 쓰고, 거래가 매일 있는 것도 아니라서). 단지명·인증키처럼 고쳐야 할 것만 보여요
+      mh?.error && auto && !(TRANSIENT_HOME.test(mh.error) && mh.estimate) ? `<p class="warn pad">${esc(mh.error)}</p>` : '',
       mh?.candidates?.length ? `<div class="pad"><p class="hint">이 지역에서 찾은 단지 이름이에요. 맞는 이름을 누르면 바로 바뀌어요.</p><div class="cands">${mh.candidates.map((c) => `<button class="pill" data-action="cand" data-id="${esc(h.id)}" data-name="${esc(c)}">${esc(c)}</button>`).join('')}</div></div>` : '',
       auto && mh?.monthly?.length > 1 ? `<div class="pad"><div class="eyebrow">실거래가 추이 · 월별 중앙값</div><div class="chart-box small"><canvas id="chart-home-${esc(h.id)}" role="img" aria-label="${esc(h.name)} 실거래가 추이"></canvas></div>
         ${details(`trades-${h.id}`, `최근 거래 ${mh.trades?.length || 0}건`, `<div class="table-scroll"><table><thead><tr><th>계약일</th><th>금액</th><th>층</th><th>면적</th></tr></thead><tbody>${(mh.trades || []).map((x) => `<tr><th>${x.date}</th><td>${won(x.price)}</td><td>${x.floor ?? '-'}</td><td>${x.area}㎡</td></tr>`).join('')}</tbody></table></div>`)}</div>` : '',
