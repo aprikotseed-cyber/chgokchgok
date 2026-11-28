@@ -16,15 +16,23 @@ const rawKey = process.env.DATA_GO_KR_KEY || '';
 const serviceKey = rawKey.includes('%') ? rawKey : encodeURIComponent(rawKey);
 
 const tradeCache = new Map();
+// 잠깐 생기는 서버 문제 (다시 해 보면 되는 것)
+const TRANSIENT = /HTTP|TIMEOUT|시간\s*초과|연결 실패|서비스.*지연|SERVICE_TIMEOUT|APPLICATION_ERROR|DB_ERROR/i;
 async function tradesFor(lawdCd, ym) {
   const k = `${lawdCd}-${ym}`;
   if (tradeCache.has(k)) return tradeCache.get(k);
   const all = [];
   for (let page = 1; page <= 10; page++) {
     const url = `${TRADE_URL}?serviceKey=${serviceKey}&LAWD_CD=${lawdCd}&DEAL_YMD=${ym}&numOfRows=1000&pageNo=${page}`;
-    const xml = await (await fetch(url)).text();
-    const err = apiError(xml);
-    if (err) throw new Error(`실거래가 API: ${err}`);
+    // 공공데이터포털(국토부) 서버가 잠깐 'HTTP 에러'·시간 초과를 내는 일이 있어요 → 조금 쉬었다가 3번까지 다시
+    let xml = '';
+    let err = null;
+    for (let tryNo = 1; tryNo <= 3; tryNo++) {
+      try { xml = await (await fetch(url)).text(); err = apiError(xml); } catch (e) { err = `연결 실패 (${e.message})`; }
+      if (!err || !TRANSIENT.test(err) || tryNo === 3) break;
+      await new Promise((r) => setTimeout(r, 4000 * tryNo));
+    }
+    if (err) throw new Error(TRANSIENT.test(err) ? `국토부 실거래가 서버가 잠시 응답하지 않았어요 (${err}). 지난번 받은 값을 그대로 보여 드려요` : `실거래가 API: ${err}`);
     const items = parseTrades(xml);
     all.push(...items);
     const total = Number(xml.match(/<totalCount>(\d+)<\/totalCount>/)?.[1] || 0);
